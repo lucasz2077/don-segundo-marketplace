@@ -1,0 +1,144 @@
+# Roadmap — marketplace-campo
+
+Este roadmap organiza el trabajo en fases alineadas con el flujo de trabajo del proyecto (ver `docs/AGENTS.md`): comprender el negocio, definir el MVP, diseñar la arquitectura, diseñar el modelo de datos, dividir en tareas pequeñas, implementar, revisar y testear. Cada fase sigue ese orden internamente y tiene un criterio de salida explícito antes de pasar a la siguiente.
+
+## Principio de fases
+
+- **Dependencia estricta entre fases:** cada fase se completa (criterio de salida cumplido) antes de iniciar la siguiente.
+- **Priorización interna:** cada fase lista entregables en orden de valor para el usuario; se puede recortar el alcance de una fase pero no saltarse una fase entera.
+- **Trabajo por tareas pequeñas:** dentro de cada fase, el trabajo se divide en tickets pequeños (definición de hecho, revisión y tests por ticket), según el principio 5 del AGENTS.md.
+- **Documentos vivos:** `vision.md`, `requirements.md`, `architecture.md` y `database.md` se actualizan cuando una fase introduce cambios (nunca se implementa algo que no esté reflejado en la documentación).
+
+## Fase 0 — Fundación
+
+### Objetivos
+Preparar el terreno técnico y de proceso para construir el MVP con calidad: repositorio, tooling, stack base, base de datos conectada y CI funcionando.
+
+### Entregables principales
+- Repositorio inicializado con Git y convención de commits convencionales.
+- Proyecto Next.js (App Router) + TypeScript + Tailwind CSS configurados.
+- Prisma conectado a PostgreSQL (Supabase) con `prisma migrate` funcionando en local, staging y producción.
+- Esquema base versionado (seed de categorías y subcategorías del dominio).
+- Variables de entorno documentadas (`.env.example`) y secrets gestionados.
+- CI/CD: lint, typecheck, tests y `prisma migrate deploy` en cada push a la rama principal.
+- Convenciones del equipo documentadas (estructura de carpetas, patrón de rutas y servicios).
+- Sentry y observabilidad básica configurados.
+
+### Criterio de salida
+Un desarrollador nuevo puede clonar el repo, levantar el proyecto con un solo comando, conectarse a una base vacía y correr el pipeline de CI en verde.
+
+### Riesgos
+- Configuración inicial de auth sobrecargada; se contiene con una capa mínima (solo registrar login/logout de prueba).
+- Mismatch de versiones entre Next.js y la librería de auth; se fija la decisión de auth (Better Auth) y se documenta la versión pinneada.
+
+## Fase 1 — MVP
+
+### Objetivos
+Lanzar en producción el flujo central del negocio: un productor publica un bien rural con fotos y ubicación, y otro usuario lo encuentra, lo ve y contacta al vendedor. Sin pagos, sin logística, sin chat en tiempo real.
+
+### Entregables principales
+- Autenticación completa con Better Auth: registro, login, confirmación de email, recuperación de contraseña, sesión persistente.
+- Perfiles básicos con tipo de cuenta (comprador/vendedor/ambos) y edición.
+- Categorías y subcategorías del dominio con seed y navegación.
+- CRUD de publicaciones (crear, editar, eliminar/soft delete, marcar vendida) con subida de imágenes a Cloudinary.
+- Búsqueda con filtros combinables: categoría, ubicación, rango de precio y condición.
+- Detalle de publicación con galería de imágenes y datos del vendedor.
+- Contacto comprador-vendedor (mensaje inicial vía plataforma y/o redirección a WhatsApp/email) con notificación al vendedor.
+- Favoritos (guardar/desguardar y listado).
+- Moderación básica: reportes de usuarios y panel admin para pausar/eliminar publicaciones.
+- Notificaciones básicas en plataforma y por email.
+- Analítica mínima de métricas de alto nivel (MAU, publicaciones activas, contactos).
+- Deploy en producción (Vercel + Supabase + Cloudinary) con dominio propio.
+
+### Criterio de salida
+Todos los criterios de aceptación de `requirements.md` (CA-01 a CA-08) pasan en producción: el flujo completo registro → publicar → buscar → detalle → contactar funciona en móvil, y las métricas de alto nivel se registran correctamente.
+
+### Riesgos
+- Calidad de las publicaciones iniciales baja (fotos y datos incompletos): se mitiga con formulario guiado y validación mínima de campos.
+- Búsqueda lenta por falta de datos de prueba: se siembra data sintética realista y se perfila con EXPLAIN.
+- Conectividad irregular del público objetivo: se prioriza el peso de página y la carga diferida de imágenes.
+- Zona de prueba: se lanza piloto en una provincia/departamento antes de escalar a todo el país.
+
+## Fase 2 — Comunidad
+
+### Objetivos
+Transformar el marketplace de un catálogo en una comunidad con interacción: mensajería, notificaciones y perfiles que generen confianza entre pares.
+
+### Entregables principales
+- Chat comprador-vendedor en tiempo real (websockets o polling sobre el modelo Conversación/Mensaje ya modelado).
+- Bandeja de mensajes con conversaciones por publicación y estados de lectura.
+- Notificaciones ampliadas: mensajes nuevos, seguimiento de favoritos, estado de publicaciones.
+- Perfiles públicos enriquecidos (historial de publicaciones, tiempo en la plataforma, respuesta típica).
+- Reportes mejorados con flujo de resolución y panel de moderación más completo.
+- Búsqueda mejorada por distancia (geolocalización con PostGIS) si se valida la necesidad.
+
+### Criterio de salida
+La mensajería es el canal principal de contacto (más del 50 % de los contactos se inician en plataforma), y la tasa de respuesta del vendedor en 24 h supera el objetivo definido en `vision.md`.
+
+### Riesgos
+- Abuso del chat (spam): rate limiting y bloqueo de usuarios.
+- Costo operativo de websockets en serverless: se evalúa polling eficiente o servicio dedicado.
+- Moderación que no escala con el contenido generado por usuarios: se refuerza el panel y se automatizan reglas simples.
+
+## Fase 3 — Confianza y transacción
+
+### Objetivos
+Dar seguridad a las transacciones: reputación, verificación de vendedores y, cuando el negocio lo justifique, procesamiento de pagos. Esto habilita la monetización.
+
+### Entregables principales
+- Ratings y reseñas comprador → vendedor con agregados en el perfil público.
+- Verificación de vendedores (identidad/domicilio) con estado visible en publicaciones y perfiles.
+- Términos de servicio y políticas de uso actualizados para transacciones.
+- Integración de pagos/escrow: investigación previa (caso de uso, fee, cumplimiento) y, si se aprueba, implementación con pasarela externa.
+- Reputación aplicada a la búsqueda (vendedores verificados destacados).
+
+### Criterio de salida
+Un porcentaje objetivo (definido con datos de la Fase 2) de transacciones se cierra con rating registrado, y el sistema de pagos, si se implementa, pasa una revisión de seguridad y cumplimiento antes de activarse.
+
+### Riesgos
+- Rating sin masa crítica genera decisiones sesgadas: se define un mínimo de transacciones antes de mostrar agregados.
+- Pagos/escrow agregan complejidad legal y operativa (AFIP, facturación, fraudes): se externaliza la pasarela y se contiene el alcance.
+- Fricción de la verificación de vendedores que espanta usuarios: se hace voluntaria y beneficiosa (badge), no obligatoria.
+
+## Fase 4 — Escala
+
+### Objetivos
+Monetizar, diversificar el catálogo y escalar la infraestructura según la demanda: servicios rurales como primera clase, planes premium y decisión de app móvil/VPS con datos reales.
+
+### Entregables principales
+- Servicios rurales como categoría de primera clase (fletes, siembra, veterinarios, alquiler de maquinaria) con campos específicos.
+- Planes premium y publicaciones destacadas (monetización sin comisión obligatoria).
+- Evaluación y, si se decide, app móvil nativa o PWA avanzada.
+- Migración de infraestructura si el costo/rendimiento lo exige: VPS con contenedores y/o backend dedicado (ver `architecture.md`, sección de deploy).
+- Expansión geográfica a otras provincias con soporte multi-provincia.
+- Escalado de búsqueda y caché (p. ej. búsqueda dedicada) según volumen.
+
+### Criterio de salida
+El modelo de ingresos (premium/destacados) cubre los costos de infraestructura, y las métricas de salud del marketplace (definidas en `vision.md`) se mantienen estables con crecimiento de MAU.
+
+### Riesgos
+- Monetizar demasiado pronto daña la adopción: se prioriza el valor para el usuario antes que el ingreso.
+- App móvil nativa es costosa sin datos que lo justifiquen: se decide en base a métricas de uso móvil y retención.
+- Crecimiento de costos de infraestructura: la migración a VPS/backend dedicado se ejecuta solo con demanda demostrada.
+
+## Priorización y dependencias
+
+```
+Fase 0 ──▶ Fase 1 ──▶ Fase 2 ──▶ Fase 3 ──▶ Fase 4
+Fundación   MVP       Comunidad  Confianza   Escala
+```
+
+- **Fase 0 → Fase 1:** estricta. No se implementa el MVP sin CI y base de datos gestionada.
+- **Fase 1 → Fase 2:** la mensajería y los perfiles requieren que existan publicaciones y contacto básico.
+- **Fase 2 → Fase 3:** los ratings necesitan interacción real previa (masa crítica de contactos).
+- **Fase 3 → Fase 4:** la monetización y la escala requieren confianza y volumen sostenido.
+- **Dependencias técnicas específicas:** la tabla de conversaciones/mensajes se diseña en la Fase 1 (esquema) para que la Fase 2 no requiera migraciones destructivas; la geolocalización se guarda desde el MVP para habilitar búsqueda por distancia sin remodelar el esquema.
+
+## Contenido de cada fase (estructura estándar)
+
+Cada fase al planificarse se completa con:
+- **Objetivos:** qué valor de negocio se busca.
+- **Entregables principales:** tickets pequeños con definición de hecho.
+- **Criterio de salida:** evidencia verificable de que la fase terminó.
+- **Riesgos:** principales amenazas y su mitigación.
+- **Actualización de documentación:** cambios en `vision.md`, `requirements.md`, `architecture.md` o `database.md` que la fase introduce.
