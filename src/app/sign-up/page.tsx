@@ -27,7 +27,7 @@ export default function SignUpPage() {
       confirmPassword,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setError(parsed.error.issues[0]?.message ?? "Entrada no válida");
       return;
     }
 
@@ -40,7 +40,7 @@ export default function SignUpPage() {
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message ?? "Unable to create account");
+      setError(signUpError.message ?? "No se pudo crear la cuenta");
       return;
     }
 
@@ -49,22 +49,22 @@ export default function SignUpPage() {
   }
 
   const inputClass =
-    "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none";
+    "w-full rounded-md border border-brand-200 px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold text-zinc-900">
-          Create your account
+    <main className="flex flex-1 items-center justify-center bg-bone px-4">
+      <div className="w-full max-w-sm rounded-lg border border-brand-100 bg-white p-8 shadow-sm">
+        <h1 className="mb-1 text-2xl font-semibold text-brand-900">
+          Crea tu cuenta
         </h1>
-        <p className="mb-6 text-sm text-zinc-500">
-          Join Don Segundo, the rural marketplace.
+        <p className="mb-6 text-sm text-brand-500">
+          Unite a Don Segundo, el marketplace del campo
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label htmlFor="name" className="mb-1 block text-sm font-medium">
-              Name
+              Nombre
             </label>
             <input
               id="name"
@@ -78,7 +78,7 @@ export default function SignUpPage() {
           </div>
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium">
-              Email
+              Correo electrónico
             </label>
             <input
               id="email"
@@ -92,7 +92,7 @@ export default function SignUpPage() {
           </div>
           <div>
             <label htmlFor="password" className="mb-1 block text-sm font-medium">
-              Password
+              Contraseña
             </label>
             <input
               id="password"
@@ -109,7 +109,7 @@ export default function SignUpPage() {
               htmlFor="confirmPassword"
               className="mb-1 block text-sm font-medium"
             >
-              Confirm password
+              Confirmar contraseña
             </label>
             <input
               id="confirmPassword"
@@ -123,7 +123,7 @@ export default function SignUpPage() {
           </div>
 
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           ) : null}
@@ -131,16 +131,19 @@ export default function SignUpPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? "Creando cuenta..." : "Crear cuenta"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-zinc-500">
-          Already have an account?{" "}
-          <Link href="/sign-in" className="font-medium text-zinc-900 underline">
-            Sign in
+        <p className="mt-6 text-center text-sm text-brand-500">
+          ¿Ya tienes cuenta?{" "}
+          <Link
+            href="/sign-in"
+            className="font-medium text-brand-700 underline"
+          >
+            Inicia sesión
           </Link>
         </p>
       </div>

@@ -25,28 +25,28 @@ export function NavActions({ user }: NavActionsProps) {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <Link
           href="/sign-in"
-          className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+          className="text-sm font-medium text-brand-700 transition-colors hover:text-brand-900"
         >
-          Sign in
+          Iniciar sesión
         </Link>
         <Link
           href="/sign-up"
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
+          className="rounded-md bg-brand-700 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
         >
-          Sign up
+          Registrarse
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-4">
       <Link
         href="/dashboard"
-        className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+        className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
       >
         {user.name}
       </Link>
@@ -54,9 +54,9 @@ export function NavActions({ user }: NavActionsProps) {
         type="button"
         onClick={handleSignOut}
         disabled={loading}
-        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {loading ? "Signing out..." : "Sign out"}
+        {loading ? "Cerrando sesión..." : "Cerrar sesión"}
       </button>
     </div>
   );

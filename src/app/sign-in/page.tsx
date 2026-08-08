@@ -22,7 +22,7 @@ export default function SignInPage() {
 
     const parsed = signInSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setError(parsed.error.issues[0]?.message ?? "Entrada no válida");
       return;
     }
 
@@ -34,7 +34,7 @@ export default function SignInPage() {
     setLoading(false);
 
     if (signInError) {
-      setError(signInError.message ?? "Unable to sign in");
+      setError(signInError.message ?? "No se pudo iniciar sesión");
       return;
     }
 
@@ -43,22 +43,22 @@ export default function SignInPage() {
   }
 
   const inputClass =
-    "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none";
+    "w-full rounded-md border border-brand-200 px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold text-zinc-900">
-          Welcome back
+    <main className="flex flex-1 items-center justify-center bg-bone px-4">
+      <div className="w-full max-w-sm rounded-lg border border-brand-100 bg-white p-8 shadow-sm">
+        <h1 className="mb-1 text-2xl font-semibold text-brand-900">
+          Bienvenido de nuevo
         </h1>
-        <p className="mb-6 text-sm text-zinc-500">
-          Sign in to your Don Segundo account.
+        <p className="mb-6 text-sm text-brand-500">
+          Ingresa a tu cuenta de Don Segundo
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label htmlFor="email" className="mb-1 block text-sm font-medium">
-              Email
+              Correo electrónico
             </label>
             <input
               id="email"
@@ -72,7 +72,7 @@ export default function SignInPage() {
           </div>
           <div>
             <label htmlFor="password" className="mb-1 block text-sm font-medium">
-              Password
+              Contraseña
             </label>
             <input
               id="password"
@@ -86,7 +86,7 @@ export default function SignInPage() {
           </div>
 
           {error ? (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}
             </p>
           ) : null}
@@ -94,16 +94,19 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-zinc-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/sign-up" className="font-medium text-zinc-900 underline">
-            Sign up
+        <p className="mt-6 text-center text-sm text-brand-500">
+          ¿No tenes cuenta?{" "}
+          <Link
+            href="/sign-up"
+            className="font-medium text-brand-700 underline"
+          >
+            Regístrate
           </Link>
         </p>
       </div>
