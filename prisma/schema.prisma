@@ -1,0 +1,207 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountType {
+  BUYER
+  SELLER
+  BOTH
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum ListingCondition {
+  NEW
+  USED
+}
+
+enum ListingStatus {
+  ACTIVE
+  PAUSED
+  SOLD
+  REJECTED
+  DELETED
+}
+
+enum ReportReason {
+  SPAM
+  INAPPROPRIATE
+  FRAUD
+  DUPLICATE
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  name          String
+  passwordHash  String?
+  image         String?
+  phone         String?
+  role          Role         @default(USER)
+  accountType   AccountType  @default(BOTH)
+  locationLabel String
+  province      String?
+  profile       Profile?
+  listings      Listing[]
+  favorites     Favorite[]
+  reports       Report[]
+  buyerConvs    Conversation[] @relation("BuyerConvs")
+  sellerConvs   Conversation[] @relation("SellerConvs")
+  messages      Message[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([province])
+  @@index([createdAt])
+}
+
+model Profile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  bio            String?
+  businessName   String?
+  sellerVerified Boolean  @default(false)
+  ratingAvg      Float    @default(0)
+  ratingCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  sortOrder Int        @default(0)
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryTree")
+  listings  Listing[]
+}
+
+model Listing {
+  id            String           @id @default(uuid())
+  ownerId       String
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category         @relation(fields: [categoryId], references: [id])
+  title         String
+  description   String
+  price         Decimal          @db.Decimal(12, 2)
+  currency      Currency         @default(ARS)
+  condition     ListingCondition @default(USED)
+  status        ListingStatus    @default(ACTIVE)
+  province      String
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  viewCount     Int              @default(0)
+  publishedAt   DateTime         @default(now())
+  images        ListingImage[]
+  favorites     Favorite[]
+  reports       Report[]
+  conversations Conversation[]
+  deletedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([categoryId, status])
+  @@index([province, status])
+  @@index([ownerId, status])
+  @@index([price])
+}
+
+model ListingImage {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  publicId  String
+  position  Int      @default(0)
+  alt       String?
+
+  @@unique([listingId, position])
+  @@index([listingId])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([listingId])
+}
+
+model Conversation {
+  id            String    @id @default(uuid())
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  buyerId       String
+  buyer         User      @relation("BuyerConvs", fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId      String
+  seller        User      @relation("SellerConvs", fields: [sellerId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([listingId, buyerId, sellerId])
+  @@index([buyerId, lastMessageAt])
+  @@index([sellerId, lastMessageAt])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  reporter   User         @relation(fields: [reporterId], references: [id])
+  listingId  String
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reason     ReportReason
+  details    String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([status, createdAt])
+  @@index([listingId])
+}
