@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f4f6;
+  --foreground: #1d2f42;
 }
 
 @theme inline {
@@ -12,10 +12,42 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Marca Don Segundo — azul acero + blanco/hueso + acento dorado trigo */
+@theme {
+  /* Azul acero (marca) */
+  --color-brand-50: #f5f8fb;
+  --color-brand-100: #e8eff6;
+  --color-brand-200: #cddcec;
+  --color-brand-300: #a7c3da;
+  --color-brand-400: #7aa2c5;
+  --color-brand-500: #5280a8;
+  --color-brand-600: #3a6087;
+  --color-brand-700: #2c4a6b;
+  --color-brand-800: #243c56;
+  --color-brand-900: #1d2f42;
+  --color-brand-950: #121d28;
+
+  /* Blanco/hueso (superficie) */
+  --color-bone: #f4f4f6;
+  --color-bone-dark: #e7e7ec;
+
+  /* Acento dorado trigo */
+  --color-accent-300: #f0c97e;
+  --color-accent-400: #e8b44d;
+  --color-accent-500: #d9a13b;
+  --color-accent-600: #c08a2e;
+  --color-accent-700: #9d6f24;
+
+  /* Semánticos */
+  --color-success: #2f7d4f;
+  --color-danger: #c0392b;
+  --color-warning: #d97706;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #121d28;
+    --foreground: #e8eff6;
   }
 }
 
