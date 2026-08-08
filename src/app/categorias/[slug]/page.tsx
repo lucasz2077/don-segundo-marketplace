@@ -44,7 +44,7 @@ export default async function CategoriaPage({ params }: CategoriaPageProps) {
           ))}
         </div>
       ) : (
-        <p className="mt-8 text-sm text-brand-500">
+        <p className="mt-8 text-sm text-brand-600">
           Esta categoría aún no tiene subcategorías.
         </p>
       )}

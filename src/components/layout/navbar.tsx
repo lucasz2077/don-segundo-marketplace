@@ -8,12 +8,20 @@ export async function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-brand-100 bg-bone">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link
-          href="/"
-          className="text-lg font-semibold tracking-tight text-brand-900"
-        >
-          Don Segundo
-        </Link>
+        <div className="flex items-center gap-8">
+          <Link
+            href="/"
+            className="text-lg font-semibold tracking-tight text-brand-900"
+          >
+            Don Segundo
+          </Link>
+          <Link
+            href="/listados"
+            className="text-sm font-medium text-brand-700 transition-colors hover:text-brand-900"
+          >
+            Explorar
+          </Link>
+        </div>
         <NavActions user={session?.user ?? null} />
       </nav>
     </header>

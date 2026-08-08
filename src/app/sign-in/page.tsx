@@ -51,7 +51,7 @@ export default function SignInPage() {
         <h1 className="mb-1 text-2xl font-semibold text-brand-900">
           Bienvenido de nuevo
         </h1>
-        <p className="mb-6 text-sm text-brand-500">
+        <p className="mb-6 text-sm text-brand-600">
           Ingresa a tu cuenta de Don Segundo
         </p>
 
@@ -100,7 +100,7 @@ export default function SignInPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-brand-500">
+        <p className="mt-6 text-center text-sm text-brand-600">
           ¿No tenes cuenta?{" "}
           <Link
             href="/sign-up"

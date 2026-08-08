@@ -45,6 +45,12 @@ export function NavActions({ user }: NavActionsProps) {
   return (
     <div className="flex items-center gap-4">
       <Link
+        href="/publicar"
+        className="rounded-md bg-accent-500 px-3 py-1.5 text-sm font-medium text-brand-950 transition-colors hover:bg-accent-400"
+      >
+        Publicar
+      </Link>
+      <Link
         href="/dashboard"
         className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
       >

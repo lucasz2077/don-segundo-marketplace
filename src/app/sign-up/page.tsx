@@ -57,7 +57,7 @@ export default function SignUpPage() {
         <h1 className="mb-1 text-2xl font-semibold text-brand-900">
           Crea tu cuenta
         </h1>
-        <p className="mb-6 text-sm text-brand-500">
+        <p className="mb-6 text-sm text-brand-600">
           Unite a Don Segundo, el marketplace del campo
         </p>
 
@@ -137,7 +137,7 @@ export default function SignUpPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-brand-500">
+        <p className="mt-6 text-center text-sm text-brand-600">
           ¿Ya tienes cuenta?{" "}
           <Link
             href="/sign-in"
