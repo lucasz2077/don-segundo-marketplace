@@ -8,6 +8,10 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient() {
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
+    // Serverless-friendly pool: bound each lambda to a single connection and
+    // cap connection attempts so Supabase's pooler is never exhausted.
+    max: 1,
+    connectionTimeoutMillis: 5000,
   });
   return new PrismaClient({ adapter });
 }

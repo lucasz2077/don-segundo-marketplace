@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations must go through the session/direct connection (5432);
+    // the runtime DATABASE_URL points at the transaction pooler (6543).
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
