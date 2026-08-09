@@ -10,8 +10,11 @@ function createPrismaClient() {
     connectionString: process.env.DATABASE_URL,
     // Serverless-friendly pool: bound each lambda to a single connection and
     // cap connection attempts so Supabase's pooler is never exhausted.
+    // TLS: Supabase poolers use self-signed certificates, so do not reject the
+    // chain (the connection is still encrypted).
     max: 1,
     connectionTimeoutMillis: 5000,
+    ssl: { rejectUnauthorized: false },
   });
   return new PrismaClient({ adapter });
 }
