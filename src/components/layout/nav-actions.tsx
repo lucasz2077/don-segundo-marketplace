@@ -4,11 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { ContadorMensajes } from "@/components/layout/contador-mensajes";
+import { ContadorNotificaciones } from "@/components/layout/contador-notificaciones";
 
 type NavActionsProps = {
   user: {
     name: string;
     email: string;
+    role: string;
   } | null;
 };
 
@@ -50,6 +53,34 @@ export function NavActions({ user }: NavActionsProps) {
       >
         Publicar
       </Link>
+      <Link
+        href="/favoritos"
+        className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+      >
+        Favoritos
+      </Link>
+      <Link
+        href="/mensajes"
+        className="flex items-center gap-1.5 text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+      >
+        Mensajes
+        <ContadorMensajes />
+      </Link>
+      <Link
+        href="/notificaciones"
+        className="flex items-center gap-1.5 text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+      >
+        Notificaciones
+        <ContadorNotificaciones />
+      </Link>
+      {user.role === "ADMIN" ? (
+        <Link
+          href="/admin/reportes"
+          className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+        >
+          Reportes
+        </Link>
+      ) : null}
       <Link
         href="/dashboard"
         className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"

@@ -71,6 +71,7 @@ model User {
   buyerConvs    Conversation[] @relation("BuyerConvs")
   sellerConvs   Conversation[] @relation("SellerConvs")
   messages      Message[]
+  notifications Notification[]
   sessions      Session[]
   accounts      Account[]
   createdAt     DateTime     @default(now())
@@ -170,6 +171,7 @@ model Listing {
   favorites     Favorite[]
   reports       Report[]
   conversations Conversation[]
+  notifications Notification[]
   deletedAt     DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -251,4 +253,19 @@ model Report {
 
   @@index([status, createdAt])
   @@index([listingId])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String?
+  listing   Listing?  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

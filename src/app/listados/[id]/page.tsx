@@ -5,6 +5,10 @@ import { getSession } from "@/lib/auth/session";
 import { formatearPrecio } from "@/lib/formato";
 import { GaleriaImagenes } from "@/components/listing/galeria-imagenes";
 import { BotonEliminarPublicacion } from "@/components/listing/boton-eliminar-publicacion";
+import { BotonContactar } from "@/components/listing/boton-contactar";
+import { BotonFavorito } from "@/components/listing/boton-favorito";
+import { BotonReportar } from "@/components/listing/boton-reportar";
+import { esFavorito } from "@/lib/favoritos";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +31,20 @@ export default async function DetallePublicacionPage({
   }
 
   const esDueno = session?.user.id === publicacion.ownerId;
+  const esAdmin = session?.user.role === "ADMIN";
+  // Una publicación pausada o rechazada solo es visible para su dueño o un
+  // administrador; el resto recibe 404 (RF-13 / CA-07).
+  if (publicacion.status !== "ACTIVE" && !esDueno && !esAdmin) {
+    notFound();
+  }
+  const favoritoInicial = session
+    ? await esFavorito(session.user.id, publicacion.id)
+    : false;
   const etiquetaCondicion =
     publicacion.condition === "NEW" ? "Nuevo" : "Usado";
   const ubicacion = publicacion.city
     ? `${publicacion.city}, ${publicacion.province}`
     : publicacion.province;
-  const rutaContacto = `/sign-in?redirect=${encodeURIComponent(`/listados/${publicacion.id}`)}`;
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
@@ -54,6 +66,11 @@ export default async function DetallePublicacionPage({
             <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
               {etiquetaCondicion}
             </span>
+            {publicacion.status === "PAUSED" && (esDueno || esAdmin) ? (
+              <span className="rounded bg-accent-500 px-2 py-0.5 text-xs font-medium text-brand-900">
+                Publicación pausada
+              </span>
+            ) : null}
             <Link
               href={`/categorias/${publicacion.category.slug}`}
               className="text-sm font-medium text-brand-700 underline"
@@ -84,24 +101,30 @@ export default async function DetallePublicacionPage({
               {publicacion.owner.name}
             </p>
             {!esDueno ? (
-              !session ? (
-                <Link
-                  href={rutaContacto}
-                  className="mt-4 inline-block rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-                >
-                  Contactar
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="mt-4 rounded-md bg-brand-100 px-6 py-3 text-sm font-medium text-brand-400"
-                >
-                  Contacto próximo slice
-                </button>
-              )
+              <BotonContactar
+                listingId={publicacion.id}
+                sesionIniciada={Boolean(session)}
+              />
             ) : null}
           </div>
+
+          {!esDueno ? (
+            <div className="mt-4">
+              <BotonReportar
+                listingId={publicacion.id}
+                sesionIniciada={Boolean(session)}
+              />
+            </div>
+          ) : null}
+
+          {session && !esDueno ? (
+            <div className="mt-4">
+              <BotonFavorito
+                listingId={publicacion.id}
+                inicialFavorito={favoritoInicial}
+              />
+            </div>
+          ) : null}
 
           <p className="mt-4 text-xs text-brand-600">
             {publicacion.viewCount} {publicacion.viewCount === 1 ? "vista" : "vistas"}
