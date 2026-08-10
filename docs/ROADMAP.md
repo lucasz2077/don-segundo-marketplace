@@ -65,12 +65,15 @@ Todos los criterios de aceptación de `requirements.md` (CA-01 a CA-08) pasan en
 Transformar el marketplace de un catálogo en una comunidad con interacción: mensajería, notificaciones y perfiles que generen confianza entre pares.
 
 ### Entregables principales
-- Chat comprador-vendedor en tiempo real (websockets o polling sobre el modelo Conversación/Mensaje ya modelado).
-- Bandeja de mensajes con conversaciones por publicación y estados de lectura.
-- Notificaciones ampliadas: mensajes nuevos, seguimiento de favoritos, estado de publicaciones.
-- Perfiles públicos enriquecidos (historial de publicaciones, tiempo en la plataforma, respuesta típica).
-- Reportes mejorados con flujo de resolución y panel de moderación más completo.
-- Búsqueda mejorada por distancia (geolocalización con PostGIS) si se valida la necesidad.
+
+Trabajo por slices con dependencia estricta (cada slice se completa antes del siguiente):
+
+- **Slice 1 — Bandeja de mensajes y estados de lectura:** bandeja de conversaciones por publicación ordenada por `lastMessageAt` (los índices `[buyerId, lastMessageAt]` y `[sellerId, lastMessageAt]` ya existen); vista separada comprador/vendedor según el rol en cada hilo; marcado de leído con `Message.readAt` al abrir el hilo; contador de no leídos en la navegación.
+- **Slice 2 — Chat en tiempo real con polling eficiente:** polling por cursor (`after: createdAt`) cada 3-5 s solo mientras la conversación está abierta; envío optimista con dedupe por idempotencia; auto-scroll y badge de mensaje nuevo si la pestaña no está enfocada; rate limiting en el envío (RNF-07). Decisión tomada: polling, sin websockets (costo de websockets en serverless no se justifica en esta fase).
+- **Slice 3 — Notificaciones ampliadas:** modelo `Notification` nuevo (user, tipo, payload JSONB, leída) con migración no destructiva; eventos de mensaje nuevo, seguimiento de favorito (cambio de precio/estado) y cambio de estado de publicación propia; entrega en plataforma y por email.
+- **Slice 4 — Perfiles públicos enriquecidos:** extensión de `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde); página pública del vendedor con bio, businessName, publicaciones activas y contacto autorizado; enlaces desde el detalle de publicación y el chat.
+- **Slice 5 — Moderación mejorada:** flujo de resolución de reportes usando el enum `ReportStatus` existente (OPEN → REVIEWED → RESOLVED/DISMISSED); tabla `ModerationAction` de auditoría (quién, cuándo, qué acción); panel admin con filtros por estado/motivo y detalle del reporte.
+- **Slice 6 — Búsqueda por distancia: DIFERIDO.** No entra en la Fase 2; queda como slice condicional futuro si se valida la necesidad (geolocalización con PostGIS, ya contemplada en `database.md` §5).
 
 ### Criterio de salida
 La mensajería es el canal principal de contacto (más del 50 % de los contactos se inician en plataforma), y la tasa de respuesta del vendedor en 24 h supera el objetivo definido en `vision.md`.

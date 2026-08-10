@@ -377,10 +377,12 @@ model Report {
 
 ## 7. Evolución futura del esquema
 
-- **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída) y se expande `Profile` con más datos públicos.
+- **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída), se expande `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde) y se agrega `ModerationAction` para auditar las acciones de moderación.
 - **Fase 3 (Confianza):** `Rating` (comprador→vendedor, puntaje, comentario), campo `sellerVerified` pasa a tener proceso de verificación con documentos, y tablas de pagos/escrow si se procesan internamente.
 - **Fase 4 (Escala):** `Subscription`/`PremiumPlan` para publicaciones destacadas y planes; `ServiceListing` como variante con campos específicos de servicios rurales (modalidad, zona de cobertura, disponibilidad) o extensión de `Listing` con discriminador.
 - **Búsqueda por distancia:** activación de PostGIS y columna de geografía en `Listing` cuando la búsqueda por radio lo requiera.
 - **Auditoría de moderación:** tabla `ModerationAction` que registra quién y cuándo tomó cada acción administrativa.
+- **Notificaciones:** `Notification` (userId, tipo enum, payload JSONB, leída, createdAt) con índice por `(userId, readAt)` para la bandeja de notificaciones.
+- **Perfiles públicos:** `Profile` se expande con campos de display público (tiempo de respuesta típico calculado desde `Message`, en plataforma desde `createdAt`), sin exponer datos de contacto salvo los autorizados por el vendedor.
 
 El esquema está diseñado para crecer por fases sin migraciones destructivas en la mayoría de los cambios: cada fase agrega tablas o columnas nuevas en lugar de remodelar las existentes.

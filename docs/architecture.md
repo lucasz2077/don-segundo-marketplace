@@ -150,6 +150,13 @@ marketplace-campo/
 - Transformaciones bajo demanda para servir WebP/AVIF y tamaños según contexto (thumbnail, galería, hero).
 - Eliminación de assets huérfanos al borrar o reemplazar imágenes de una publicación.
 
+### 4.6 Chat con polling eficiente
+
+- El chat de la Fase 2 usa polling por cursor (`after: createdAt`) en lugar de websockets: el cliente consulta mensajes nuevos cada 3-5 s solo mientras la conversación está abierta, con respuestas livianas e incrementales.
+- Justificación: cero infraestructura adicional en Vercel serverless; suficiente para el volumen esperado del marketplace; el modelo `Conversation`/`Message` y sus índices ya soportan las consultas.
+- El envío es optimista con dedupe por idempotencia; el rate limiting del envío sigue la regla RNF-07.
+- Reevaluación: si el volumen de chat crece y el polling degrada el costo/rendimiento, se evalúa SSE o websockets con servicio dedicado sin cambiar el contrato de la API.
+
 ## 5. Decisión de autenticación
 
 ### Recomendación: **Better Auth**

@@ -23,7 +23,7 @@
 | Pagos procesados / escrow | Fase posterior (Fase 3). El MVP solo facilita el contacto; la transacción se cierra fuera de plataforma. |
 | Logística / envíos / fletes integrados | Fase posterior. La ubicación y el contacto directo cubren la necesidad inicial. |
 | Ratings y reseñas | Fase posterior (Fase 3). Requiere una masa crítica de transacciones para ser útil. |
-| Chat en tiempo real | Fase posterior (Fase 2). El MVP usa mensajes asincrónicos o redirección al contacto (WhatsApp / teléfono / email). |
+| Chat en tiempo real | El MVP usa mensajes asincrónicos o redirección al contacto (WhatsApp / teléfono / email). La Fase 2 implementa chat con polling eficiente, sin websockets. |
 | Verificación de vendedores / identidad | Fase posterior (Fase 3). |
 | Planes premium / publicidad pagada | Fase posterior (Fase 4). |
 | App móvil nativa | Fase posterior (Fase 4). El MVP es web responsive. |
@@ -62,6 +62,11 @@
 
 - **RF-19 — Contacto al vendedor:** el comprador puede iniciar contacto con el vendedor desde el detalle de la publicación (mensaje vía plataforma y/o redirección a WhatsApp/email). Los datos de contacto personales del vendedor no se exponen públicamente sin su consentimiento.
 - **RF-20 — Notificaciones básicas:** el usuario recibe notificaciones de contacto recibido (vendedor) y de seguimiento de favorito (comprador), dentro de la plataforma y por email.
+- **RF-21 — Bandeja de mensajes:** el usuario tiene una bandeja con sus conversaciones por publicación, ordenadas por última actividad, separadas por su rol (comprador o vendedor) en cada hilo. Las conversaciones no leídas se distinguen visualmente y se marcan al abrirse.
+- **RF-22 — Chat con mensajes en tiempo real (polling):** dentro de una conversación abierta, los mensajes nuevos se muestran sin recargar la página, mediante polling eficiente por cursor. El envío es optimista y no se pierde mensajes por errores de red; los mensajes propios y ajenos se distinguen claramente.
+- **RF-23 — Notificaciones ampliadas:** el usuario recibe notificaciones de mensaje nuevo, de cambios en publicaciones que sigue (favoritos: precio o estado) y de cambios de estado en sus propias publicaciones, dentro de la plataforma y por email.
+- **RF-24 — Perfil público del vendedor:** el perfil público de un vendedor muestra bio, nombre comercial, tiempo en la plataforma, tiempo de respuesta típico y sus publicaciones activas. Es accesible desde el detalle de publicación y desde el chat.
+- **RF-25 — Moderación con flujo de resolución:** cada reporte recorre un flujo de resolución trazable (abierto, en revisión, resuelto, descartado), y cada acción administrativa queda registrada con autor y fecha.
 
 ## 3. Requisitos no funcionales
 
@@ -108,6 +113,11 @@
 | US-08 | usuario | reportar una publicación inapropiada | mantener la plataforma confiable |
 | US-09 | administrador | pausar o eliminar publicaciones que violan normas | moderar el contenido |
 | US-10 | vendedor | marcar mi publicación como vendida | no recibir más contactos por algo vendido |
+| US-11 | comprador | chatear con el vendedor dentro de la plataforma | cerrar el trato sin depender de canales externos |
+| US-12 | vendedor | ver mis conversaciones agrupadas por publicación y saber cuáles no leí | responder rápido y no perder oportunidades |
+| US-13 | comprador | ver el perfil público del vendedor antes de contactar | evaluar su confiabilidad |
+| US-14 | usuario | recibir aviso cuando cambia el precio de un favorito | decidir si comprar ahora o esperar |
+| US-15 | administrador | resolver reportes con un flujo claro y auditable | mantener la plataforma confiable |
 
 ## 5. Criterios de aceptación de alto nivel
 
