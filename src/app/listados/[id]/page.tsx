@@ -6,7 +6,6 @@ import { formatearPrecio } from "@/lib/formato";
 import { GaleriaImagenes } from "@/components/listing/galeria-imagenes";
 import { BotonEliminarPublicacion } from "@/components/listing/boton-eliminar-publicacion";
 import { BotonContactar } from "@/components/listing/boton-contactar";
-import { BotonFavorito } from "@/components/listing/boton-favorito";
 import { BotonReportar } from "@/components/listing/boton-reportar";
 import { esFavorito } from "@/lib/favoritos";
 
@@ -21,10 +20,8 @@ export default async function DetallePublicacionPage({
 }: DetallePublicacionPageProps) {
   const { id } = await params;
 
-  const [publicacion, session] = await Promise.all([
-    obtenerPublicacionPorId(id),
-    getSession(),
-  ]);
+  const session = await getSession();
+  const publicacion = await obtenerPublicacionPorId(id, session?.user.id);
 
   if (!publicacion) {
     notFound();
@@ -50,7 +47,7 @@ export default async function DetallePublicacionPage({
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
       <Link
         href="/listados"
-        className="text-sm font-medium text-brand-700 underline"
+        className="text-sm font-medium text-brand-700 underline dark:text-brand-200"
       >
         Volver al listado
       </Link>
@@ -59,6 +56,9 @@ export default async function DetallePublicacionPage({
         <GaleriaImagenes
           imagenes={publicacion.images}
           titulo={publicacion.title}
+          mostrarFavorito={Boolean(session) && !esDueno}
+          listingId={publicacion.id}
+          inicialFavorito={favoritoInicial}
         />
 
         <div>
@@ -78,13 +78,13 @@ export default async function DetallePublicacionPage({
               {publicacion.category.name}
             </Link>
           </div>
-          <h1 className="mt-3 text-3xl font-semibold text-brand-900">
+          <h1 className="mt-3 text-3xl font-semibold text-brand-900 dark:text-bone">
             {publicacion.title}
           </h1>
-          <p className="mt-2 text-2xl font-semibold text-brand-900">
+          <p className="mt-2 text-2xl font-semibold text-brand-900 dark:text-bone">
             {formatearPrecio(publicacion.price, publicacion.currency)}
           </p>
-          <p className="mt-2 text-sm text-brand-600">{ubicacion}</p>
+          <p className="mt-2 text-sm text-brand-600 dark:text-brand-200">{ubicacion}</p>
 
           <div className="mt-6 rounded-lg border border-brand-100 bg-white p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-brand-900">
@@ -117,29 +117,18 @@ export default async function DetallePublicacionPage({
             </div>
           ) : null}
 
-          {session && !esDueno ? (
-            <div className="mt-4">
-              <BotonFavorito
-                listingId={publicacion.id}
-                inicialFavorito={favoritoInicial}
-              />
-            </div>
-          ) : null}
-
-          <p className="mt-4 text-xs text-brand-600">
+          <p className="mt-4 text-xs text-brand-600 dark:text-brand-200">
             {publicacion.viewCount} {publicacion.viewCount === 1 ? "vista" : "vistas"}
           </p>
 
           {esDueno ? (
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                disabled
-                title="La edición estará disponible en el próximo slice"
-                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700"
+              <Link
+                href={`/publicar?id=${publicacion.id}`}
+                className="inline-block rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
               >
                 Editar
-              </button>
+              </Link>
               <BotonEliminarPublicacion listingId={publicacion.id} />
             </div>
           ) : null}

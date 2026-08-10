@@ -26,14 +26,16 @@ function respuestaError(
 
 /**
  * GET /api/listings/[id] — detalle público de una publicación. Cuenta la
- * vista. 404 si no existe o fue eliminada.
+ * vista salvo que la consulte su propietario (el propio usuario no infla el
+ * contador). 404 si no existe o fue eliminada.
  */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const publicacion = await obtenerPublicacionPorId(id);
+  const session = await getSession().catch(() => null);
+  const publicacion = await obtenerPublicacionPorId(id, session?.user.id);
   if (!publicacion) {
     return respuestaError(404, "NO_ENCONTRADA", "La publicación no existe");
   }

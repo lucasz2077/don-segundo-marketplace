@@ -119,13 +119,18 @@ export async function obtenerPublicacionesActivas(
 
 /**
  * Devuelve una publicación activa por id para el detalle público e
- * incrementa su contador de vistas. Retorna null si no existe o fue
- * eliminada (soft delete).
+ * incrementa su contador de vistas (salvo que quien la consulta sea su
+ * propietario). Retorna null si no existe o fue eliminada (soft delete).
  */
-export async function obtenerPublicacionPorId(id: string) {
+export async function obtenerPublicacionPorId(id: string, userId?: string) {
   const publicacion = await obtenerPublicacion(id);
   if (!publicacion || publicacion.deletedAt || publicacion.status === "DELETED") {
     return null;
+  }
+  // Las vistas propias no cuentan: evita inflar el contador cuando el dueño
+  // revisa su propia publicación.
+  if (userId === publicacion.ownerId) {
+    return { ...publicacion, viewCount: publicacion.viewCount };
   }
   await prisma.listing.update({
     where: { id: publicacion.id },

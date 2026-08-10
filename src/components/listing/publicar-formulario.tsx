@@ -16,8 +16,28 @@ type CategoriaFormulario = {
   children: Array<{ id: string; name: string; slug: string }>;
 };
 
+type ImagenInicial = {
+  url: string;
+  publicId: string;
+  alt: string | null;
+};
+
+export type PublicacionInicial = {
+  titulo: string;
+  descripcion: string;
+  precio: string;
+  moneda: "ARS" | "USD";
+  condicion: "NEW" | "USED";
+  categoriaId: string;
+  provincia: string;
+  ciudad: string;
+  imagenes: ImagenInicial[];
+};
+
 type PublicarFormularioProps = {
   categorias: CategoriaFormulario[];
+  listingId?: string;
+  publicacionInicial?: PublicacionInicial;
 };
 
 type ImagenLocal = ImagenPublicacionInput & { preview: string };
@@ -30,22 +50,44 @@ const claseCampo =
 const etiquetaCampo = "mb-1 block text-sm font-medium text-brand-900";
 
 /**
- * Formulario de publicación: sube las imágenes a /api/upload y envía los
- * datos a POST /api/listings. Valida con Zod y muestra errores en español.
+ * Formulario de publicación/edición: en modo creación envía el payload a
+ * POST /api/listings; en modo edición (listingId presente) a
+ * PATCH /api/listings/[id]. Sube las imágenes a /api/upload y valida con Zod.
  */
-export function PublicarFormulario({ categorias }: PublicarFormularioProps) {
+export function PublicarFormulario({
+  categorias,
+  listingId,
+  publicacionInicial,
+}: PublicarFormularioProps) {
   const router = useRouter();
   const inputArchivos = useRef<HTMLInputElement>(null);
+  const esEdicion = Boolean(listingId);
 
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [precio, setPrecio] = useState("");
-  const [moneda, setMoneda] = useState<"ARS" | "USD">("ARS");
-  const [condicion, setCondicion] = useState<"NEW" | "USED">("USED");
-  const [categoriaId, setCategoriaId] = useState("");
-  const [provincia, setProvincia] = useState("");
-  const [ciudad, setCiudad] = useState("");
-  const [imagenes, setImagenes] = useState<ImagenLocal[]>([]);
+  const [titulo, setTitulo] = useState(publicacionInicial?.titulo ?? "");
+  const [descripcion, setDescripcion] = useState(
+    publicacionInicial?.descripcion ?? ""
+  );
+  const [precio, setPrecio] = useState(publicacionInicial?.precio ?? "");
+  const [moneda, setMoneda] = useState<"ARS" | "USD">(
+    publicacionInicial?.moneda ?? "ARS"
+  );
+  const [condicion, setCondicion] = useState<"NEW" | "USED">(
+    publicacionInicial?.condicion ?? "USED"
+  );
+  const [categoriaId, setCategoriaId] = useState(
+    publicacionInicial?.categoriaId ?? ""
+  );
+  const [provincia, setProvincia] = useState(publicacionInicial?.provincia ?? "");
+  const [ciudad, setCiudad] = useState(publicacionInicial?.ciudad ?? "");
+  const [imagenes, setImagenes] = useState<ImagenLocal[]>(
+    publicacionInicial?.imagenes.map((imagen) => ({
+      url: imagen.url,
+      publicId: imagen.publicId,
+      alt: imagen.alt ?? undefined,
+      // En modo edición la "vista previa" es la propia URL de Cloudinary.
+      preview: imagen.url,
+    })) ?? []
+  );
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -131,21 +173,36 @@ export function PublicarFormulario({ categorias }: PublicarFormularioProps) {
 
     setEnviando(true);
     try {
-      const respuesta = await fetch("/api/listings", {
-        method: "POST",
+      const ruta = esEdicion
+        ? `/api/listings/${listingId}`
+        : "/api/listings";
+      const respuesta = await fetch(ruta, {
+        method: esEdicion ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parseado.data),
       });
       const cuerpo = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
-        setError(cuerpo?.error?.message ?? "No se pudo publicar. Intenta de nuevo.");
+        setError(
+          cuerpo?.error?.message ??
+            (esEdicion
+              ? "No se pudo guardar los cambios. Intenta de nuevo."
+              : "No se pudo publicar. Intenta de nuevo.")
+        );
         setEnviando(false);
         return;
       }
-      router.push(`/listados/${cuerpo.data.id}`);
+      const destino = esEdicion
+        ? `/listados/${listingId}`
+        : `/listados/${cuerpo.data.id}`;
+      router.push(destino);
       router.refresh();
     } catch {
-      setError("No se pudo publicar. Intenta de nuevo.");
+      setError(
+        esEdicion
+          ? "No se pudo guardar los cambios. Intenta de nuevo."
+          : "No se pudo publicar. Intenta de nuevo."
+      );
       setEnviando(false);
     }
   }
@@ -344,7 +401,13 @@ export function PublicarFormulario({ categorias }: PublicarFormularioProps) {
         disabled={enviando}
         className="rounded-md bg-accent-500 px-6 py-3 text-sm font-semibold text-brand-950 transition-colors hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {enviando ? "Publicando..." : "Publicar"}
+        {enviando
+          ? esEdicion
+            ? "Guardando..."
+            : "Publicando..."
+          : esEdicion
+            ? "Guardar cambios"
+            : "Publicar"}
       </button>
     </form>
   );

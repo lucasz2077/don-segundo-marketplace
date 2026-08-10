@@ -2,17 +2,30 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { BotonFavorito } from "@/components/listing/boton-favorito";
 
 type GaleriaImagenesProps = {
   imagenes: Array<{ url: string; alt: string | null }>;
   titulo: string;
+  // Corazón de favorito superpuesto sobre la foto (solo si hay sesión y no es
+  // el dueño). En mobile queda siempre visible (no hay hover) y en desktop
+  // aparece al pasar el mouse por encima de la imagen.
+  mostrarFavorito?: boolean;
+  listingId?: string;
+  inicialFavorito?: boolean;
 };
 
 /**
  * Galería simple de imágenes: imagen principal grande con miniaturas para
- * cambiar la vista.
+ * cambiar la vista. Soporta un corazón de favorito flotante en la esquina.
  */
-export function GaleriaImagenes({ imagenes, titulo }: GaleriaImagenesProps) {
+export function GaleriaImagenes({
+  imagenes,
+  titulo,
+  mostrarFavorito,
+  listingId,
+  inicialFavorito,
+}: GaleriaImagenesProps) {
   const [indice, setIndice] = useState(0);
   const principal = imagenes[indice];
 
@@ -26,7 +39,7 @@ export function GaleriaImagenes({ imagenes, titulo }: GaleriaImagenesProps) {
 
   return (
     <div>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-brand-100 bg-brand-50">
+      <div className="group relative aspect-[4/3] overflow-hidden rounded-lg border border-brand-100 bg-brand-50">
         <Image
           src={principal.url}
           alt={principal.alt ?? titulo}
@@ -35,6 +48,15 @@ export function GaleriaImagenes({ imagenes, titulo }: GaleriaImagenesProps) {
           sizes="(max-width: 768px) 100vw, 66vw"
           className="object-cover"
         />
+        {mostrarFavorito && listingId ? (
+          <div className="absolute right-2 top-2 z-10 transition-opacity sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+            <BotonFavorito
+              listingId={listingId}
+              inicialFavorito={inicialFavorito ?? false}
+              variant="foto"
+            />
+          </div>
+        ) : null}
       </div>
       {imagenes.length > 1 ? (
         <div className="mt-3 flex flex-wrap gap-2">

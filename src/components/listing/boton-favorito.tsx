@@ -7,6 +7,9 @@ type BotonFavoritoProps = {
   listingId: string;
   inicialFavorito: boolean;
   inicialCantidad?: number;
+  // "boton": botón con texto ("Guardar"/"Guardado"). "foto": corazón compacto
+  // superpuesto sobre la imagen (sin texto, overlay circular).
+  variant?: "boton" | "foto";
 };
 
 /**
@@ -18,6 +21,7 @@ export function BotonFavorito({
   listingId,
   inicialFavorito,
   inicialCantidad,
+  variant = "boton",
 }: BotonFavoritoProps) {
   const router = useRouter();
   const [esFavorito, setEsFavorito] = useState(inicialFavorito);
@@ -60,6 +64,29 @@ export function BotonFavorito({
     } finally {
       setLoading(false);
     }
+  }
+
+  if (variant === "foto") {
+    return (
+      <>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={alternarFavorito}
+          aria-label={esFavorito ? "Quitar de favoritos" : "Guardar en favoritos"}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-brand-100 bg-white/95 text-lg shadow-md transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span aria-hidden className={esFavorito ? "text-danger" : "text-brand-700"}>
+            {esFavorito ? "♥" : "♡"}
+          </span>
+        </button>
+        {error ? (
+          <span className="absolute -bottom-1 right-0 rounded bg-brand-900/80 px-1.5 py-0.5 text-[10px] text-white">
+            {error}
+          </span>
+        ) : null}
+      </>
+    );
   }
 
   const clasesBase =
