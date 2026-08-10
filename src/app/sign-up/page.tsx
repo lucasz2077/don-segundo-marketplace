@@ -32,20 +32,25 @@ export default function SignUpPage() {
     }
 
     setLoading(true);
-    const { error: signUpError } = await authClient.signUp.email({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
-    setLoading(false);
+    try {
+      const { error: signUpError } = await authClient.signUp.email({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
 
-    if (signUpError) {
-      setError(signUpError.message ?? "No se pudo crear la cuenta");
-      return;
+      if (signUpError) {
+        setError(signUpError.message ?? "No se pudo crear la cuenta");
+        return;
+      }
+
+      router.push("/listados");
+      router.refresh();
+    } catch {
+      setError("No se pudo conectar. Revisá tu conexión e intentá de nuevo.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push("/dashboard");
-    router.refresh();
   }
 
   const inputClass =
@@ -63,7 +68,10 @@ export default function SignUpPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label htmlFor="name" className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor="name"
+              className="mb-1 block text-sm font-medium text-brand-700"
+            >
               Nombre
             </label>
             <input
@@ -77,7 +85,10 @@ export default function SignUpPage() {
             />
           </div>
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor="email"
+              className="mb-1 block text-sm font-medium text-brand-700"
+            >
               Correo electrónico
             </label>
             <input
@@ -91,7 +102,10 @@ export default function SignUpPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor="password"
+              className="mb-1 block text-sm font-medium text-brand-700"
+            >
               Contraseña
             </label>
             <input
@@ -107,7 +121,7 @@ export default function SignUpPage() {
           <div>
             <label
               htmlFor="confirmPassword"
-              className="mb-1 block text-sm font-medium"
+              className="mb-1 block text-sm font-medium text-brand-700"
             >
               Confirmar contraseña
             </label>

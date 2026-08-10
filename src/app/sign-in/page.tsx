@@ -9,7 +9,7 @@ import { signInSchema } from "@/lib/validation/auth";
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/dashboard";
+  const redirectTo = searchParams.get("redirect") ?? "/listados";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,19 +27,24 @@ export default function SignInPage() {
     }
 
     setLoading(true);
-    const { error: signInError } = await authClient.signIn.email({
-      email: parsed.data.email,
-      password: parsed.data.password,
-    });
-    setLoading(false);
+    try {
+      const { error: signInError } = await authClient.signIn.email({
+        email: parsed.data.email,
+        password: parsed.data.password,
+      });
 
-    if (signInError) {
-      setError(signInError.message ?? "No se pudo iniciar sesión");
-      return;
+      if (signInError) {
+        setError(signInError.message ?? "No se pudo iniciar sesión");
+        return;
+      }
+
+      router.push(redirectTo);
+      router.refresh();
+    } catch {
+      setError("No se pudo conectar. Revisá tu conexión e intentá de nuevo.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(redirectTo);
-    router.refresh();
   }
 
   const inputClass =
@@ -57,7 +62,10 @@ export default function SignInPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor="email"
+              className="mb-1 block text-sm font-medium text-brand-700"
+            >
               Correo electrónico
             </label>
             <input
@@ -71,7 +79,10 @@ export default function SignInPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium">
+            <label
+              htmlFor="password"
+              className="mb-1 block text-sm font-medium text-brand-700"
+            >
               Contraseña
             </label>
             <input
