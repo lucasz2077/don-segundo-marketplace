@@ -59,10 +59,10 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900">
+      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
         {esEdicion ? "Editar publicación" : "Publicar"}
       </h1>
-      <p className="mt-1 text-sm text-brand-600">
+      <p className="mt-1 text-sm text-brand-600 dark:text-bone">
         {esEdicion
           ? "Actualizá los datos de tu publicación. Podés cambiar hasta 8 imágenes."
           : "Completa los datos de tu publicación. Podés subir hasta 8 imágenes."}

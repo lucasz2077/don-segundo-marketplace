@@ -47,7 +47,8 @@ const MAX_IMAGENES = 8;
 const claseCampo =
   "w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
 
-const etiquetaCampo = "mb-1 block text-sm font-medium text-brand-900";
+const etiquetaCampo =
+  "mb-1 block text-sm font-medium text-brand-900 dark:text-bone";
 
 /**
  * Formulario de publicación/edición: en modo creación envía el payload a
@@ -330,7 +331,10 @@ export function PublicarFormulario({
         </div>
         <div>
           <label htmlFor="ciudad" className={etiquetaCampo}>
-            Ciudad <span className="font-normal text-brand-600">(opcional)</span>
+            Ciudad{" "}
+            <span className="font-normal text-brand-600 dark:text-brand-300">
+              (opcional)
+            </span>
           </label>
           <input
             id="ciudad"
@@ -373,7 +377,7 @@ export function PublicarFormulario({
           type="button"
           onClick={() => inputArchivos.current?.click()}
           disabled={imagenes.length >= MAX_IMAGENES}
-          className="mt-3 rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-3 rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-600 dark:text-bone dark:hover:bg-white/10"
         >
           {imagenes.length >= MAX_IMAGENES
             ? `Máximo ${MAX_IMAGENES} imágenes`
