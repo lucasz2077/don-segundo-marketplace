@@ -56,6 +56,8 @@ model User {
   id            String       @id @default(uuid())
   email         String       @unique
   name          String
+  lastName      String?
+  dni           String?
   passwordHash  String?
   image         String?
   phone         String?
@@ -66,6 +68,7 @@ model User {
   emailVerified Boolean      @default(false)
   profile       Profile?
   listings      Listing[]
+  direcciones   Direccion[]
   favorites     Favorite[]
   reports       Report[]
   buyerConvs    Conversation[] @relation("BuyerConvs")
@@ -268,4 +271,21 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+model Direccion {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calle           String
+  ciudad          String
+  provincia       String
+  codigoPostal    String
+  pisoDepto       String?
+  referencia      String?
+  esPredeterminada Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
 }
