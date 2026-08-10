@@ -84,8 +84,10 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900">Publicaciones</h1>
-      <p className="mt-1 text-sm text-brand-600">
+      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
+        Publicaciones
+      </h1>
+      <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
         Explorá y buscá entre las publicaciones activas del campo argentino.
       </p>
 
@@ -102,7 +104,7 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
 
       {resultado.publicaciones.length > 0 ? (
         <>
-          <p className="mt-6 text-sm text-brand-600">
+          <p className="mt-6 text-sm text-brand-600 dark:text-brand-200">
             {resultado.total} {resultado.total === 1 ? "publicación" : "publicaciones"}
           </p>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -123,7 +125,7 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
                 Anterior
               </span>
             )}
-            <span className="text-sm text-brand-600">
+            <span className="text-sm text-brand-600 dark:text-brand-200">
               Página {resultado.pagina} de {resultado.totalPaginas}
             </span>
             {tieneSiguiente ? (

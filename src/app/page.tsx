@@ -46,7 +46,7 @@ export default async function HomePage() {
         id="categorias"
         className="mx-auto w-full max-w-6xl flex-1 px-4 py-16"
       >
-        <h2 className="mb-8 text-2xl font-semibold text-brand-900">
+        <h2 className="mb-8 text-2xl font-semibold text-brand-900 dark:text-bone">
           Categorías
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -78,12 +78,12 @@ export default async function HomePage() {
       {/* Publicaciones recientes */}
       <section className="mx-auto w-full max-w-6xl flex-1 px-4 pb-16">
         <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-brand-900">
+          <h2 className="text-2xl font-semibold text-brand-900 dark:text-bone">
             Publicaciones recientes
           </h2>
           <Link
             href="/listados"
-            className="text-sm font-medium text-brand-700 underline"
+            className="text-sm font-medium text-brand-700 underline dark:text-brand-200"
           >
             Ver todas
           </Link>
