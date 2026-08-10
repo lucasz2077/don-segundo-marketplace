@@ -107,6 +107,8 @@ export type ConversacionResumen = {
   noLeidos: number;
   lastMessageAt: Date | null;
   createdAt: Date;
+  /** Rol del usuario en la conversación ("comprador" o "vendedor"). */
+  rol: "comprador" | "vendedor";
 };
 
 /**
@@ -164,6 +166,7 @@ export async function obtenerConversacionesDeUsuario(
       noLeidos: noLeidosPorConversacion.get(conversacion.id) ?? 0,
       lastMessageAt: conversacion.lastMessageAt,
       createdAt: conversacion.createdAt,
+      rol: conversacion.buyerId === userId ? "comprador" : "vendedor",
     };
   });
 }

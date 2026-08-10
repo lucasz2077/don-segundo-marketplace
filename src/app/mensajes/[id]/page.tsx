@@ -63,6 +63,11 @@ export default async function ConversacionPage({ params }: ConversacionPageProps
           Conversación con{" "}
           <span className="font-medium text-brand-900">{otro.name}</span>
         </p>
+        <p className="mt-1 text-sm text-brand-600">
+          {conversacion.buyerId === session.user.id
+            ? `Estás comprando en ${conversacion.listing.title}`
+            : `Estás vendiendo en ${conversacion.listing.title}`}
+        </p>
       </header>
 
       <div className="mt-6 space-y-4 rounded-lg border border-brand-100 bg-white p-4">
