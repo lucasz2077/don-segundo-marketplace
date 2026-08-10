@@ -17,7 +17,7 @@ Siempre seguir este orden:
 
 Este proyecto se desarrolla en **español**. Convenciones:
 
-- **Código**: comentarios, nombres de variables/funciones, identificadores y mensajes en español, usando español neutral/profesional (sin voseo, sin slang).
+- **Código**: comentarios, nombres de variables/funciones, identificadores y mensajes en español, usando español argentino/profesional
 - **UI**: todos los textos de interfaz, mensajes de error y de éxito en español.
 - **Commits**: mensajes de commit en español, con conventional commits (ej. `feat(auth): agregar registro de usuarios`).
 - **Documentación**: docs, specs y README en español.
