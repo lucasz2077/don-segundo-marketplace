@@ -82,7 +82,7 @@ export function NavActions({ user }: NavActionsProps) {
         </Link>
       ) : null}
       <Link
-        href="/dashboard"
+        href="/perfil"
         className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
       >
         {user.name}
