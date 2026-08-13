@@ -44,6 +44,12 @@ export const crearPublicacionSchema = z.object({
   condition: z.enum(["NEW", "USED"], {
     message: "La condición debe ser Nuevo o Usado",
   }),
+  stock: z
+    .number({ message: "La cantidad de stock es obligatoria" })
+    .int("La cantidad debe ser un número entero")
+    .min(1, "La cantidad debe ser al menos 1 unidad")
+    .max(9999, "La cantidad no puede superar las 9999 unidades")
+    .default(1),
   categoryId: z.uuid("Selecciona una categoría válida"),
   province: z
     .string()

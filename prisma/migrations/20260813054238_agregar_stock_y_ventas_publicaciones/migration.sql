@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Listing" ADD COLUMN     "soldCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "stock" INTEGER NOT NULL DEFAULT 1;

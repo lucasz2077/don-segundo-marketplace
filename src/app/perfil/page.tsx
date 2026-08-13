@@ -20,7 +20,7 @@ export default async function PerfilPage() {
         Mi perfil
       </h1>
       <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-        Gestioná tus datos personales y tus direcciones de entrega.
+        Gestioná tus datos personales, tus direcciones de entrega y tus publicaciones.
       </p>
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -36,6 +36,14 @@ export default async function PerfilPage() {
           <h2 className="text-lg font-semibold text-brand-900">Direcciones</h2>
           <p className="mt-1 text-sm text-brand-600">
             Agregá y administrá tus direcciones de entrega.
+          </p>
+        </Link>
+        <Link href="/perfil/publicaciones" className={estiloCard}>
+          <h2 className="text-lg font-semibold text-brand-900">
+            Mis publicaciones
+          </h2>
+          <p className="mt-1 text-sm text-brand-600">
+            Consultá el stock, pausá o reanudá tus publicaciones y editalas.
           </p>
         </Link>
       </div>

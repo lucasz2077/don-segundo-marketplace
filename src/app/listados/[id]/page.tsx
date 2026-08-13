@@ -4,6 +4,7 @@ import { obtenerPublicacionPorId } from "@/lib/listings";
 import { getSession } from "@/lib/auth/session";
 import { formatearPrecio } from "@/lib/formato";
 import { GaleriaImagenes } from "@/components/listing/galeria-imagenes";
+import { BotonComprar } from "@/components/listing/boton-comprar";
 import { BotonEliminarPublicacion } from "@/components/listing/boton-eliminar-publicacion";
 import { BotonContactar } from "@/components/listing/boton-contactar";
 import { BotonReportar } from "@/components/listing/boton-reportar";
@@ -29,14 +30,24 @@ export default async function DetallePublicacionPage({
 
   const esDueno = session?.user.id === publicacion.ownerId;
   const esAdmin = session?.user.role === "ADMIN";
-  // Una publicación pausada o rechazada solo es visible para su dueño o un
-  // administrador; el resto recibe 404 (RF-13 / CA-07).
-  if (publicacion.status !== "ACTIVE" && !esDueno && !esAdmin) {
-    notFound();
-  }
+  // Se resuelve antes del chequeo de acceso: además de usarse para el estado
+  // inicial del favorito, determina si un visitante puede ver una publicación
+  // pausada o rechazada (los destinatarios de la notificación de cambio de
+  // estado la tienen en favoritos).
   const favoritoInicial = session
     ? await esFavorito(session.user.id, publicacion.id)
     : false;
+  // Una publicación pausada o rechazada solo es visible para su dueño, un
+  // administrador o un usuario que la tenga en favoritos; el resto recibe 404
+  // (RF-13 / CA-07).
+  if (
+    publicacion.status !== "ACTIVE" &&
+    !esDueno &&
+    !esAdmin &&
+    !favoritoInicial
+  ) {
+    notFound();
+  }
   const etiquetaCondicion =
     publicacion.condition === "NEW" ? "Nuevo" : "Usado";
   const ubicacion = publicacion.city
@@ -66,9 +77,17 @@ export default async function DetallePublicacionPage({
             <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
               {etiquetaCondicion}
             </span>
-            {publicacion.status === "PAUSED" && (esDueno || esAdmin) ? (
+            {publicacion.status === "PAUSED" ? (
               <span className="rounded bg-accent-500 px-2 py-0.5 text-xs font-medium text-brand-900">
                 Publicación pausada
+              </span>
+            ) : publicacion.status === "REJECTED" ? (
+              <span className="rounded bg-accent-500 px-2 py-0.5 text-xs font-medium text-brand-900">
+                Publicación rechazada
+              </span>
+            ) : publicacion.status === "SOLD" && publicacion.stock === 0 ? (
+              <span className="rounded bg-accent-500 px-2 py-0.5 text-xs font-medium text-brand-900">
+                Publicación vendida
               </span>
             ) : null}
             <Link
@@ -84,7 +103,23 @@ export default async function DetallePublicacionPage({
           <p className="mt-2 text-2xl font-semibold text-brand-900 dark:text-bone">
             {formatearPrecio(publicacion.price, publicacion.currency)}
           </p>
+          {publicacion.status === "ACTIVE" ? (
+            <p className="mt-2 text-sm font-medium text-brand-700 dark:text-brand-200">
+              {publicacion.stock === 1
+                ? "Última unidad"
+                : `Quedan ${publicacion.stock} disponibles`}
+            </p>
+          ) : null}
           <p className="mt-2 text-sm text-brand-600 dark:text-brand-200">{ubicacion}</p>
+
+          {!esDueno && publicacion.status === "ACTIVE" && publicacion.stock > 0 ? (
+            <div className="mt-4">
+              <BotonComprar
+                listingId={publicacion.id}
+                sesionIniciada={Boolean(session)}
+              />
+            </div>
+          ) : null}
 
           <div className="mt-6 rounded-lg border border-brand-100 bg-white p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-brand-900">
@@ -100,7 +135,9 @@ export default async function DetallePublicacionPage({
             <p className="text-lg font-semibold text-brand-900">
               {publicacion.owner.name}
             </p>
-            {!esDueno ? (
+            {/* Contactar y reportar solo aplican a publicaciones activas: una
+                pausada/rechazada se muestra en modo lectura. */}
+            {!esDueno && publicacion.status === "ACTIVE" ? (
               <BotonContactar
                 listingId={publicacion.id}
                 sesionIniciada={Boolean(session)}
@@ -108,7 +145,7 @@ export default async function DetallePublicacionPage({
             ) : null}
           </div>
 
-          {!esDueno ? (
+          {!esDueno && publicacion.status === "ACTIVE" ? (
             <div className="mt-4">
               <BotonReportar
                 listingId={publicacion.id}

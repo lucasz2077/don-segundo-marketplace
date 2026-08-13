@@ -1,0 +1,269 @@
+import { prisma } from "@/lib/db/prisma";
+import {
+  crearNotificacion,
+  notificarCambioEstadoPublicacion,
+  notificarFavoritosCambioPublicacion,
+} from "@/lib/notificaciones";
+
+/** Error de dominio: la publicación a comprar/gestionar no existe o fue eliminada. */
+export class PublicacionNoEncontradaError extends Error {
+  constructor() {
+    super("La publicación no existe");
+    this.name = "PublicacionNoEncontradaError";
+  }
+}
+
+/** Error de dominio: el comprador intenta comprar su propia publicación. */
+export class CompraPublicacionPropiaError extends Error {
+  constructor() {
+    super("No podés comprar tu propia publicación");
+    this.name = "CompraPublicacionPropiaError";
+  }
+}
+
+/** Error de dominio: la publicación no está activa para comprarse. */
+export class PublicacionNoActivaError extends Error {
+  constructor() {
+    super("La publicación no está activa");
+    this.name = "PublicacionNoActivaError";
+  }
+}
+
+/** Error de dominio: la publicación no tiene stock disponible. */
+export class SinStockError extends Error {
+  constructor() {
+    super("La publicación no tiene stock disponible");
+    this.name = "SinStockError";
+  }
+}
+
+/** Error de dominio: la publicación no pertenece al usuario que la gestiona. */
+export class PublicacionNoPerteneceError extends Error {
+  constructor() {
+    super("No tenés permiso para gestionar esta publicación");
+    this.name = "PublicacionNoPerteneceError";
+  }
+}
+
+/** Error de dominio: la transición de estado pedida no es válida. */
+export class AccionEstadoInvalidaError extends Error {
+  constructor(mensaje: string) {
+    super(mensaje);
+    this.name = "AccionEstadoInvalidaError";
+  }
+}
+
+/**
+ * Compra una unidad de una publicación activa: decrementa el stock con una
+ * condición atómica (evita la carrera entre compradores sobre la última
+ * unidad) e incrementa las vendidas. Si al comprar el stock llega a 0, la
+ * publicación pasa a SOLD y se notifica al dueño y a los favoritos del cambio
+ * de estado (best-effort: un fallo de notificación nunca revierte la compra).
+ */
+export async function comprarPublicacion({
+  compradorId,
+  listingId,
+}: {
+  compradorId: string;
+  listingId: string;
+}) {
+  const publicacion = await prisma.listing.findFirst({
+    where: { id: listingId, deletedAt: null },
+    select: { id: true, ownerId: true, status: true, stock: true, title: true },
+  });
+  if (!publicacion) {
+    throw new PublicacionNoEncontradaError();
+  }
+  if (publicacion.ownerId === compradorId) {
+    throw new CompraPublicacionPropiaError();
+  }
+  if (publicacion.status !== "ACTIVE") {
+    throw new PublicacionNoActivaError();
+  }
+  if (publicacion.stock <= 0) {
+    throw new SinStockError();
+  }
+
+  // Actualización atómica contra condiciones: si dos compradores piden la
+  // última unidad a la vez, solo uno decrementa (stock > 0) y el otro recibe
+  // count 0 y se le responde "sin stock" como error de negocio (no 500).
+  const decremento = await prisma.listing.updateMany({
+    where: {
+      id: listingId,
+      status: "ACTIVE",
+      deletedAt: null,
+      stock: { gt: 0 },
+    },
+    data: {
+      stock: { decrement: 1 },
+      soldCount: { increment: 1 },
+    },
+  });
+  if (decremento.count === 0) {
+    throw new SinStockError();
+  }
+
+  const trasCompra = await prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { id: true, status: true, stock: true, soldCount: true, title: true },
+  });
+  if (!trasCompra) {
+    throw new PublicacionNoEncontradaError();
+  }
+
+  // La última unidad vendida pausa automáticamente la publicación (SOLD).
+  // El guard por estado evita notificar dos veces si ya estaba en SOLD.
+  if (trasCompra.stock === 0 && trasCompra.status === "ACTIVE") {
+    await prisma.listing.update({
+      where: { id: listingId },
+      data: { status: "SOLD" },
+      select: { id: true, status: true },
+    });
+
+    try {
+      await notificarCambioEstadoPublicacion(
+        publicacion.ownerId,
+        listingId,
+        publicacion.title,
+        "vendida"
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+
+    try {
+      await notificarFavoritosCambioPublicacion(
+        listingId,
+        "FAVORITO_CAMBIO_ESTADO",
+        {
+          listingId,
+          titulo: publicacion.title,
+          estadoAnterior: "ACTIVE",
+          estadoNuevo: "SOLD",
+        },
+        "Cambió el estado de un favorito",
+        `"${publicacion.title}" cambió de estado a SOLD.`
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+  }
+
+  return prisma.listing.findUnique({
+    where: { id: listingId },
+    select: { id: true, status: true, stock: true, soldCount: true, title: true },
+  });
+}
+
+type PublicacionPropia = {
+  id: string;
+  ownerId: string;
+  status: string;
+  title: string;
+};
+
+/**
+ * Valida que una publicación exista, no esté eliminada y pertenezca al usuario.
+ * Devuelve la publicación si cumple; si no, lanza el error de dominio
+ * correspondiente.
+ */
+async function validarPublicacionPropia(
+  ownerId: string,
+  listingId: string
+): Promise<PublicacionPropia> {
+  const publicacion = await prisma.listing.findFirst({
+    where: { id: listingId, deletedAt: null },
+    select: { id: true, ownerId: true, status: true, title: true },
+  });
+  if (!publicacion) {
+    throw new PublicacionNoEncontradaError();
+  }
+  if (publicacion.ownerId !== ownerId) {
+    throw new PublicacionNoPerteneceError();
+  }
+  return publicacion;
+}
+
+/**
+ * Notifica al dueño y a los favoritos un cambio de estado manual (pausar /
+ * reanudar) con el estado anterior y nuevo correctos. Best-effort: un fallo
+ * de notificación no debe romper la acción.
+ */
+async function notificarCambioEstadoPropia(
+  publicacion: { id: string; ownerId: string; title: string },
+  estadoAnterior: string,
+  estadoNuevo: "PAUSED" | "ACTIVE"
+) {
+  try {
+    await crearNotificacion(
+      publicacion.ownerId,
+      publicacion.id,
+      estadoNuevo === "PAUSED" ? "Publicación pausada" : "Publicación reanudada",
+      estadoNuevo === "PAUSED"
+        ? `Tu publicación "${publicacion.title}" fue pausada y ya no está visible para otros usuarios.`
+        : `Tu publicación "${publicacion.title}" volvió a estar activa.`,
+      "ESTADO_PUBLICACION",
+      { listingId: publicacion.id, estado: estadoNuevo }
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
+  try {
+    await notificarFavoritosCambioPublicacion(
+      publicacion.id,
+      "FAVORITO_CAMBIO_ESTADO",
+      {
+        listingId: publicacion.id,
+        titulo: publicacion.title,
+        estadoAnterior,
+        estadoNuevo,
+      },
+      "Cambió el estado de un favorito",
+      `"${publicacion.title}" cambió de estado a ${estadoNuevo}.`
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+}
+
+/**
+ * Pausa la propia publicación (solo desde ACTIVE). Valida titularidad y estado;
+ * notifica al dueño y a los favoritos. Retorna el estado resultante.
+ */
+export async function pausarPublicacionPropia(ownerId: string, listingId: string) {
+  const publicacion = await validarPublicacionPropia(ownerId, listingId);
+  if (publicacion.status !== "ACTIVE") {
+    throw new AccionEstadoInvalidaError("Solo podés pausar publicaciones activas");
+  }
+
+  const resultado = await prisma.listing.update({
+    where: { id: listingId },
+    data: { status: "PAUSED" },
+    select: { id: true, status: true },
+  });
+
+  await notificarCambioEstadoPropia(publicacion, publicacion.status, "PAUSED");
+  return resultado;
+}
+
+/**
+ * Reanuda una publicación propia pausada (solo desde PAUSED; nunca reanuda una
+ * SOLD o REJECTED). Valida titularidad y estado; notifica al dueño y a los
+ * favoritos. Retorna el estado resultante.
+ */
+export async function reanudarPublicacionPropia(ownerId: string, listingId: string) {
+  const publicacion = await validarPublicacionPropia(ownerId, listingId);
+  if (publicacion.status !== "PAUSED") {
+    throw new AccionEstadoInvalidaError("Solo podés reanudar publicaciones pausadas");
+  }
+
+  const resultado = await prisma.listing.update({
+    where: { id: listingId },
+    data: { status: "ACTIVE" },
+    select: { id: true, status: true },
+  });
+
+  await notificarCambioEstadoPropia(publicacion, publicacion.status, "ACTIVE");
+  return resultado;
+}

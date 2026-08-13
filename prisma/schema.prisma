@@ -172,6 +172,8 @@ model Listing {
   currency      Currency         @default(ARS)
   condition     ListingCondition @default(USED)
   status        ListingStatus    @default(ACTIVE)
+  stock         Int              @default(1)
+  soldCount     Int              @default(0)
   province      String
   city          String?
   latitude      Float?

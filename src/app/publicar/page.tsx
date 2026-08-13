@@ -40,6 +40,7 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
       precio: publicacion.price.toString(),
       moneda: publicacion.currency,
       condicion: publicacion.condition,
+      stock: publicacion.stock,
       categoriaId: publicacion.categoryId,
       provincia: publicacion.province,
       ciudad: publicacion.city ?? "",

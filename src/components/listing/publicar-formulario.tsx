@@ -28,6 +28,7 @@ export type PublicacionInicial = {
   precio: string;
   moneda: "ARS" | "USD";
   condicion: "NEW" | "USED";
+  stock: number;
   categoriaId: string;
   provincia: string;
   ciudad: string;
@@ -74,6 +75,9 @@ export function PublicarFormulario({
   );
   const [condicion, setCondicion] = useState<"NEW" | "USED">(
     publicacionInicial?.condicion ?? "USED"
+  );
+  const [stock, setStock] = useState(
+    publicacionInicial?.stock ? String(publicacionInicial.stock) : "1"
   );
   const [categoriaId, setCategoriaId] = useState(
     publicacionInicial?.categoriaId ?? ""
@@ -157,6 +161,7 @@ export function PublicarFormulario({
       price: Number(precio),
       currency: moneda,
       condition: condicion,
+      stock: Number(stock),
       categoryId: categoriaId,
       province: provincia,
       city: ciudad || undefined,
@@ -282,6 +287,27 @@ export function PublicarFormulario({
             <option value="NEW">Nuevo</option>
           </select>
         </div>
+      </div>
+
+      <div className="sm:max-w-xs">
+        <label htmlFor="stock" className={etiquetaCampo}>
+          Cantidad (stock)
+        </label>
+        <input
+          id="stock"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={9999}
+          step={1}
+          value={stock}
+          onChange={(evento) => setStock(evento.target.value)}
+          className={claseCampo}
+          required
+        />
+        <p className="mt-1 text-xs text-brand-600">
+          Cuántas unidades tenés disponibles para vender.
+        </p>
       </div>
 
       <div>

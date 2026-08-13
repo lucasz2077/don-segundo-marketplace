@@ -119,18 +119,23 @@ export async function obtenerPublicacionesActivas(
 }
 
 /**
- * Devuelve una publicación activa por id para el detalle público e
- * incrementa su contador de vistas (salvo que quien la consulta sea su
- * propietario). Retorna null si no existe o fue eliminada (soft delete).
+ * Devuelve una publicación por id para el detalle público. Solo retorna null
+ * si no existe o fue eliminada (soft delete real del dueño, status DELETED).
+ * Una publicación rechazada (REJECTED) tiene deletedAt por moderación pero
+ * sigue siendo resoluble: la visibilidad se decide en la página del detalle.
+ * El contador de vistas solo se incrementa mientras la publicación está
+ * activa y quien la consulta no es su propietario; una pausada o rechazada
+ * no acumula vistas.
  */
 export async function obtenerPublicacionPorId(id: string, userId?: string) {
   const publicacion = await obtenerPublicacion(id);
-  if (!publicacion || publicacion.deletedAt || publicacion.status === "DELETED") {
+  if (!publicacion || publicacion.status === "DELETED") {
     return null;
   }
   // Las vistas propias no cuentan: evita inflar el contador cuando el dueño
-  // revisa su propia publicación.
-  if (userId === publicacion.ownerId) {
+  // revisa su propia publicación. Una publicación no activa tampoco acumula
+  // vistas: se devuelve con su contador actual.
+  if (userId === publicacion.ownerId || publicacion.status !== "ACTIVE") {
     return { ...publicacion, viewCount: publicacion.viewCount };
   }
   await prisma.listing.update({
@@ -165,6 +170,33 @@ export async function obtenerPublicacionesRecientes(limite = 6) {
 }
 
 /**
+ * Devuelve las publicaciones de un usuario para el panel "Mis publicaciones",
+ * excluyendo las eliminadas (status DELETED). Se ordenan por la última
+ * actualización y se incluyen stock, vendidas y la primera información básica
+ * para renderizar la fila sin traer relaciones pesadas.
+ */
+export async function obtenerPublicacionesDelUsuario(ownerId: string) {
+  return prisma.listing.findMany({
+    where: { ownerId, status: { not: "DELETED" } },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      currency: true,
+      status: true,
+      stock: true,
+      soldCount: true,
+      updatedAt: true,
+      images: {
+        orderBy: { position: "asc" as const },
+        select: { url: true, alt: true },
+      },
+    },
+  });
+}
+
+/**
  * Crea una publicación con sus imágenes. Valida que la categoría exista;
  * si no, lanza CategoriaInvalidaError.
  */
@@ -188,6 +220,7 @@ export async function crearPublicacion(
       price: new Prisma.Decimal(datos.price.toFixed(2)),
       currency: datos.currency,
       condition: datos.condition,
+      stock: datos.stock ?? 1,
       categoryId: datos.categoryId,
       province: datos.province,
       city: datos.city ?? null,
@@ -228,15 +261,26 @@ export async function actualizarPublicacion(
     price: new Prisma.Decimal(datos.price.toFixed(2)),
     currency: datos.currency,
     condition: datos.condition,
+    stock: datos.stock ?? 1,
     categoryId: datos.categoryId,
     province: datos.province,
     city: datos.city ?? null,
   };
 
   const imagenesNuevas = datos.imagenes;
+  // El formulario siempre envía la lista completa de imágenes (existentes +
+  // nuevas). Si son las mismas que ya están guardadas (mismos publicIds y
+  // orden), no se reemplazan: evita la transacción pesada que expira contra el
+  // pooler (P2028) al editar solo texto/precio y no degrada Cloudinary.
+  const publicIdsActuales = publicacion.images.map((imagen) => imagen.publicId);
+  const publicIdsEntrantes = (imagenesNuevas ?? []).map((imagen) => imagen.publicId);
+  const imagenesCambiaron =
+    publicIdsActuales.length !== publicIdsEntrantes.length ||
+    publicIdsActuales.some((publicId, indice) => publicId !== publicIdsEntrantes[indice]);
+
   let resultado;
 
-  if (imagenesNuevas) {
+  if (imagenesNuevas && imagenesCambiaron) {
     resultado = await prisma.$transaction(async (tx) => {
       await tx.listingImage.deleteMany({ where: { listingId: id } });
       return tx.listing.update({
@@ -257,13 +301,15 @@ export async function actualizarPublicacion(
     });
 
     // Solo se borran de Cloudinary las imágenes reemplazadas (best effort).
-    const publicIdsMantenidos = new Set(imagenesNuevas.map((imagen) => imagen.publicId));
+    const publicIdsMantenidos = new Set(publicIdsEntrantes);
     await Promise.allSettled(
       publicacion.images
         .filter((imagen) => !publicIdsMantenidos.has(imagen.publicId))
         .map((imagen) => eliminarImagen(imagen.publicId))
     );
   } else {
+    // Sin cambios de imágenes (o sin imágenes en el payload): update liviano,
+    // sin transacción interactiva.
     resultado = await prisma.listing.update({
       where: { id },
       data: camposBasicos,
