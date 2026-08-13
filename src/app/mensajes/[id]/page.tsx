@@ -54,7 +54,12 @@ export default async function ConversacionPage({ params }: ConversacionPageProps
         </Link>
         <p className="mt-1 text-sm text-brand-600">
           Conversación con{" "}
-          <span className="font-medium text-brand-900">{otro.name}</span>
+          <Link
+            href={`/vendedores/${otro.id}`}
+            className="font-medium text-brand-900 underline-offset-2 hover:underline"
+          >
+            {otro.name}
+          </Link>
         </p>
         <p className="mt-1 text-sm text-brand-600">
           {conversacion.buyerId === session.user.id

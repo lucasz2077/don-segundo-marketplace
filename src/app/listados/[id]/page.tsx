@@ -132,9 +132,17 @@ export default async function DetallePublicacionPage({
 
           <div className="mt-6 rounded-lg border border-brand-100 bg-white p-4">
             <p className="text-sm text-brand-600">Vendedor</p>
-            <p className="text-lg font-semibold text-brand-900">
+            <Link
+              href={`/vendedores/${publicacion.owner.id}`}
+              className="text-lg font-semibold text-brand-900 underline-offset-2 hover:underline"
+            >
               {publicacion.owner.name}
-            </p>
+            </Link>
+            {publicacion.owner.profile?.businessName ? (
+              <p className="mt-1 text-sm font-medium text-brand-700">
+                {publicacion.owner.profile.businessName}
+              </p>
+            ) : null}
             {/* Contactar y reportar solo aplican a publicaciones activas: una
                 pausada/rechazada se muestra en modo lectura. */}
             {!esDueno && publicacion.status === "ACTIVE" ? (
