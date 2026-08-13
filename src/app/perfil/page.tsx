@@ -46,6 +46,31 @@ export default async function PerfilPage() {
             Consultá el stock, pausá o reanudá tus publicaciones y editalas.
           </p>
         </Link>
+        {/* La card de perfil público lleva dos acciones (editar y ver el
+            perfil público), así que es un div y no un Link completo como las
+            otras tres cards: un enlace dentro de otro enlace es HTML inválido. */}
+        <div className={estiloCard}>
+          <h2 className="text-lg font-semibold text-brand-900">
+            Perfil público
+          </h2>
+          <p className="mt-1 text-sm text-brand-600">
+            Tu bio y tu nombre comercial, visibles para los compradores.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/perfil/publico"
+              className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+            >
+              Editar perfil
+            </Link>
+            <Link
+              href={`/vendedores/${session.user.id}`}
+              className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+            >
+              Ver mi perfil
+            </Link>
+          </div>
+        </div>
       </div>
     </main>
   );
