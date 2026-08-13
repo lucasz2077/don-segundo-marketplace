@@ -5,17 +5,9 @@ import {
   marcarConversacionLeida,
   obtenerConversacionDetalle,
 } from "@/lib/conversaciones";
-import { FormularioMensaje } from "@/components/mensajes/formulario-mensaje";
+import { ChatConversacion } from "@/components/mensajes/chat-conversacion";
 
 export const dynamic = "force-dynamic";
-
-const formateadorFechaCompleta = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 type ConversacionPageProps = {
   params: Promise<{ id: string }>;
@@ -23,8 +15,9 @@ type ConversacionPageProps = {
 
 /**
  * Página del chat de una conversación. Verifica que el usuario participe,
- * marca los mensajes de la otra parte como leídos al cargar y muestra las
- * burbujas de la conversación con el formulario para responder.
+ * marca los mensajes de la otra parte como leídos al cargar y delega la lista
+ * de mensajes y el envío en el componente cliente, que hace polling
+ * incremental para mostrar los mensajes nuevos sin recargar.
  */
 export default async function ConversacionPage({ params }: ConversacionPageProps) {
   const { id } = await params;
@@ -70,44 +63,17 @@ export default async function ConversacionPage({ params }: ConversacionPageProps
         </p>
       </header>
 
-      <div className="mt-6 space-y-4 rounded-lg border border-brand-100 bg-white p-4">
-        {conversacion.messages.length > 0 ? (
-          conversacion.messages.map((mensaje) => {
-            const esPropio = mensaje.senderId === session.user.id;
-            return (
-              <div
-                key={mensaje.id}
-                className={esPropio ? "flex justify-end" : "flex justify-start"}
-              >
-                <div
-                  className={
-                    esPropio
-                      ? "max-w-[75%] rounded-lg bg-brand-700 px-4 py-2 text-white"
-                      : "max-w-[75%] rounded-lg bg-brand-100 px-4 py-2 text-brand-900"
-                  }
-                >
-                  <p className="whitespace-pre-line text-sm">{mensaje.body}</p>
-                  <p
-                    className={
-                      esPropio
-                        ? "mt-1 text-right text-[10px] text-brand-100"
-                        : "mt-1 text-right text-[10px] text-brand-600"
-                    }
-                  >
-                    {formateadorFechaCompleta.format(mensaje.createdAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <p className="py-6 text-center text-sm text-brand-600">
-            Enviá un mensaje para comenzar la conversación.
-          </p>
-        )}
-      </div>
-
-      <FormularioMensaje conversacionId={conversacion.id} />
+      <ChatConversacion
+        conversacionId={conversacion.id}
+        usuarioId={session.user.id}
+        mensajesIniciales={conversacion.messages.map((mensaje) => ({
+          id: mensaje.id,
+          senderId: mensaje.senderId,
+          body: mensaje.body,
+          readAt: mensaje.readAt ? mensaje.readAt.toISOString() : null,
+          createdAt: mensaje.createdAt.toISOString(),
+        }))}
+      />
     </main>
   );
 }

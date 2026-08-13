@@ -30,6 +30,16 @@ const seleccionUsuarioConversacion = {
 
 const seleccionPropietario = { id: true, name: true } as const;
 
+/** Select de un mensaje con su remitente, igual al que usa el detalle. */
+const seleccionMensajeDetalle = {
+  id: true,
+  senderId: true,
+  body: true,
+  readAt: true,
+  createdAt: true,
+  sender: { select: { id: true, name: true, image: true } },
+} as const;
+
 /**
  * Include completo de una conversación para el detalle: publicación con
  * imágenes ordenadas y dueño, comprador, vendedor y todos sus mensajes con el
@@ -202,6 +212,56 @@ export async function obtenerConversacionDetalle(
       name: otroParticipante.name,
       image: otroParticipante.image,
     },
+  };
+}
+
+/**
+ * Devuelve los mensajes nuevos de una conversación (createdAt > despuesDe)
+ * ordenados asc, junto con los ids de los mensajes enviados por el usuario que
+ * ya fueron leídos por la otra parte. Soporta el polling incremental del chat
+ * (Slice 2): como el cursor solo trae mensajes nuevos, los propios antiguos
+ * nunca vuelven por el cursor; `leidosAhora` permite pintar la tilde de leído
+ * sin re-descargar el historial. Lanza NoParticipanteError si el usuario no
+ * participa de la conversación.
+ */
+export async function obtenerMensajesNuevos(
+  conversacionId: string,
+  userId: string,
+  despuesDe: Date
+) {
+  const conversacion = await prisma.conversation.findFirst({
+    where: {
+      id: conversacionId,
+      OR: [{ buyerId: userId }, { sellerId: userId }],
+    },
+    select: { id: true },
+  });
+  if (!conversacion) {
+    throw new NoParticipanteError();
+  }
+
+  const [mensajes, leidos] = await Promise.all([
+    prisma.message.findMany({
+      where: {
+        conversationId: conversacionId,
+        createdAt: { gt: despuesDe },
+      },
+      orderBy: { createdAt: "asc" as const },
+      select: seleccionMensajeDetalle,
+    }),
+    prisma.message.findMany({
+      where: {
+        conversationId: conversacionId,
+        senderId: userId,
+        readAt: { not: null },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return {
+    mensajes,
+    leidosAhora: leidos.map((mensaje) => mensaje.id),
   };
 }
 
