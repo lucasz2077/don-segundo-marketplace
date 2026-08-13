@@ -92,8 +92,18 @@ Dar seguridad a las transacciones: reputación, verificación de vendedores y, c
 - Ratings y reseñas comprador → vendedor con agregados en el perfil público.
 - Verificación de vendedores (identidad/domicilio) con estado visible en publicaciones y perfiles.
 - Términos de servicio y políticas de uso actualizados para transacciones.
-- Integración de pagos/escrow: investigación previa (caso de uso, fee, cumplimiento) y, si se aprueba, implementación con pasarela externa.
 - Reputación aplicada a la búsqueda (vendedores verificados destacados).
+
+#### Pagos y checkout
+
+- **Datos del comprador completos:** el checkout requiere dirección de entrega y medio de pago. Se reutiliza el modelo `Direccion` existente (calle, ciudad, provincia, código postal, piso/depto opcional, referencia opcional) y se agrega la selección o alta de una dirección durante el flujo si el comprador no tiene ninguna cargada o prefiere una nueva. Se decide en esta fase qué campos del usuario son obligatorios en el checkout (p. ej. teléfono de contacto, ya existente en `User`).
+- **Medios de pago y opciones por medio:** cada medio define sus propias opciones:
+  - **Mercado Pago:** pago con saldo de cuenta, redirección al flujo MP para pago con QR/link, o integración vía API (preferencia de pago). Permite débito/crédito sin guardar datos sensibles.
+  - **Tarjeta de débito:** procesada vía pasarela (Mercado Pago u otra) mediante tokenización; no se almacenan datos de tarjeta en la propia base.
+  - **Tarjeta de crédito:** procesada vía pasarela, con opción de pago en cuotas según lo que ofrezca el medio; misma política de tokenización.
+  - **Otros medios futuros:** transferencia bancaria (con datos de cuenta a mostrar) y efectivo/pago contra entrega (sin procesamiento; el vendedor confirma el cobro) — marcados como opcionales en esta fase.
+- **Flujo de checkout:** publicación → dirección → medio de pago y opciones → confirmación → registro de la compra (decremento de stock y transición a `SOLD` ya implementados en Fase 2) → notificación de venta al vendedor y de confirmación al comprador → estado de la transacción visible en "Mis publicaciones".
+- Criterio de aceptación: una compra de prueba completa con cada medio habilitado crea el registro esperado, actualiza stock/estado y notifica a ambas partes sin almacenar datos de pago sensibles.
 
 ### Criterio de salida
 Un porcentaje objetivo (definido con datos de la Fase 2) de transacciones se cierra con rating registrado, y el sistema de pagos, si se implementa, pasa una revisión de seguridad y cumplimiento antes de activarse.
