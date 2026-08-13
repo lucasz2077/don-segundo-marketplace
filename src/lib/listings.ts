@@ -27,7 +27,13 @@ export class CategoriaInvalidaError extends Error {
   }
 }
 
-const seleccionPropietario = { id: true, name: true } as const;
+// Solo campos públicos del dueño (REQ-12/RF-19): el profile aporta el
+// businessName para el bloque Vendedor del detalle (RF-24).
+const seleccionPropietario = {
+  id: true,
+  name: true,
+  profile: { select: { bio: true, businessName: true } },
+} as const;
 
 const incluirDependencias = {
   images: { orderBy: { position: "asc" as const } },
