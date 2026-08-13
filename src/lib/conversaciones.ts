@@ -1,3 +1,4 @@
+import { notificarMensajeNuevo } from "@/lib/notificaciones";
 import { prisma } from "@/lib/db/prisma";
 
 /** Error de dominio: el usuario no participa de la conversación. */
@@ -293,7 +294,7 @@ export async function crearConversacionOMensaje(
 
   const now = new Date();
 
-  return prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx) => {
     const conversacion = await tx.conversation.upsert({
       where: {
         listingId_buyerId_sellerId: {
@@ -322,6 +323,21 @@ export async function crearConversacionOMensaje(
 
     return { conversacion, mensaje };
   });
+
+  // Best-effort: un fallo de notificación no debe romper el envío del mensaje.
+  try {
+    await notificarMensajeNuevo(publicacion.ownerId, {
+      conversationId: resultado.conversacion.id,
+      mensajeId: resultado.mensaje.id,
+      emisorNombre: resultado.mensaje.sender.name || "El comprador",
+      preview: mensajeBody,
+      listingId,
+    });
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
+  return resultado;
 }
 
 /**
@@ -339,7 +355,7 @@ export async function enviarMensaje(
       id: conversacionId,
       OR: [{ buyerId: userId }, { sellerId: userId }],
     },
-    select: { id: true, listingId: true },
+    select: { id: true, listingId: true, buyerId: true, sellerId: true },
   });
   if (!conversacion) {
     throw new NoParticipanteError();
@@ -357,8 +373,8 @@ export async function enviarMensaje(
     throw new PublicacionNoDisponibleError();
   }
 
-  return prisma.$transaction(async (tx) => {
-    const mensaje = await tx.message.create({
+  const mensaje = await prisma.$transaction(async (tx) => {
+    const mensajeCreado = await tx.message.create({
       data: {
         conversationId: conversacionId,
         senderId: userId,
@@ -372,8 +388,30 @@ export async function enviarMensaje(
       data: { lastMessageAt: new Date() },
     });
 
-    return mensaje;
+    return mensajeCreado;
   });
+
+  // El receptor es el otro participante de la conversación (comprador o
+  // vendedor, el que no envió el mensaje).
+  const receptorId =
+    conversacion.buyerId === userId ? conversacion.sellerId : conversacion.buyerId;
+
+  // Best-effort: un fallo de notificación no debe romper el envío del mensaje.
+  if (receptorId !== userId) {
+    try {
+      await notificarMensajeNuevo(receptorId, {
+        conversationId: conversacionId,
+        mensajeId: mensaje.id,
+        emisorNombre: mensaje.sender.name || "El usuario",
+        preview: mensajeBody,
+        listingId: conversacion.listingId,
+      });
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+  }
+
+  return mensaje;
 }
 
 /**

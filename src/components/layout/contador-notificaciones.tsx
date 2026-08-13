@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type RespuestaNoLeidas = {
   data?: { cantidad?: number };
@@ -9,17 +9,27 @@ type RespuestaNoLeidas = {
 /**
  * Badge con la cantidad de notificaciones sin leer del usuario. Consulta la
  * API en el cliente para que el contador se actualice sin bloquear el render
- * del servidor. Solo se muestra cuando hay al menos una notificación sin leer.
+ * del servidor. Solo se muestra cuando hay al menos una notificación sin
+ * leer. Se actualiza además cuando la pestaña vuelve a estar visible o
+ * recupera el foco, para reflejar notificaciones recibidas mientras estaba en
+ * segundo plano.
  */
 export function ContadorNotificaciones() {
   const [cantidad, setCantidad] = useState(0);
   const [cargado, setCargado] = useState(false);
+  const enVueloRef = useRef(false);
 
   useEffect(() => {
     let activo = true;
 
-    fetch("/api/notificaciones/no-leidas")
-      .then(async (respuesta) => {
+    async function actualizar() {
+      // Ignora llamadas mientras haya una petición en vuelo.
+      if (enVueloRef.current) {
+        return;
+      }
+      enVueloRef.current = true;
+      try {
+        const respuesta = await fetch("/api/notificaciones/no-leidas");
         if (!respuesta.ok) {
           return;
         }
@@ -27,18 +37,30 @@ export function ContadorNotificaciones() {
         if (activo) {
           setCantidad(datos.data?.cantidad ?? 0);
         }
-      })
-      .catch(() => {
+      } catch {
         // El badge es informativo; ante un error se oculta silenciosamente.
-      })
-      .finally(() => {
+      } finally {
+        enVueloRef.current = false;
         if (activo) {
           setCargado(true);
         }
-      });
+      }
+    }
+
+    function manejarVisibilidad() {
+      if (document.visibilityState === "visible") {
+        void actualizar();
+      }
+    }
+
+    void actualizar();
+    document.addEventListener("visibilitychange", manejarVisibilidad);
+    window.addEventListener("focus", manejarVisibilidad);
 
     return () => {
       activo = false;
+      document.removeEventListener("visibilitychange", manejarVisibilidad);
+      window.removeEventListener("focus", manejarVisibilidad);
     };
   }, []);
 

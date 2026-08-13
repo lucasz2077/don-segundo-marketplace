@@ -1,7 +1,10 @@
 import type { ReportStatus } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { notificarCambioEstadoPublicacion } from "@/lib/notificaciones";
+import {
+  notificarCambioEstadoPublicacion,
+  notificarFavoritosCambioPublicacion,
+} from "@/lib/notificaciones";
 import type { CrearReporteInput } from "@/lib/validation/reporte";
 
 /** Cantidad de reportes por página en el panel de moderación. */
@@ -196,6 +199,26 @@ export async function pausarPublicacion(adminId: string, listingId: string) {
     "pausada"
   );
 
+  // Además, los favoritos de la publicación también deben enterarse del
+  // cambio de estado (el dueño queda excluido dentro del helper).
+  // Best-effort: un fallo de notificación no debe romper la pausa.
+  try {
+    await notificarFavoritosCambioPublicacion(
+      listingId,
+      "FAVORITO_CAMBIO_ESTADO",
+      {
+        listingId,
+        titulo: publicacion.title,
+        estadoAnterior: "ACTIVE",
+        estadoNuevo: "PAUSED",
+      },
+      "Cambió el estado de un favorito",
+      `"${publicacion.title}" cambió de estado a PAUSED.`
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
   return resultado;
 }
 
@@ -229,6 +252,26 @@ export async function rechazarPublicacion(adminId: string, listingId: string) {
     publicacion.title,
     "rechazada"
   );
+
+  // Además, los favoritos de la publicación también deben enterarse del
+  // cambio de estado (el dueño queda excluido dentro del helper).
+  // Best-effort: un fallo de notificación no debe romper el rechazo.
+  try {
+    await notificarFavoritosCambioPublicacion(
+      listingId,
+      "FAVORITO_CAMBIO_ESTADO",
+      {
+        listingId,
+        titulo: publicacion.title,
+        estadoAnterior: "ACTIVE",
+        estadoNuevo: "REJECTED",
+      },
+      "Cambió el estado de un favorito",
+      `"${publicacion.title}" cambió de estado a REJECTED.`
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
 
   return resultado;
 }

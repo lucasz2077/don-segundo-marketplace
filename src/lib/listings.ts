@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { eliminarImagen } from "@/lib/cloudinary";
+import { notificarFavoritosCambioPublicacion } from "@/lib/notificaciones";
 import type { CrearPublicacionInput } from "@/lib/validation/listing";
 
 /** Cantidad de publicaciones por página en listados y búsquedas. */
@@ -268,6 +269,30 @@ export async function actualizarPublicacion(
       data: camposBasicos,
       include: incluirDependencias,
     });
+  }
+
+  const precioAnterior = publicacion.price.toString();
+  const precioNuevo = resultado.price.toString();
+
+  // Si cambió el precio, se avisa a los favoritos (el dueño queda excluido
+  // dentro del helper). Best-effort: no se rompe la edición ante un fallo.
+  if (precioAnterior !== precioNuevo) {
+    try {
+      await notificarFavoritosCambioPublicacion(
+        id,
+        "FAVORITO_CAMBIO_PRECIO",
+        {
+          listingId: id,
+          titulo: resultado.title,
+          precioAnterior,
+          precioNuevo,
+        },
+        "Cambió el precio de un favorito",
+        `"${resultado.title}" cambió su precio de $${precioAnterior} a $${precioNuevo}.`
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
   }
 
   return resultado;

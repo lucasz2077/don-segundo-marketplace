@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import {
   marcarNotificacionesLeidas,
   obtenerNotificaciones,
+  parsearPayload,
+  type NotificacionPayload,
 } from "@/lib/notificaciones";
 
 export const dynamic = "force-dynamic";
@@ -20,11 +22,78 @@ type NotificacionesPageProps = {
   searchParams: Promise<{ pagina?: string }>;
 };
 
+type Notificacion = Awaited<
+  ReturnType<typeof obtenerNotificaciones>
+>["notificaciones"][number];
+
 /**
- * Página de notificaciones: lista los avisos del usuario (p. ej. publicación
- * pausada o rechazada por un administrador) con su fecha y un enlace a la
- * publicación cuando corresponde. Al renderizar, marca todo el lote como
- * leído para que el badge de la navegación baje.
+ * Define el enlace de acción de una notificación según su tipo. Las de
+ * mensaje nuevo llevan al chat de la conversación; las de cambios en
+ * publicaciones propias o favoritas llevan al detalle del listado. Si el
+ * payload no se puede parsear, se renderiza sin enlace (nunca lanza).
+ */
+function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
+  const payload = parsearPayload(notificacion.tipo, notificacion.payload);
+
+  const esTipoMensaje = notificacion.tipo === "MENSAJE_NUEVO";
+  const esTipoPublicacion =
+    notificacion.tipo === "FAVORITO_CAMBIO_PRECIO" ||
+    notificacion.tipo === "FAVORITO_CAMBIO_ESTADO" ||
+    notificacion.tipo === "ESTADO_PUBLICACION";
+
+  const payloadMensaje = esTipoMensaje
+    ? (payload as Extract<NotificacionPayload, { conversationId: string }> | null)
+    : null;
+  const payloadPublicacion = esTipoPublicacion
+    ? (payload as Extract<NotificacionPayload, { listingId: string }> | null)
+    : null;
+
+  if (payloadMensaje) {
+    return (
+      <Link
+        href={`/mensajes/${payloadMensaje.conversationId}`}
+        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+      >
+        Ver conversación
+      </Link>
+    );
+  }
+
+  // Para los tipos de publicación se usa el listingId del payload, con
+  // fallback a la relación listing para notificaciones legadas.
+  const listingId = payloadPublicacion?.listingId ?? notificacion.listingId;
+  if (esTipoPublicacion && listingId) {
+    return (
+      <Link
+        href={`/listados/${listingId}`}
+        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+      >
+        Ver publicación
+      </Link>
+    );
+  }
+
+  // GENERAL (legacy): comportamiento original, enlace solo si hay listing.
+  if (notificacion.listing) {
+    return (
+      <Link
+        href={`/listados/${notificacion.listingId}`}
+        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+      >
+        Ver publicación
+      </Link>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Página de notificaciones: lista los avisos del usuario (mensajes nuevos,
+ * cambios de precio o estado en favoritos y cambios de estado de sus
+ * publicaciones) con su fecha y un enlace al chat o a la publicación según el
+ * tipo. Al renderizar, marca todo el lote como leído para que el badge de la
+ * navegación baje.
  */
 export default async function NotificacionesPage({
   searchParams,
@@ -46,7 +115,7 @@ export default async function NotificacionesPage({
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
       <h1 className="text-3xl font-semibold text-brand-900">Notificaciones</h1>
       <p className="mt-1 text-sm text-brand-600">
-        Avisos sobre el estado de tus publicaciones.
+        Mensajes nuevos y cambios en tus publicaciones y favoritos.
       </p>
 
       {notificaciones.length > 0 ? (
@@ -71,14 +140,7 @@ export default async function NotificacionesPage({
                 <p className="mt-1 text-sm text-brand-600">
                   {notificacion.body}
                 </p>
-                {notificacion.listing ? (
-                  <Link
-                    href={`/listados/${notificacion.listingId}`}
-                    className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
-                  >
-                    Ver publicación
-                  </Link>
-                ) : null}
+                <EnlaceNotificacion notificacion={notificacion} />
               </li>
             ))}
           </ul>
@@ -120,8 +182,8 @@ export default async function NotificacionesPage({
             Todavía no hay notificaciones
           </h2>
           <p className="mt-2 text-sm text-brand-600">
-            Cuando un administrador pausa o rechaza una de tus publicaciones,
-            vas a recibir el aviso acá.
+            Cuando recibas un mensaje, cambie el precio de un favorito o
+            cambie el estado de una publicación, vas a recibir el aviso acá.
           </p>
         </div>
       )}

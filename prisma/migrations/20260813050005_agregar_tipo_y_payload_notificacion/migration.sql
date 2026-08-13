@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "NotificationTipo" AS ENUM ('GENERAL', 'MENSAJE_NUEVO', 'FAVORITO_CAMBIO_PRECIO', 'FAVORITO_CAMBIO_ESTADO', 'ESTADO_PUBLICACION');
+
+-- AlterTable
+ALTER TABLE "Notification" ADD COLUMN     "payload" JSONB,
+ADD COLUMN     "tipo" "NotificationTipo" NOT NULL DEFAULT 'GENERAL';
