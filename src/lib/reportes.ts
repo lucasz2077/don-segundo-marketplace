@@ -1,4 +1,8 @@
-import type { ReportStatus } from "@/generated/prisma/client";
+import type {
+  ModerationActionAccion,
+  ReportReason,
+  ReportStatus,
+} from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { etiquetasEstadoReporte } from "@/lib/etiquetas-reportes";
@@ -135,6 +139,7 @@ export function validarTransicionReporte(
 
 export type FiltrosReportes = {
   estado?: ReportStatus;
+  motivo?: ReportReason;
   pagina?: number;
 };
 
@@ -181,6 +186,18 @@ export async function crearReporte(
     throw new AutoReporteError();
   }
 
+  // Límite anti-spam (RF-25): se cuentan los reportes del usuario desde el
+  // inicio del día argentino; al llegar al límite se rechaza sin crear nada.
+  const reportesDelDia = await prisma.report.count({
+    where: {
+      reporterId,
+      createdAt: { gte: inicioDiaArgentina() },
+    },
+  });
+  if (reportesDelDia >= LIMITE_REPORTES_POR_DIA_POR_USUARIO) {
+    throw new LimiteReportesError();
+  }
+
   return prisma.report.create({
     data: {
       reporterId,
@@ -204,9 +221,13 @@ export async function obtenerReportes(
   await validarAdministrador(adminId);
 
   const pagina = Math.max(1, filtros.pagina ?? 1);
-  const where: Prisma.ReportWhereInput = filtros.estado
-    ? { status: filtros.estado }
-    : {};
+  const where: Prisma.ReportWhereInput = {};
+  if (filtros.estado) {
+    where.status = filtros.estado;
+  }
+  if (filtros.motivo) {
+    where.reason = filtros.motivo;
+  }
 
   const [reportes, total] = await Promise.all([
     prisma.report.findMany({
@@ -260,6 +281,50 @@ export async function actualizarEstadoReporte(
   return prisma.report.update({
     where: { id: reporteId },
     data: { status: estado },
+  });
+}
+
+/**
+ * Cambia el estado de un reporte (solo administrador) registrando SIEMPRE la
+ * acción de moderación en la misma transacción (RF-25: no hay cambio de
+ * estado sin registro). Valida la transición contra el flujo estricto
+ * OPEN → REVIEWED → RESOLVED/DISMISSED. Lanza ReporteNoEncontradoError si el
+ * reporte no existe.
+ */
+export async function cambiarEstadoReporte(
+  adminId: string,
+  reporteId: string,
+  estado: ReportStatus
+) {
+  await validarAdministrador(adminId);
+
+  const reporte = await prisma.report.findUnique({
+    where: { id: reporteId },
+    select: { status: true },
+  });
+  if (!reporte) {
+    throw new ReporteNoEncontradoError();
+  }
+
+  validarTransicionReporte(reporte.status, estado);
+
+  // El update y la auditoría se persisten atómicamente: una transición nunca
+  // queda registrada sin su cambio de estado ni viceversa.
+  return prisma.$transaction(async (tx) => {
+    const reporteActualizado = await tx.report.update({
+      where: { id: reporteId },
+      data: { status: estado },
+    });
+    await tx.moderationAction.create({
+      data: {
+        reportId: reporteId,
+        adminId,
+        // validarTransicionReporte garantiza que `estado` ∈ {REVIEWED,
+        // RESOLVED, DISMISSED}, todos valores válidos de ModerationActionAccion.
+        accion: estado as ModerationActionAccion,
+      },
+    });
+    return reporteActualizado;
   });
 }
 
@@ -367,4 +432,167 @@ export async function rechazarPublicacion(adminId: string, listingId: string) {
   }
 
   return resultado;
+}
+
+/**
+ * Acción de moderación sobre una publicación vinculada a un reporte origen.
+ * Solo PAUSED y REJECTED (efectos laterales auditados; los cambios de estado
+ * del reporte usan cambiarEstadoReporte).
+ */
+type AccionPublicacion = Extract<ModerationActionAccion, "PAUSED" | "REJECTED">;
+
+/**
+ * Aplica una acción de moderación sobre una publicación en el contexto de un
+ * reporte origen (RF-25). Exige que el reporte esté REVIEWED (sin primera
+ * acción sin revisión previa), NO muta el estado del reporte y persiste la
+ * auditoría en ModerationAction dentro de la misma transacción que el cambio
+ * de la publicación. Notifica al dueño y a los favoritos (best-effort).
+ * Retorna { publicacion, accion } con ambos resultados.
+ */
+async function aplicarAccionPublicacion(
+  adminId: string,
+  listingId: string,
+  reporteId: string,
+  accion: AccionPublicacion
+) {
+  await validarAdministrador(adminId);
+
+  const reporte = await prisma.report.findUnique({
+    where: { id: reporteId },
+    select: { status: true },
+  });
+  if (!reporte) {
+    throw new ReporteNoEncontradoError();
+  }
+  if (reporte.status !== "REVIEWED") {
+    throw new ReporteNoRevisadoError();
+  }
+
+  const publicacion = await prisma.listing.findFirst({
+    where: { id: listingId, deletedAt: null },
+    select: { id: true, ownerId: true, title: true },
+  });
+  if (!publicacion) {
+    throw new PublicacionNoDisponibleError();
+  }
+
+  const esPausa = accion === "PAUSED";
+  const resultado = await prisma.$transaction(async (tx) => {
+    const publicacionActualizada = await tx.listing.update({
+      where: { id: listingId },
+      data: esPausa
+        ? { status: "PAUSED" }
+        : { status: "REJECTED", deletedAt: new Date() },
+      select: esPausa
+        ? { id: true, status: true }
+        : { id: true, status: true, deletedAt: true },
+    });
+    const accionRegistrada = await tx.moderationAction.create({
+      data: { reportId: reporteId, adminId, accion },
+    });
+    return { publicacion: publicacionActualizada, accion: accionRegistrada };
+  });
+
+  await notificarCambioEstadoPublicacion(
+    publicacion.ownerId,
+    listingId,
+    publicacion.title,
+    esPausa ? "pausada" : "rechazada"
+  );
+
+  // Además, los favoritos de la publicación también deben enterarse del
+  // cambio de estado (el dueño queda excluido dentro del helper).
+  // Best-effort: un fallo de notificación no debe romper la acción.
+  try {
+    await notificarFavoritosCambioPublicacion(
+      listingId,
+      "FAVORITO_CAMBIO_ESTADO",
+      {
+        listingId,
+        titulo: publicacion.title,
+        estadoAnterior: "ACTIVE",
+        estadoNuevo: esPausa ? "PAUSED" : "REJECTED",
+      },
+      "Cambió el estado de un favorito",
+      `"${publicacion.title}" cambió de estado a ${esPausa ? "PAUSED" : "REJECTED"}.`
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
+  return resultado;
+}
+
+/**
+ * Pausa una publicación desde la moderación de un reporte (solo administrador).
+ * Exige reporte REVIEWED, audita ModerationAction con accion PAUSED y no
+ * muta el estado del reporte. Retorna { publicacion, accion }.
+ */
+export function pausarPublicacionReporte(
+  adminId: string,
+  listingId: string,
+  reporteId: string
+) {
+  return aplicarAccionPublicacion(adminId, listingId, reporteId, "PAUSED");
+}
+
+/**
+ * Rechaza una publicación desde la moderación de un reporte (solo
+ * administrador): estado REJECTED + deletedAt. Exige reporte REVIEWED, audita
+ * ModerationAction con accion REJECTED y no muta el estado del reporte.
+ * Retorna { publicacion, accion }.
+ */
+export function rechazarPublicacionReporte(
+  adminId: string,
+  listingId: string,
+  reporteId: string
+) {
+  return aplicarAccionPublicacion(adminId, listingId, reporteId, "REJECTED");
+}
+
+/**
+ * Obtiene el detalle completo de un reporte para /admin/reportes/[id] (solo
+ * administrador): publicación vinculada (con su dueño), reporter e historial
+ * de acciones de moderación en orden cronológico ascendente. Lanza
+ * ReporteNoEncontradoError si el reporte no existe.
+ */
+export async function obtenerReporteDetalle(adminId: string, reporteId: string) {
+  await validarAdministrador(adminId);
+
+  const reporte = await prisma.report.findUnique({
+    where: { id: reporteId },
+    include: {
+      listing: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          owner: { select: { id: true, name: true, image: true } },
+        },
+      },
+      reporter: { select: { id: true, name: true, image: true } },
+      acciones: {
+        orderBy: { createdAt: "asc" },
+        include: { admin: { select: { id: true, name: true, image: true } } },
+      },
+    },
+  });
+  if (!reporte) {
+    throw new ReporteNoEncontradoError();
+  }
+  return reporte;
+}
+
+/**
+ * Lista las acciones de moderación de un reporte en orden cronológico
+ * ascendente, con el administrador que las ejecutó (historial del detalle).
+ */
+export async function listarAcciones(adminId: string, reporteId: string) {
+  await validarAdministrador(adminId);
+
+  return prisma.moderationAction.findMany({
+    where: { reportId: reporteId },
+    orderBy: { createdAt: "asc" },
+    include: { admin: { select: { id: true, name: true, image: true } } },
+  });
 }
