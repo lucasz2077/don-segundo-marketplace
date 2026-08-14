@@ -238,6 +238,7 @@ export default async function AdminReportesPage({
               <AccionesReporte
                 reporteId={reporte.id}
                 listingId={reporte.listing.id}
+                estado={reporte.status}
               />
             </li>
           ))}

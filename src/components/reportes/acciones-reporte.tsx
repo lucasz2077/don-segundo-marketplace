@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { ReportStatus } from "@/generated/prisma/client";
 
 type AccionesReporteProps = {
   reporteId: string;
   listingId: string;
+  /** Estado actual del reporte: condiciona qué acciones se ofrecen (RF-25). */
+  estado: ReportStatus;
+  /**
+   * Habilita las acciones sobre la publicación (pausar/rechazar). El listado
+   * las mantiene ocultas; el detalle del reporte las muestra (decisión D3).
+   */
+  mostrarAccionesPublicacion?: boolean;
 };
 
 type Accion = {
@@ -22,13 +30,17 @@ type RespuestaAccion = {
 };
 
 /**
- * Acciones de moderación de un informe: cambiar su estado (RESOLVED /
- * DISMISSED) y accionar sobre la publicación (pausar / rechazar). Cada botón
- * tiene su propio estado de carga y refresca la página al éxito.
+ * Acciones de moderación de un reporte con flujo estricto (RF-25): desde OPEN
+ * solo se puede revisar (→ REVIEWED); desde REVIEWED se puede resolver,
+ * descartar y, si mostrarAccionesPublicacion, pausar o rechazar la publicación
+ * (auditadas con el reporte origen). Los estados terminales no ofrecen
+ * acciones. Cada botón refresca la página al éxito.
  */
 export function AccionesReporte({
   reporteId,
   listingId,
+  estado,
+  mostrarAccionesPublicacion = false,
 }: AccionesReporteProps) {
   const router = useRouter();
   const [accionEnProgreso, setAccionEnProgreso] = useState<string | null>(null);
@@ -37,37 +49,61 @@ export function AccionesReporte({
     mensaje: string;
   } | null>(null);
 
-  const acciones: Accion[] = [
-    {
-      llave: "estado-resuelto",
-      etiqueta: "Marcar como resuelto",
-      url: `/api/reportes/${reporteId}`,
-      cuerpo: { estado: "RESOLVED" },
-      mensajeExito: "Reporte marcado como resuelto",
-    },
-    {
-      llave: "estado-descartado",
-      etiqueta: "Descartar reporte",
-      url: `/api/reportes/${reporteId}`,
-      cuerpo: { estado: "DISMISSED" },
-      mensajeExito: "Reporte descartado",
-    },
-    {
-      llave: "pausar",
-      etiqueta: "Pausar publicación",
-      url: `/api/admin/listings/${listingId}`,
-      cuerpo: { accion: "pausar" },
-      mensajeExito: "Publicación pausada",
-    },
-    {
-      llave: "rechazar",
-      etiqueta: "Rechazar publicación",
-      url: `/api/admin/listings/${listingId}`,
-      cuerpo: { accion: "rechazar" },
-      mensajeExito: "Publicación rechazada",
-      peligrosa: true,
-    },
-  ];
+  function accionesDisponibles(): Accion[] {
+    if (estado === "OPEN") {
+      return [
+        {
+          llave: "estado-revisado",
+          etiqueta: "Marcar como revisado",
+          url: `/api/reportes/${reporteId}`,
+          cuerpo: { estado: "REVIEWED" },
+          mensajeExito: "Reporte marcado como revisado",
+        },
+      ];
+    }
+    if (estado === "REVIEWED") {
+      const acciones: Accion[] = [
+        {
+          llave: "estado-resuelto",
+          etiqueta: "Marcar como resuelto",
+          url: `/api/reportes/${reporteId}`,
+          cuerpo: { estado: "RESOLVED" },
+          mensajeExito: "Reporte marcado como resuelto",
+        },
+        {
+          llave: "estado-descartado",
+          etiqueta: "Descartar reporte",
+          url: `/api/reportes/${reporteId}`,
+          cuerpo: { estado: "DISMISSED" },
+          mensajeExito: "Reporte descartado",
+        },
+      ];
+      if (mostrarAccionesPublicacion) {
+        acciones.push(
+          {
+            llave: "pausar",
+            etiqueta: "Pausar publicación",
+            url: `/api/admin/listings/${listingId}`,
+            cuerpo: { accion: "PAUSED", reporteId },
+            mensajeExito: "Publicación pausada",
+          },
+          {
+            llave: "rechazar",
+            etiqueta: "Rechazar publicación",
+            url: `/api/admin/listings/${listingId}`,
+            cuerpo: { accion: "REJECTED", reporteId },
+            mensajeExito: "Publicación rechazada",
+            peligrosa: true,
+          }
+        );
+      }
+      return acciones;
+    }
+    // RESOLVED / DISMISSED son terminales e inmutables: sin acciones.
+    return [];
+  }
+
+  const acciones = accionesDisponibles();
 
   async function ejecutarAccion(accion: Accion) {
     setAccionEnProgreso(accion.llave);
@@ -107,6 +143,10 @@ export function AccionesReporte({
     } finally {
       setAccionEnProgreso(null);
     }
+  }
+
+  if (acciones.length === 0) {
+    return null;
   }
 
   return (
