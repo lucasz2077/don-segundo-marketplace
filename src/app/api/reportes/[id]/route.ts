@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { actualizarEstadoReporteSchema } from "@/lib/validation/reporte";
 import {
-  actualizarEstadoReporte,
+  cambiarEstadoReporte,
+  ReporteNoEncontradoError,
   SinPermisoAdminError,
+  TransicionEstadoInvalidaError,
 } from "@/lib/reportes";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +24,11 @@ function respuestaError(
 }
 
 /**
- * PATCH /api/reportes/[id] — actualiza el estado de un reporte (solo
- * administrador). Valida el rol real en la base de datos mediante
- * esAdministrador. 404 si el reporte no existe.
+ * PATCH /api/reportes/[id] — cambia el estado de un reporte (solo
+ * administrador). Cada cambio de estado queda auditado en ModerationAction
+ * dentro de la misma transacción del service (RF-25: no hay cambio sin
+ * registro). 400 con TRANSICION_INVALIDA si la transición no procede y 404
+ * con REPORTE_NO_ENCONTRADO si el reporte no existe.
  */
 export async function PATCH(
   request: NextRequest,
@@ -57,20 +61,23 @@ export async function PATCH(
   }
 
   try {
-    const reporte = await actualizarEstadoReporte(
+    const reporte = await cambiarEstadoReporte(
       session.user.id,
       id,
       parseado.data.estado
     );
-    if (!reporte) {
-      return respuestaError(404, "NO_ENCONTRADA", "El reporte no existe");
-    }
     return NextResponse.json({ data: reporte });
   } catch (error) {
+    if (error instanceof TransicionEstadoInvalidaError) {
+      return respuestaError(error.status, error.codigo, error.message);
+    }
+    if (error instanceof ReporteNoEncontradoError) {
+      return respuestaError(error.status, error.codigo, error.message);
+    }
     if (error instanceof SinPermisoAdminError) {
       return respuestaError(403, "SIN_PERMISO", error.message);
     }
-    console.error("Error al actualizar estado del reporte:", error);
+    console.error("Error al cambiar el estado del reporte:", error);
     return respuestaError(500, "ERROR_INTERNO", "No se pudo actualizar el reporte. Intenta de nuevo.");
   }
 }

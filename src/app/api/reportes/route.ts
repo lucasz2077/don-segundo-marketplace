@@ -5,6 +5,7 @@ import { crearReporteSchema } from "@/lib/validation/reporte";
 import {
   AutoReporteError,
   crearReporte,
+  LimiteReportesError,
   PublicacionNoDisponibleError,
 } from "@/lib/reportes";
 
@@ -58,6 +59,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof AutoReporteError) {
       return respuestaError(400, "SIN_PERMISO", error.message);
+    }
+    if (error instanceof LimiteReportesError) {
+      return respuestaError(error.status, error.codigo, error.message);
     }
     console.error("Error al crear reporte:", error);
     return respuestaError(500, "ERROR_INTERNO", "No se pudo enviar el reporte. Intenta de nuevo.");

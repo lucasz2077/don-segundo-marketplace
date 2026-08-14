@@ -1,12 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
-import { obtenerPublicacion } from "@/lib/listings";
+import { accionModeracionSchema } from "@/lib/validation/reporte";
 import {
-  pausarPublicacion,
+  pausarPublicacionReporte,
   PublicacionNoDisponibleError,
-  rechazarPublicacion,
+  rechazarPublicacionReporte,
+  ReporteNoEncontradoError,
+  ReporteNoRevisadoError,
   SinPermisoAdminError,
 } from "@/lib/reportes";
 
@@ -24,17 +25,13 @@ function respuestaError(
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-const accionAdminPublicacionSchema = z.object({
-  accion: z.enum(["pausar", "rechazar"], {
-    message: "La acción solicitada no es válida",
-  }),
-});
-
 /**
  * PATCH /api/admin/listings/[listingId] — acción de moderación sobre una
- * publicación (solo administrador). "pausar" cambia el estado a PAUSED;
- * "rechazar" cambia el estado a REJECTED y marca deletedAt (deja de verse).
- * 404 si la publicación no existe o ya fue eliminada.
+ * publicación en el contexto de un reporte origen (solo administrador).
+ * "PAUSED" cambia la publicación a PAUSED; "REJECTED" la cambia a REJECTED y
+ * marca deletedAt (deja de verse). Ambas exigen que el reporte esté REVIEWED
+ * y quedan auditadas en ModerationAction vinculada a ese reporte (RF-25).
+ * 404 si la publicación o el reporte no existen.
  */
 export async function PATCH(
   request: NextRequest,
@@ -57,7 +54,7 @@ export async function PATCH(
     return respuestaError(400, "CUERPO_INVALIDO", "El cuerpo de la petición no es JSON válido");
   }
 
-  const parseado = accionAdminPublicacionSchema.safeParse(cuerpo);
+  const parseado = accionModeracionSchema.safeParse(cuerpo);
   if (!parseado.success) {
     return respuestaError(
       400,
@@ -67,23 +64,24 @@ export async function PATCH(
   }
 
   try {
-    if (parseado.data.accion === "pausar") {
-      const publicacion = await obtenerPublicacion(listingId);
-      if (!publicacion || publicacion.deletedAt) {
-        return respuestaError(404, "NO_ENCONTRADA", "La publicación no existe");
-      }
-      const resultado = await pausarPublicacion(session.user.id, listingId);
-      return NextResponse.json({ data: resultado });
-    }
-
-    const resultado = await rechazarPublicacion(session.user.id, listingId);
+    const { accion, reporteId } = parseado.data;
+    const resultado =
+      accion === "PAUSED"
+        ? await pausarPublicacionReporte(session.user.id, listingId, reporteId)
+        : await rechazarPublicacionReporte(session.user.id, listingId, reporteId);
     return NextResponse.json({ data: resultado });
   } catch (error) {
-    if (error instanceof SinPermisoAdminError) {
-      return respuestaError(403, "SIN_PERMISO", error.message);
+    if (error instanceof ReporteNoRevisadoError) {
+      return respuestaError(error.status, error.codigo, error.message);
+    }
+    if (error instanceof ReporteNoEncontradoError) {
+      return respuestaError(error.status, error.codigo, error.message);
     }
     if (error instanceof PublicacionNoDisponibleError) {
       return respuestaError(404, "NO_ENCONTRADA", error.message);
+    }
+    if (error instanceof SinPermisoAdminError) {
+      return respuestaError(403, "SIN_PERMISO", error.message);
     }
     console.error("Error al moderar publicación:", error);
     return respuestaError(500, "ERROR_INTERNO", "No se pudo aplicar la acción. Intenta de nuevo.");
