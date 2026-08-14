@@ -66,7 +66,7 @@
 - **RF-22 — Chat con mensajes en tiempo real (polling):** dentro de una conversación abierta, los mensajes nuevos se muestran sin recargar la página, mediante polling eficiente por cursor. El envío es optimista y no se pierde mensajes por errores de red; los mensajes propios y ajenos se distinguen claramente.
 - **RF-23 — Notificaciones ampliadas:** el usuario recibe notificaciones de mensaje nuevo, de cambios en publicaciones que sigue (favoritos: precio o estado) y de cambios de estado en sus propias publicaciones, dentro de la plataforma y por email.
 - **RF-24 — Perfil público del vendedor:** el perfil público de un vendedor muestra bio, nombre comercial, tiempo en la plataforma, tiempo de respuesta típico y sus publicaciones activas. Es accesible desde el detalle de publicación y desde el chat.
-- **RF-25 — Moderación con flujo de resolución:** cada reporte recorre un flujo de resolución trazable (abierto, en revisión, resuelto, descartado), y cada acción administrativa queda registrada con autor y fecha.
+- **RF-25 — Moderación con flujo de resolución:** cada reporte recorre un flujo de resolución trazable (abierto → en revisión → resuelto/descartado, con estados terminales inmutables), y cada acción administrativa (cambio de estado, pausar o rechazar la publicación) queda registrada en `ModerationAction` con autor y fecha, vinculada al reporte origen. El flujo es estricto: pausar/rechazar la publicación solo está disponible una vez que el reporte está en revisión. Además, para frenar el spam, cada usuario puede crear hasta 5 reportes por día (respuesta 429 `REPORT_LIMIT_EXCEEDED` al superar el límite).
 
 ## 3. Requisitos no funcionales
 

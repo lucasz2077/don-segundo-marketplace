@@ -340,9 +340,35 @@ model Report {
   status     ReportStatus @default(OPEN)
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
+  acciones   ModerationAction[]
 
   @@index([status, createdAt])
   @@index([listingId])
+}
+
+// Auditoría de las acciones de moderación (RF-25, Slice 5 de la Fase 2):
+// registra quién (adminId), cuándo (createdAt) y qué (accion) se hizo sobre
+// cada reporte. Append-only: la FK reportId usa onDelete Restrict para que las
+// acciones sobrevivan al reporte y no se pierda historia.
+enum ModerationActionAccion {
+  REVIEWED
+  RESOLVED
+  DISMISSED
+  PAUSED
+  REJECTED
+}
+
+model ModerationAction {
+  id        String                @id @default(uuid())
+  reportId  String
+  report    Report                @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  adminId   String
+  admin     User                  @relation("AccionesModeracion", fields: [adminId], references: [id])
+  accion    ModerationActionAccion
+  detalles  String?
+  createdAt DateTime              @default(now())
+
+  @@index([reportId, createdAt])
 }
 ```
 
@@ -377,11 +403,11 @@ model Report {
 
 ## 7. Evolución futura del esquema
 
-- **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída), se expande `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde) y se agrega `ModerationAction` para auditar las acciones de moderación.
+- **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída) y se expande `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde). `ModerationAction` ya está implementada (Slice 5 de la Fase 2, ver §7).
 - **Fase 3 (Confianza):** `Rating` (comprador→vendedor, puntaje, comentario), campo `sellerVerified` pasa a tener proceso de verificación con documentos, y tablas de pagos/escrow si se procesan internamente.
 - **Fase 4 (Escala):** `Subscription`/`PremiumPlan` para publicaciones destacadas y planes; `ServiceListing` como variante con campos específicos de servicios rurales (modalidad, zona de cobertura, disponibilidad) o extensión de `Listing` con discriminador.
 - **Búsqueda por distancia:** activación de PostGIS y columna de geografía en `Listing` cuando la búsqueda por radio lo requiera.
-- **Auditoría de moderación:** tabla `ModerationAction` que registra quién y cuándo tomó cada acción administrativa.
+- **Auditoría de moderación (implementada, Slice 5 de la Fase 2):** la tabla `ModerationAction` es el registro de auditoría del flujo de moderación (RF-25). Cada fila guarda `reportId` (FK a `Report` con `onDelete: Restrict`: la historia sobrevive al reporte y el borrado falla por Restrict), `adminId` (FK a `User`, relación `AccionesModeracion`), `accion` (enum `ModerationActionAccion`: REVIEWED/RESOLVED/DISMISSED para transiciones de estado y PAUSED/REJECTED para efectos laterales sobre la publicación), `detalles?` y `createdAt`. Es append-only y se escribe en la misma transacción que el cambio que audita; el índice `(reportId, createdAt)` acelera el historial cronológico del detalle. Las transiciones de estado (OPEN → REVIEWED → RESOLVED/DISMISSED) se validan en el service (`validarTransicionReporte`); pausar/rechazar exigen reporte REVIEWED y no mutan el estado del reporte.
 - **Notificaciones:** `Notification` (userId, tipo enum, payload JSONB, leída, createdAt) con índice por `(userId, readAt)` para la bandeja de notificaciones.
 - **Perfiles públicos:** `Profile` se expande con campos de display público (tiempo de respuesta típico calculado desde `Message`, en plataforma desde `createdAt`), sin exponer datos de contacto salvo los autorizados por el vendedor.
 
