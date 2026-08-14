@@ -89,10 +89,13 @@ La mensajería es el canal principal de contacto (más del 50 % de los contactos
 Dar seguridad a las transacciones: reputación, verificación de vendedores y, cuando el negocio lo justifique, procesamiento de pagos. Esto habilita la monetización.
 
 ### Entregables principales
-- Ratings y reseñas comprador → vendedor con agregados en el perfil público.
-- Verificación de vendedores (identidad/domicilio) con estado visible en publicaciones y perfiles.
-- Términos de servicio y políticas de uso actualizados para transacciones.
-- Reputación aplicada a la búsqueda (vendedores verificados destacados).
+
+Trabajo por slices con dependencia estricta (cada slice se completa antes del siguiente):
+
+- **Slice 1 — Ratings y reseñas comprador → vendedor:** registro transaccional de compras (`Compra` en la misma transacción que el decremento de stock, con `compraId` en el contrato de compra), calificación del comprador al vendedor (`Rating`: una por compra, ventana de 30 días, puntaje 1-5 y comentario opcional) con recálculo atómico de `ratingAvg`/`ratingCount`, API `POST /api/ratings` tipada con Zod, página "Mis compras" con formulario de reseña, y agregados de rating en el perfil público solo con 3 o más muestras. **COMPLETADO** (Fase 3) — implementado y documentado en `requirements.md` RF-26..RF-29 y RF-24 (modificado) y `database.md` §7; el modelo `Compra` queda como prerequisito del checkout.
+- **Slice 2 — Verificación de vendedores:** verificación de identidad/domicilio con estado visible en publicaciones y perfiles (el campo `Profile.sellerVerified` ya existe en el esquema). Pendiente.
+- **Slice 3 — Términos de servicio y políticas de uso** actualizados para transacciones. Pendiente.
+- **Slice 4 — Reputación aplicada a la búsqueda:** vendedores verificados destacados y señales de rating (se apoya en el Slice 1, ya implementado). Pendiente.
 
 #### Pagos y checkout
 
