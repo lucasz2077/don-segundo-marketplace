@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db/prisma";
 /** Cantidad mínima de conversaciones con respuesta para mostrar la métrica. */
 export const MINIMO_MUESTRAS_METRICA = 3;
 
+/** Muestras mínimas de reseñas para exponer el rating del vendedor (RF-24). */
+export const MINIMO_MUESTRAS_RATING = 3;
+
 /** Ventana estándar de la métrica: últimos 90 días corridos (REQ-5/BR-2). */
 export const VENTANA_METRICA_DIAS = 90;
 
@@ -15,6 +18,15 @@ export const VENTANA_METRICA_DIAS = 90;
 export type MetricaRespuesta = {
   promedioHoras: number;
   muestras: number;
+} | null;
+
+/**
+ * Rating del vendedor (RF-24). Es null con menos de 3 muestras (o sin
+ * Profile): el perfil oculta el bloque en ese caso.
+ */
+export type RatingVendedor = {
+  promedio: number;
+  cantidad: number;
 } | null;
 
 export type PerfilPublicoVendedor = {
@@ -28,6 +40,8 @@ export type PerfilPublicoVendedor = {
   /** null si el vendedor no creó su Profile todavía (REQ-3). */
   profile: { bio: string | null; businessName: string | null } | null;
   metricaRespuesta: MetricaRespuesta;
+  /** Rating agregado del vendedor: null si ratingCount < 3 (RF-24). */
+  rating: RatingVendedor;
   publicaciones: Array<{
     id: string;
     title: string;
@@ -95,7 +109,14 @@ export async function obtenerPerfilPublicoVendedor(
       image: true,
       locationLabel: true,
       createdAt: true,
-      profile: { select: { bio: true, businessName: true } },
+      profile: {
+        select: {
+          bio: true,
+          businessName: true,
+          ratingAvg: true,
+          ratingCount: true,
+        },
+      },
     },
   });
 
@@ -129,6 +150,16 @@ export async function obtenerPerfilPublicoVendedor(
     }),
   ]);
 
+  // RF-24: el rating se expone solo con 3 o más muestras (patrón
+  // MINIMO_MUESTRAS). Sin Profile o con menos reseñas → null (bloque oculto).
+  const rating: RatingVendedor =
+    usuario.profile && usuario.profile.ratingCount >= MINIMO_MUESTRAS_RATING
+      ? {
+          promedio: usuario.profile.ratingAvg,
+          cantidad: usuario.profile.ratingCount,
+        }
+      : null;
+
   return {
     usuario: {
       id: usuario.id,
@@ -144,6 +175,7 @@ export async function obtenerPerfilPublicoVendedor(
         }
       : null,
     metricaRespuesta,
+    rating,
     publicaciones,
   };
 }

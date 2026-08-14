@@ -7,6 +7,7 @@ import {
 } from "@/lib/perfiles";
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
 import { BotonContactar } from "@/components/listing/boton-contactar";
+import { BloqueRatingVendedor } from "@/components/vendedores/bloque-rating-vendedor";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,9 @@ export default async function VendedorPage({ params }: VendedorPageProps) {
               <p className="mt-1 text-sm font-medium text-brand-700 dark:text-brand-200">
                 {perfil.profile.businessName}
               </p>
+            ) : null}
+            {perfil.rating ? (
+              <BloqueRatingVendedor rating={perfil.rating} />
             ) : null}
             <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
               En la plataforma desde{" "}
