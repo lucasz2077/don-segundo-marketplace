@@ -42,6 +42,15 @@
   --color-success: #2f7d4f;
   --color-danger: #c0392b;
   --color-warning: #d97706;
+
+  /* Radios de superficie (E1) */
+  --radius-card: 0.75rem;
+  --radius-control: 0.5rem;
+
+  /* Sombras (E1) */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.08);
+  --shadow-card-hover: 0 4px 8px rgb(0 0 0 / 0.1), 0 2px 4px rgb(0 0 0 / 0.06);
+  --shadow-modal: 0 10px 25px rgb(0 0 0 / 0.12), 0 4px 10px rgb(0 0 0 / 0.08);
 }
 
 @media (prefers-color-scheme: dark) {

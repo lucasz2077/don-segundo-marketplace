@@ -1,9 +1,78 @@
+import type { Currency, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { VENTANA_CALIFICACION_DIAS } from "@/lib/ratings";
 import {
   crearNotificacion,
   notificarCambioEstadoPublicacion,
   notificarFavoritosCambioPublicacion,
 } from "@/lib/notificaciones";
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/** Compra con detalle mínimo para la UI de "Mis compras" (RF-29). */
+export type CompraConDetalle = {
+  id: string;
+  listing: {
+    id: string;
+    title: string;
+    images: Array<{ url: string; alt: string | null }>;
+  };
+  precioUnitario: Prisma.Decimal;
+  currency: Currency;
+  cantidad: number;
+  createdAt: Date;
+  rating: {
+    id: string;
+    puntaje: number;
+    comentario: string | null;
+    createdAt: Date;
+  } | null;
+};
+
+/**
+ * Devuelve true si la compra sigue dentro de la ventana de calificación de
+ * 30 días (RF-29). La ventana es INCLUSIVA: una compra con
+ * `createdAt + 30 días >= ahora` todavía puede calificarse, exactamente con
+ * la misma semántica del check de `calificarVenta` (RF-27, `>` 30 días
+ * rechaza). `ahora` es inyectable para tests deterministas.
+ */
+export function compraEnVentanaCalificacion(
+  createdAt: Date,
+  ahora = Date.now()
+): boolean {
+  return ahora - createdAt.getTime() <= VENTANA_CALIFICACION_DIAS * DIA_MS;
+}
+
+/**
+ * Devuelve las compras del usuario para la página "Mis compras" (RF-29/D7):
+ * una sola consulta con include (sin N+1) que trae el detalle mínimo de la
+ * publicación (solo su primera imagen) y el rating si la compra ya fue
+ * calificada. Ordenadas de más reciente a más antigua.
+ */
+export async function obtenerMisCompras(
+  compradorId: string
+): Promise<CompraConDetalle[]> {
+  return prisma.compra.findMany({
+    where: { compradorId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      listing: {
+        select: {
+          id: true,
+          title: true,
+          images: {
+            orderBy: { position: "asc" },
+            take: 1,
+            select: { url: true, alt: true },
+          },
+        },
+      },
+      rating: {
+        select: { id: true, puntaje: true, comentario: true, createdAt: true },
+      },
+    },
+  });
+}
 
 /** Error de dominio: la publicación a comprar/gestionar no existe o fue eliminada. */
 export class PublicacionNoEncontradaError extends Error {

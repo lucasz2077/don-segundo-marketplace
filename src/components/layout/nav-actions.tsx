@@ -60,6 +60,12 @@ export function NavActions({ user }: NavActionsProps) {
         Favoritos
       </Link>
       <Link
+        href="/compras"
+        className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+      >
+        Mis compras
+      </Link>
+      <Link
         href="/mensajes"
         className="flex items-center gap-1.5 text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
       >
