@@ -18,3 +18,15 @@ export const etiquetasEstadoReporte = {
   RESOLVED: "Resuelto",
   DISMISSED: "Descartado",
 } as const;
+
+/**
+ * Etiquetas en español para cada acción de moderación registrada en
+ * ModerationAction. Se muestran en el historial del detalle del reporte.
+ */
+export const etiquetasAccionModeracion = {
+  REVIEWED: "Revisado",
+  RESOLVED: "Resuelto",
+  DISMISSED: "Descartado",
+  PAUSED: "Publicación pausada",
+  REJECTED: "Publicación rechazada",
+} as const;

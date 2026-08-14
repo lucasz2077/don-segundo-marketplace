@@ -31,3 +31,17 @@ export const actualizarEstadoReporteSchema = z.object({
 export type ActualizarEstadoReporteInput = z.infer<
   typeof actualizarEstadoReporteSchema
 >;
+
+/**
+ * Schema del cuerpo del PATCH de una publicación desde la moderación de un
+ * reporte: valida la acción a aplicar sobre la publicación (pausar o
+ * rechazar) y el reporte origen que se está auditando.
+ */
+export const accionModeracionSchema = z.object({
+  accion: z.enum(["PAUSED", "REJECTED"], {
+    message: "La acción no es válida",
+  }),
+  reporteId: z.uuid("Selecciona un reporte válido"),
+});
+
+export type AccionModeracionInput = z.infer<typeof accionModeracionSchema>;
