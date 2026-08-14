@@ -28,7 +28,7 @@ export function NavActions({ user }: NavActionsProps) {
 
   if (!user) {
     return (
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-4">
         <Link
           href="/sign-in"
           className="text-sm font-medium text-brand-700 transition-colors hover:text-brand-900"
@@ -46,7 +46,7 @@ export function NavActions({ user }: NavActionsProps) {
   }
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-4">
       <Link
         href="/publicar"
         className="rounded-md bg-accent-500 px-3 py-1.5 text-sm font-medium text-brand-950 transition-colors hover:bg-accent-400"
