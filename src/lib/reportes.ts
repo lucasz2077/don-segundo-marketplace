@@ -1,6 +1,7 @@
 import type { ReportStatus } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { etiquetasEstadoReporte } from "@/lib/etiquetas-reportes";
 import {
   notificarCambioEstadoPublicacion,
   notificarFavoritosCambioPublicacion,
@@ -31,6 +32,98 @@ export class SinPermisoAdminError extends Error {
   constructor() {
     super("No tienes permiso para administrar reportes");
     this.name = "SinPermisoAdminError";
+  }
+}
+
+/** Límite de reportes por día por usuario para frenar el spam (RF-25). */
+export const LIMITE_REPORTES_POR_DIA_POR_USUARIO = 5;
+
+/** Error de dominio: se superó el límite diario de reportes del usuario. */
+export class LimiteReportesError extends Error {
+  readonly codigo = "REPORT_LIMIT_EXCEEDED";
+  readonly status = 429;
+
+  constructor() {
+    super(
+      `Alcanzaste el límite de ${LIMITE_REPORTES_POR_DIA_POR_USUARIO} reportes por día. Intentalo de nuevo mañana.`
+    );
+    this.name = "LimiteReportesError";
+  }
+}
+
+/** Error de dominio: el reporte solicitado no existe. */
+export class ReporteNoEncontradoError extends Error {
+  readonly codigo = "REPORTE_NO_ENCONTRADO";
+  readonly status = 404;
+
+  constructor() {
+    super("El reporte no existe.");
+    this.name = "ReporteNoEncontradoError";
+  }
+}
+
+/** Error de dominio: se intentó pausar/rechazar sin que el reporte esté Revisado. */
+export class ReporteNoRevisadoError extends Error {
+  readonly codigo = "REPORTE_NO_REVISADO";
+  readonly status = 400;
+
+  constructor() {
+    super("Para pausar o rechazar la publicación, el reporte debe estar Revisado.");
+    this.name = "ReporteNoRevisadoError";
+  }
+}
+
+/**
+ * Error de dominio: la transición de estado pedida no procede (RF-25).
+ * El flujo válido es OPEN → REVIEWED → RESOLVED/DISMISSED; RESOLVED y
+ * DISMISSED son terminales e inmutables.
+ */
+export class TransicionEstadoInvalidaError extends Error {
+  readonly codigo = "TRANSICION_INVALIDA";
+  readonly status = 400;
+
+  constructor(desde: ReportStatus, hacia: ReportStatus) {
+    super(
+      `No se puede pasar el reporte de ${etiquetasEstadoReporte[desde]} a ${etiquetasEstadoReporte[hacia]}. El flujo es Abierto → Revisado → Resuelto/Descartado.`
+    );
+    this.name = "TransicionEstadoInvalidaError";
+  }
+}
+
+/**
+ * Inicio del día en America/Argentina/Buenos_Aires (UTC-3 fijo, sin DST desde
+ * 2009). El offset fijo permite calcularlo sin librerías de zona horaria: se
+ * restan 3 horas al instante y se leen los componentes UTC como calendario
+ * local argentino; el inicio del día es 03:00 UTC (00:00 ART). Exportado para
+ * poder testearlo (decisión D2 del diseño).
+ */
+export function inicioDiaArgentina(ahora: Date = new Date()): Date {
+  const local = new Date(ahora.getTime() - 3 * 60 * 60 * 1000);
+  return new Date(
+    Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), 3)
+  );
+}
+
+/** Mapa de transiciones de estado válidas del flujo de moderación (RF-25). */
+const TRANSICIONES_VALIDAS: Record<ReportStatus, ReadonlySet<ReportStatus>> = {
+  OPEN: new Set<ReportStatus>(["REVIEWED"]),
+  REVIEWED: new Set<ReportStatus>(["RESOLVED", "DISMISSED"]),
+  RESOLVED: new Set<ReportStatus>(),
+  DISMISSED: new Set<ReportStatus>(),
+};
+
+/**
+ * Valida una transición de estado de un reporte (RF-25). Solo se aceptan
+ * OPEN → REVIEWED y REVIEWED → RESOLVED/DISMISSED; los estados terminales
+ * (RESOLVED/DISMISSED) son inmutables y toda otra transición (incluida
+ * misma → misma) lanza TransicionEstadoInvalidaError.
+ */
+export function validarTransicionReporte(
+  desde: ReportStatus,
+  hacia: ReportStatus
+): void {
+  if (!TRANSICIONES_VALIDAS[desde]?.has(hacia)) {
+    throw new TransicionEstadoInvalidaError(desde, hacia);
   }
 }
 
