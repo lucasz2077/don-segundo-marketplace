@@ -5,12 +5,29 @@ import { prisma } from "@/lib/db/prisma";
 
 const baseURL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+// En desarrollo, permitir acceso desde IP de red local (móvil -> PC)
+// Better Auth valida el origin contra trustedOrigins; sin esto, rechaza
+// requests desde 192.168.x.x, 10.x.x.x, etc. trustedOrigins solo acepta
+// strings: los patrones wildcard (*) matchean cualquier subcadena del host.
+const isDev = process.env.NODE_ENV === "development";
+const trustedOrigins = isDev
+  ? [
+      baseURL,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      // Allow any local IP on port 3000 (mobile on LAN)
+      "http://192.168.*:3000",
+      "http://10.*:3000",
+      "http://172.*:3000",
+    ]
+  : [
+      baseURL,
+      // En producción, agregar explícitamente el dominio de Vercel
+      // (baseURL ya debería ser https://tu-app.vercel.app)
+      "https://*.vercel.app",
+    ];
+
 export const auth = betterAuth({
-  // Nota: Better Auth v1.6 puede derivar la base URL del origin del request
-  // automáticamente si se omite `baseURL` (ver resolveBaseURL/getBaseURL en
-  // node_modules/better-auth/dist/utils/url.mjs). Aquí se mantiene explícita
-  // con fallback a localhost; en el cliente el origin se resuelve en runtime
-  // (ver src/lib/auth-client.ts) para soportar cualquier host de despliegue.
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, {
@@ -19,6 +36,10 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  // Permitir origins de red local en dev + dominios Vercel en prod
+  trustedOrigins,
+  // nextCookies() maneja las cookies automáticamente para Next.js
+  // (httpOnly, sameSite, secure, path, maxAge) — no sobrescribir manualmente
   user: {
     additionalFields: {
       role: {
