@@ -10,6 +10,7 @@ type BotonComprarProps = {
 };
 
 type RespuestaCompra = {
+  data?: { compraId?: string };
   error?: { message?: string };
 };
 
@@ -17,8 +18,9 @@ type RespuestaCompra = {
  * Botón de compra directa del detalle de publicación. Sin sesión redirige al
  * login con la ruta actual; con sesión llama a POST
  * /api/listings/[id]/comprar, maneja los errores de negocio de forma visible
- * (409 sin stock, 403, 401) y al éxito muestra una confirmación y refresca la
- * página para reflejar el nuevo stock.
+ * (409 sin stock, 403, 401) y al éxito muestra una confirmación con la
+ * referencia de la compra (compraId del contrato, RF-26) y refresca la página
+ * para reflejar el nuevo stock.
  */
 export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
   const router = useRouter();
@@ -26,6 +28,7 @@ export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comprada, setComprada] = useState(false);
+  const [compraId, setCompraId] = useState<string | null>(null);
 
   if (!sesionIniciada) {
     return (
@@ -71,6 +74,7 @@ export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
       }
 
       setComprada(true);
+      setCompraId(datos?.data?.compraId ?? null);
       router.refresh();
     } catch {
       setError("No se pudo concretar la compra. Intenta de nuevo.");
@@ -85,6 +89,11 @@ export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
         <p className="text-sm font-medium text-brand-900">
           ¡Gracias por tu compra!
         </p>
+        {compraId ? (
+          <p className="mt-1 text-xs text-brand-600">
+            Referencia de compra: {compraId}
+          </p>
+        ) : null}
       </div>
     );
   }

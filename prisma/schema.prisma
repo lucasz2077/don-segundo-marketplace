@@ -94,6 +94,7 @@ model User {
   notifications Notification[]
   sessions      Session[]
   accounts      Account[]
+  compras       Compra[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -187,16 +188,17 @@ model Listing {
   city          String?
   latitude      Float?
   longitude     Float?
-  viewCount     Int              @default(0)
-  publishedAt   DateTime         @default(now())
+  viewCount     Int             @default(0)
+  publishedAt   DateTime        @default(now())
   images        ListingImage[]
   favorites     Favorite[]
   reports       Report[]
   conversations Conversation[]
   notifications Notification[]
+  compras       Compra[]
   deletedAt     DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([status, publishedAt])
   @@index([categoryId, status])
@@ -323,4 +325,19 @@ model Direccion {
   updatedAt       DateTime @updatedAt
 
   @@index([userId])
+}
+
+model Compra {
+  id             String   @id @default(uuid())
+  compradorId    String
+  comprador      User     @relation(fields: [compradorId], references: [id], onDelete: Restrict)
+  listingId      String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  precioUnitario Decimal  @db.Decimal(12, 2)
+  currency       Currency @default(ARS)
+  cantidad       Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  @@index([compradorId, createdAt])
+  @@index([listingId])
 }
