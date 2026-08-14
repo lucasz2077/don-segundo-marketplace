@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { ReportStatus } from "@/generated/prisma/client";
+import type { ReportReason, ReportStatus } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth/session";
 import { obtenerReportes } from "@/lib/reportes";
 import {
@@ -12,6 +12,14 @@ import { AccionesReporte } from "@/components/reportes/acciones-reporte";
 export const dynamic = "force-dynamic";
 
 const estadosValidos: ReportStatus[] = ["OPEN", "REVIEWED", "RESOLVED", "DISMISSED"];
+
+const motivosValidos: ReportReason[] = [
+  "SPAM",
+  "INAPPROPRIATE",
+  "FRAUD",
+  "DUPLICATE",
+  "OTHER",
+];
 
 const etiquetasEstadoPublicacion: Record<string, string> = {
   ACTIVE: "Activa",
@@ -29,8 +37,21 @@ function formatearFecha(fecha: Date) {
 }
 
 type AdminReportesPageProps = {
-  searchParams: Promise<{ pagina?: string; estado?: string }>;
+  searchParams: Promise<{ pagina?: string; estado?: string; motivo?: string }>;
 };
+
+/** Construye un enlace del panel conservando los filtros activos indicados. */
+function enlaceFiltros(estado?: ReportStatus, motivo?: ReportReason) {
+  const parametros = new URLSearchParams();
+  if (estado) {
+    parametros.set("estado", estado);
+  }
+  if (motivo) {
+    parametros.set("motivo", motivo);
+  }
+  const consulta = parametros.toString();
+  return consulta ? `/admin/reportes?${consulta}` : "/admin/reportes";
+}
 
 export default async function AdminReportesPage({
   searchParams,
@@ -48,7 +69,14 @@ export default async function AdminReportesPage({
   const estado = estadosValidos.includes(parametros.estado as ReportStatus)
     ? (parametros.estado as ReportStatus)
     : undefined;
-  const resultado = await obtenerReportes(session.user.id, { estado, pagina });
+  const motivo = motivosValidos.includes(parametros.motivo as ReportReason)
+    ? (parametros.motivo as ReportReason)
+    : undefined;
+  const resultado = await obtenerReportes(session.user.id, {
+    estado,
+    motivo,
+    pagina,
+  });
   if (!resultado) {
     redirect("/");
   }
@@ -65,17 +93,21 @@ export default async function AdminReportesPage({
     })),
   ];
 
-  function enlaceFiltro(filtroEstado?: ReportStatus) {
-    if (!filtroEstado) {
-      return "/admin/reportes";
-    }
-    return `/admin/reportes?estado=${filtroEstado}`;
-  }
+  const filtrosMotivo: Array<{ motivo?: ReportReason; etiqueta: string }> = [
+    { etiqueta: "Todos" },
+    ...motivosValidos.map((reason) => ({
+      motivo: reason,
+      etiqueta: etiquetasMotivoReporte[reason],
+    })),
+  ];
 
   function enlacePagina(paginaDestino: number) {
     const parametrosEnlace = new URLSearchParams();
     if (estado) {
       parametrosEnlace.set("estado", estado);
+    }
+    if (motivo) {
+      parametrosEnlace.set("motivo", motivo);
     }
     parametrosEnlace.set("pagina", String(paginaDestino));
     return `/admin/reportes?${parametrosEnlace.toString()}`;
@@ -91,28 +123,59 @@ export default async function AdminReportesPage({
         infrinjan las normas.
       </p>
 
-      <div
-        className="mt-6 flex flex-wrap items-center gap-2"
-        role="group"
-        aria-label="Filtrar reportes por estado"
-      >
-        {filtrosEstado.map((filtro) => {
-          const activo = estado === filtro.estado;
-          return (
-            <Link
-              key={filtro.etiqueta}
-              href={enlaceFiltro(filtro.estado)}
-              aria-current={activo ? "page" : undefined}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-                activo
-                  ? "border-brand-700 bg-brand-700 text-white"
-                  : "border-brand-300 text-brand-700 hover:bg-brand-50"
-              }`}
-            >
-              {filtro.etiqueta}
-            </Link>
-          );
-        })}
+      <div className="mt-6 flex flex-col gap-4">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Filtrar reportes por estado"
+        >
+          <span className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+            Estado
+          </span>
+          {filtrosEstado.map((filtro) => {
+            const activo = estado === filtro.estado;
+            return (
+              <Link
+                key={filtro.etiqueta}
+                href={enlaceFiltros(filtro.estado, motivo)}
+                aria-current={activo ? "page" : undefined}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activo
+                    ? "border-brand-700 bg-brand-700 text-white"
+                    : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                }`}
+              >
+                {filtro.etiqueta}
+              </Link>
+            );
+          })}
+        </div>
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Filtrar reportes por motivo"
+        >
+          <span className="text-xs font-semibold uppercase tracking-wide text-brand-600">
+            Motivo
+          </span>
+          {filtrosMotivo.map((filtro) => {
+            const activo = motivo === filtro.motivo;
+            return (
+              <Link
+                key={filtro.etiqueta}
+                href={enlaceFiltros(estado, filtro.motivo)}
+                aria-current={activo ? "page" : undefined}
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activo
+                    ? "border-brand-700 bg-brand-700 text-white"
+                    : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                }`}
+              >
+                {filtro.etiqueta}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {reportes.length === 0 ? (
@@ -136,6 +199,12 @@ export default async function AdminReportesPage({
                 <time className="text-xs text-brand-600">
                   {formatearFecha(reporte.createdAt)}
                 </time>
+                <Link
+                  href={`/admin/reportes/${reporte.id}`}
+                  className="ml-auto rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                >
+                  Ver detalle
+                </Link>
               </div>
 
               <h2 className="mt-3 text-base font-semibold text-brand-900">
