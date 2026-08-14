@@ -25,8 +25,15 @@ export class AutoContactoError extends Error {
   }
 }
 
+// Solo campos públicos del participante (REQ-12/RF-19): el profile se usa
+// para mostrar el businessName como subtítulo en el detalle de publicación.
 const seleccionUsuarioConversacion = {
-  select: { id: true, name: true, image: true },
+  select: {
+    id: true,
+    name: true,
+    image: true,
+    profile: { select: { bio: true, businessName: true } },
+  },
 } as const;
 
 const seleccionPropietario = { id: true, name: true } as const;
