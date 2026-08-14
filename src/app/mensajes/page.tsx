@@ -44,28 +44,31 @@ function SeccionConversaciones({
               key={conversacion.id}
               className={tieneNoLeidos ? "bg-accent-500/10" : undefined}
             >
-              <Link
-                href={`/mensajes/${conversacion.id}`}
-                className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-brand-50"
-              >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-brand-100">
-                  {conversacion.listingImagen ? (
-                    <Image
-                      src={conversacion.listingImagen}
-                      alt={conversacion.listingTitulo}
-                      fill
-                      sizes="48px"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-brand-600">
-                      Sin imagen
+              {/* La fila no puede ser un único Link: el nombre del otro
+                  participante es un enlace a su perfil público (REQ-8) y un
+                  enlace dentro de otro enlace es HTML inválido. */}
+              <div className="px-4 py-3 transition-colors hover:bg-brand-50">
+                <div className="flex items-center gap-4">
+                  <Link
+                    href={`/mensajes/${conversacion.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-4"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-brand-100">
+                      {conversacion.listingImagen ? (
+                        <Image
+                          src={conversacion.listingImagen}
+                          alt={conversacion.listingTitulo}
+                          fill
+                          sizes="48px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-brand-600">
+                          Sin imagen
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
                     <span
                       className={
                         tieneNoLeidos
@@ -75,34 +78,36 @@ function SeccionConversaciones({
                     >
                       {conversacion.listingTitulo}
                     </span>
-                    <span className="shrink-0 text-xs text-brand-600">
+                    <span className="ml-auto shrink-0 text-xs text-brand-600">
                       {conversacion.lastMessageAt
                         ? formateadorFecha.format(conversacion.lastMessageAt)
                         : formateadorFecha.format(conversacion.createdAt)}
                     </span>
-                  </div>
-                  <p className="mt-0.5 truncate text-sm text-brand-600">
-                    <span
-                      className={
-                        tieneNoLeidos
-                          ? "font-bold text-brand-900"
-                          : "font-medium text-brand-900"
-                      }
-                    >
-                      {conversacion.otroParticipante.name}
+                  </Link>
+
+                  {tieneNoLeidos ? (
+                    <span className="shrink-0 rounded-full bg-accent-500 px-2 py-0.5 text-xs font-semibold text-brand-950">
+                      {conversacion.noLeidos}
                     </span>
-                    {conversacion.ultimoMensaje
-                      ? `: ${conversacion.ultimoMensaje.body}`
-                      : ": Sin mensajes aún"}
-                  </p>
+                  ) : null}
                 </div>
 
-                {tieneNoLeidos ? (
-                  <span className="shrink-0 rounded-full bg-accent-500 px-2 py-0.5 text-xs font-semibold text-brand-950">
-                    {conversacion.noLeidos}
-                  </span>
-                ) : null}
-              </Link>
+                <p className="mt-1 truncate text-sm text-brand-600">
+                  <Link
+                    href={`/vendedores/${conversacion.otroParticipante.id}`}
+                    className={
+                      tieneNoLeidos
+                        ? "font-bold text-brand-900 underline-offset-2 hover:underline"
+                        : "font-medium text-brand-900 underline-offset-2 hover:underline"
+                    }
+                  >
+                    {conversacion.otroParticipante.name}
+                  </Link>
+                  {conversacion.ultimoMensaje
+                    ? `: ${conversacion.ultimoMensaje.body}`
+                    : ": Sin mensajes aún"}
+                </p>
+              </div>
             </li>
           );
         })}
