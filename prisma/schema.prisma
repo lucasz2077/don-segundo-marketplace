@@ -95,6 +95,8 @@ model User {
   sessions      Session[]
   accounts      Account[]
   compras       Compra[]
+  ratingsDados     Rating[] @relation("RatingComprador")
+  ratingsRecibidos Rating[] @relation("RatingVendedor")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -336,8 +338,24 @@ model Compra {
   precioUnitario Decimal  @db.Decimal(12, 2)
   currency       Currency @default(ARS)
   cantidad       Int      @default(1)
+  rating         Rating?
   createdAt      DateTime @default(now())
 
   @@index([compradorId, createdAt])
   @@index([listingId])
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  compradorId String
+  comprador   User     @relation("RatingComprador", fields: [compradorId], references: [id], onDelete: Restrict)
+  vendedorId String
+  vendedor   User     @relation("RatingVendedor", fields: [vendedorId], references: [id], onDelete: Restrict)
+  compraId   String   @unique
+  compra     Compra   @relation(fields: [compraId], references: [id], onDelete: Restrict)
+  puntaje    Int
+  comentario String?
+  createdAt  DateTime @default(now())
+
+  @@index([vendedorId])
 }

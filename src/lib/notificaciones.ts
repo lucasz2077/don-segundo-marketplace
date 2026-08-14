@@ -36,12 +36,22 @@ type PayloadEstadoPublicacion = {
   estado: string;
 };
 
+/** Payload de una reseña de venta (tipo GENERAL, evento "resenia", RF-27). */
+type PayloadResenia = {
+  evento: "resenia";
+  compraId: string;
+  listingId: string;
+  puntaje: number;
+  autorNombre: string;
+};
+
 /** Payload posible de una notificación, discriminado por tipo. */
 export type NotificacionPayload =
   | PayloadMensajeNuevo
   | PayloadFavoritoPrecio
   | PayloadFavoritoEstado
-  | PayloadEstadoPublicacion;
+  | PayloadEstadoPublicacion
+  | PayloadResenia;
 
 const titulosEstadoCambio: Record<EstadoCambioPublicacion, string> = {
   pausada: "Publicación pausada",
@@ -304,6 +314,16 @@ function esPayloadEstadoPublicacion(objeto: Prisma.JsonObject): objeto is Payloa
   return esCadena(objeto.listingId) && esCadena(objeto.estado);
 }
 
+function esPayloadResenia(objeto: Prisma.JsonObject): objeto is PayloadResenia {
+  return (
+    objeto.evento === "resenia" &&
+    esCadena(objeto.compraId) &&
+    esCadena(objeto.listingId) &&
+    typeof objeto.puntaje === "number" &&
+    esCadena(objeto.autorNombre)
+  );
+}
+
 /**
  * Convierte el payload JSON (JsonValue de Prisma) de una notificación en un
  * payload tipado según su tipo. Devuelve null si no se puede parsear (por
@@ -326,6 +346,11 @@ export function parsearPayload(
       return esPayloadFavoritoEstado(payload) ? payload : null;
     case "ESTADO_PUBLICACION":
       return esPayloadEstadoPublicacion(payload) ? payload : null;
+    // Las reseñas de venta usan tipo GENERAL con el evento "resenia" en el
+    // payload (RF-27): los payloads GENERAL legados sin ese evento devuelven
+    // null, sin regresión.
+    case "GENERAL":
+      return esPayloadResenia(payload) ? payload : null;
     default:
       return null;
   }
