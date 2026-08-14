@@ -11,6 +11,10 @@ Entidades principales y sus relaciones:
 - **Listing** (1)—(N) **ListingImage**: una publicación tiene varias imágenes.
 - **Listing** (1)—(N) **Report**: una publicación puede ser reportada varias veces.
 - **User** (1)—(N) **Report**: un usuario puede hacer muchos reportes.
+- **User** (1)—(N) **Compra**: un comprador registra muchas compras.
+- **Listing** (1)—(N) **Compra**: una publicación puede ser comprada varias veces.
+- **Compra** (1)—(0..1) **Rating**: una compra tiene a lo sumo una calificación (unique `compraId`).
+- **User** (1)—(N) **Rating** (comprador) y **User** (1)—(N) **Rating** (vendedor): un usuario califica las ventas que compró y recibe calificaciones por sus ventas.
 - **Conversation** (1)—(N) **Message**: un hilo de contacto contiene muchos mensajes. **Conversation** (N)—(N) **User** (participantes, resuelto con tabla pivote implícita).
 
 ```
@@ -18,6 +22,8 @@ User ──┬──< Listing >──< ListingImage
        │        │
        │        ├──< Favorite >── User (repetido como guardador)
        │        ├──< Report >── User (repetido como denunciante)
+       │        ├──< Compra >──< Listing (repetido como comprado)
+       │        │        └──< Rating (0..1 por compra) ──> User (vendedor)
        │        └──< Category (self-referencing)
        │
        └──< Conversation >──< Message
@@ -50,7 +56,8 @@ Se modela como extensión del User (perfil de vendedor público).
 | bio | text | Descripción breve |
 | businessName | string? | Razón social / nombre comercial |
 | sellerVerified | boolean | Fase 3 (verificación de vendedores) |
-| ratingAvg | float | Fase 3 (ratings) |
+| ratingAvg | float | Promedio de calificaciones del vendedor (0-5) |
+| ratingCount | int | Cantidad de calificaciones; el bloque de rating se muestra solo con ≥ 3 (RF-24) |
 | createdAt / updatedAt | timestamps | |
 
 ### Category
@@ -130,6 +137,35 @@ Se modela como extensión del User (perfil de vendedor público).
 | status | enum | OPEN, REVIEWED, RESOLVED, DISMISSED |
 | createdAt / updatedAt | timestamps | |
 
+### Compra
+Registra cada compra de una publicación (RF-26), creada en la misma transacción que el decremento de stock.
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| id | uuid | PK |
+| compradorId | uuid | FK → User (onDelete Restrict) |
+| listingId | uuid | FK → Listing (onDelete Restrict) |
+| precioUnitario | decimal | Decimal(12,2), precio al momento de la compra |
+| currency | enum | ARS, USD |
+| cantidad | int | Default 1 (una publicación por compra) |
+| rating | Rating? | 1:1 opcional (a lo sumo una calificación) |
+| createdAt | timestamp | Fecha de la compra; inicia la ventana de 30 días para calificar |
+
+Índices: `(compradorId, createdAt)` para "Mis compras"; `(listingId)` para las compras de una publicación.
+
+### Rating
+Calificación del comprador hacia el vendedor, una por compra (RF-27).
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| id | uuid | PK |
+| compradorId | uuid | FK → User (relación `RatingComprador`, onDelete Restrict) |
+| vendedorId | uuid | FK → User (relación `RatingVendedor`, onDelete Restrict) |
+| compraId | uuid | FK → Compra (onDelete Restrict), único: una calificación por compra |
+| puntaje | int | 1 a 5 |
+| comentario | string? | Opcional, máx. 500 caracteres; vacío se guarda como null |
+| createdAt | timestamp | |
+
+Índices: `compraId` único (unique) y `(vendedorId)` para las calificaciones recibidas de un vendedor.
+
 Nota: los mensajes y la conversación completos se consolidan en la Fase 2 (chat). En el MVP el "contacto" puede persistirse como un registro simple de contacto (comprador, vendedor, publicación, mensaje inicial y canal), que luego migra sin romper el esquema hacia el modelo Conversación/Mensaje de la Fase 2.
 
 ## 3. Esquema Prisma
@@ -205,6 +241,9 @@ model User {
   listings       Listing[]
   favorites      Favorite[]
   reports        Report[]
+  compras        Compra[]
+  ratingsDados   Rating[] @relation("RatingComprador")
+  ratingsRecibidos Rating[] @relation("RatingVendedor")
   buyerConvs     Conversation[] @relation("BuyerConvs")
   sellerConvs    Conversation[] @relation("SellerConvs")
   messages       Message[]
@@ -261,6 +300,7 @@ model Listing {
   favorites   Favorite[]
   reports     Report[]
   conversations Conversation[]
+  compras     Compra[]
   deletedAt   DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -370,6 +410,37 @@ model ModerationAction {
 
   @@index([reportId, createdAt])
 }
+
+model Compra {
+  id             String   @id @default(uuid())
+  compradorId    String
+  comprador      User     @relation(fields: [compradorId], references: [id], onDelete: Restrict)
+  listingId      String
+  listing        Listing  @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  precioUnitario Decimal  @db.Decimal(12, 2)
+  currency       Currency @default(ARS)
+  cantidad       Int      @default(1)
+  rating         Rating?
+  createdAt      DateTime @default(now())
+
+  @@index([compradorId, createdAt])
+  @@index([listingId])
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  compradorId String
+  comprador   User     @relation("RatingComprador", fields: [compradorId], references: [id], onDelete: Restrict)
+  vendedorId String
+  vendedor   User     @relation("RatingVendedor", fields: [vendedorId], references: [id], onDelete: Restrict)
+  compraId   String   @unique
+  compra     Compra   @relation(fields: [compraId], references: [id], onDelete: Restrict)
+  puntaje    Int
+  comentario String?
+  createdAt  DateTime @default(now())
+
+  @@index([vendedorId])
+}
 ```
 
 ## 4. Índices y consideraciones de performance
@@ -377,6 +448,8 @@ model ModerationAction {
 - **Búsqueda y listados:** índices compuestos en `Listing` para las combinaciones de filtro más frecuentes: `(status, publishedAt)` para home, `(categoryId, status)` y `(province, status)` para filtros, `(ownerId, status)` para "Mis publicaciones".
 - **Precio:** índice simple en `price` para el rango de precio; se re-evalúa si el orden por precio es muy usado (podría reemplazarse por índice compuesto con `status`).
 - **Favoritos:** índice único `(userId, listingId)` garantiza un favorito por usuario y publicación y acelera el toggle.
+- **Compras:** índice `(compradorId, createdAt)` para listar "Mis compras" ordenadas por fecha e índice `(listingId)` para las compras de una publicación.
+- **Calificaciones:** índice único en `compraId` garantiza una calificación por compra (RF-27); el índice `(vendedorId)` acelera los agregados del perfil del vendedor (RF-24).
 - **Mensajería:** índice `(conversationId, createdAt)` para listar mensajes de un hilo ordenados por fecha.
 - **Búsqueda full-text:** `@@fulltext([title, description])` usa `tsvector` nativo de PostgreSQL; si el volumen crece, se migra a un índice GIN o a una herramienta dedicada (p. ej. Postgres trigram / Meilisearch) sin cambiar el contrato de la API.
 - **Conteos:** los contadores agregados (vistas, favoritos) se actualizan de forma incremental; se evitan COUNT sobre tablas grandes en listados públicos.
@@ -404,7 +477,7 @@ model ModerationAction {
 ## 7. Evolución futura del esquema
 
 - **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída) y se expande `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde). `ModerationAction` ya está implementada (Slice 5 de la Fase 2, ver §7).
-- **Fase 3 (Confianza):** `Rating` (comprador→vendedor, puntaje, comentario), campo `sellerVerified` pasa a tener proceso de verificación con documentos, y tablas de pagos/escrow si se procesan internamente.
+- **Fase 3 (Confianza):** primer slice implementado: `Compra` registra cada compra en la misma transacción que el decremento de stock (RF-26) y `Rating` guarda una calificación por compra con recálculo atómico de `ratingAvg`/`ratingCount` (RF-27). Pendiente en la fase: `sellerVerified` con proceso de verificación de documentos y tablas de pagos/escrow si se procesan internamente.
 - **Fase 4 (Escala):** `Subscription`/`PremiumPlan` para publicaciones destacadas y planes; `ServiceListing` como variante con campos específicos de servicios rurales (modalidad, zona de cobertura, disponibilidad) o extensión de `Listing` con discriminador.
 - **Búsqueda por distancia:** activación de PostGIS y columna de geografía en `Listing` cuando la búsqueda por radio lo requiera.
 - **Auditoría de moderación (implementada, Slice 5 de la Fase 2):** la tabla `ModerationAction` es el registro de auditoría del flujo de moderación (RF-25). Cada fila guarda `reportId` (FK a `Report` con `onDelete: Restrict`: la historia sobrevive al reporte y el borrado falla por Restrict), `adminId` (FK a `User`, relación `AccionesModeracion`), `accion` (enum `ModerationActionAccion`: REVIEWED/RESOLVED/DISMISSED para transiciones de estado y PAUSED/REJECTED para efectos laterales sobre la publicación), `detalles?` y `createdAt`. Es append-only y se escribe en la misma transacción que el cambio que audita; el índice `(reportId, createdAt)` acelera el historial cronológico del detalle. Las transiciones de estado (OPEN → REVIEWED → RESOLVED/DISMISSED) se validan en el service (`validarTransicionReporte`); pausar/rechazar exigen reporte REVIEWED y no mutan el estado del reporte.
