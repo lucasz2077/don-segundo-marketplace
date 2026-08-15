@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { obtenerEstadoVinculacionMp } from "@/lib/pagos/oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,10 @@ export default async function PerfilPage() {
   if (!session) {
     redirect("/sign-in?redirect=/perfil");
   }
+
+  // Estado del vínculo con Mercado Pago resuelto server-side (RF-47/RF-48).
+  // Nunca llegan tokens ni mpUserId al cliente (RNF-20): solo el estado.
+  const estadoMp = await obtenerEstadoVinculacionMp(session.user.id);
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
@@ -54,6 +59,36 @@ export default async function PerfilPage() {
             Estado de tu verificación y solicitud.
           </p>
         </Link>
+        <div className={estiloCard}>
+          <h2 className="text-lg font-semibold text-brand-900">
+            Mercado Pago
+          </h2>
+          {estadoMp === "VINCULADA" ? (
+            <p className="mt-1 text-sm text-brand-600">
+              Tu cuenta de Mercado Pago está vinculada y lista para cobrar tus
+              ventas.
+            </p>
+          ) : estadoMp === "REVOCADA" ? (
+            <p className="mt-1 text-sm text-brand-600">
+              Tu vínculo con Mercado Pago fue revocado. Re-vinculalo para
+              seguir vendiendo.
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-brand-600">
+              Para publicar necesitás vincular tu cuenta de Mercado Pago.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/api/pagos/oauth/iniciar"
+              className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+            >
+              {estadoMp === "SIN_VINCULO"
+                ? "Vincular Mercado Pago"
+                : "Re-vincular"}
+            </Link>
+          </div>
+        </div>
         {/* La card de perfil público lleva dos acciones (editar y ver el
             perfil público), así que es un div y no un Link completo como las
             otras tres cards: un enlace dentro de otro enlace es HTML inválido. */}
