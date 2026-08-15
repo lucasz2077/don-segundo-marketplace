@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Payment } from "mercadopago";
 import { Prisma } from "@/generated/prisma/client";
 import { clienteMpApp } from "@/lib/pagos/mp";
@@ -37,4 +38,49 @@ export async function verificarPago(
     currencyId: pago.currency_id ?? "",
     paymentMethodId: pago.payment_method_id,
   };
+}
+
+/**
+ * Valida la firma `x-signature` de una notificación de MP (RNF-16): el header
+ * trae `ts` y `v1` (HMAC-SHA256 del secret sobre el manifest
+ * `id;request-id;ts;`). Comparación timing-safe. Devuelve true solo si la
+ * firma es válida para el `dataId` recibido; nunca lanza.
+ */
+export function verificarFirmaMp({
+  xSignature,
+  xRequestId,
+  dataId,
+  secret,
+}: {
+  xSignature: string | null;
+  xRequestId: string | null;
+  dataId: string;
+  secret: string;
+}): boolean {
+  if (!xSignature) return false;
+
+  let ts = "";
+  let v1 = "";
+  for (const parte of xSignature.split(",")) {
+    const [clave, valor] = parte.split("=");
+    if (!clave || valor === undefined) continue;
+    const normalizada = clave.trim();
+    if (normalizada === "ts") ts = valor.trim();
+    if (normalizada === "v1") v1 = valor.trim();
+  }
+  if (!ts || !v1) return false;
+
+  const partes: string[] = [];
+  if (dataId) partes.push(`id:${dataId}`);
+  if (xRequestId) partes.push(`request-id:${xRequestId}`);
+  partes.push(`ts:${ts}`);
+  const manifest = `${partes.join(";")};`;
+
+  try {
+    const calculada = createHmac("sha256", secret).update(manifest).digest("hex");
+    if (calculada.length !== v1.length) return false;
+    return timingSafeEqual(Buffer.from(calculada), Buffer.from(v1));
+  } catch {
+    return false;
+  }
 }
