@@ -109,7 +109,11 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
           </p>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {resultado.publicaciones.map((publicacion) => (
-              <TarjetaPublicacion key={publicacion.id} publicacion={publicacion} />
+              <TarjetaPublicacion
+                key={publicacion.id}
+                publicacion={publicacion}
+                sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
+              />
             ))}
           </div>
           <nav className="mt-8 flex items-center justify-between">

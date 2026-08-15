@@ -9,7 +9,15 @@ export class PublicacionNoDisponibleError extends Error {
   }
 }
 
-const seleccionPropietario = { id: true, name: true } as const;
+// Solo campos públicos del dueño (REQ-12/RF-19): el profile aporta el estado
+// de verificación para el sello Verificado de la tarjeta (RF-38).
+const seleccionPropietario = {
+  id: true,
+  name: true,
+  profile: {
+    select: { sellerVerified: true },
+  },
+} as const;
 
 const incluirDependenciasFavorito = {
   listing: {

@@ -94,6 +94,7 @@ export default async function HomePage() {
               <TarjetaPublicacion
                 key={publicacion.id}
                 publicacion={publicacion}
+                sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
               />
             ))}
           </div>

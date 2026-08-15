@@ -59,6 +59,8 @@ export type PerfilPublicoVendedor = {
     condition: ListingCondition;
     province: string;
     images: Array<{ url: string; alt: string | null }>;
+    /** Estado de verificación del dueño, mismo valor en todas (RF-38). */
+    sellerVerified: VerificationStatus | null;
   }>;
 };
 
@@ -187,7 +189,12 @@ export async function obtenerPerfilPublicoVendedor(
       : null,
     metricaRespuesta,
     rating,
-    publicaciones,
+    // RF-38: cada publicación arrastra el sellerVerified del dueño para que
+    // la tarjeta pueda mostrar el sello sin consultas adicionales.
+    publicaciones: publicaciones.map((publicacion) => ({
+      ...publicacion,
+      sellerVerified: usuario.profile?.sellerVerified ?? null,
+    })),
   };
 }
 

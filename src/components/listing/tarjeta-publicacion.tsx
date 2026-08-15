@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { formatearPrecio, type Moneda } from "@/lib/formato";
+import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
 
 type TarjetaPublicacionProps = {
   publicacion: {
@@ -12,13 +13,20 @@ type TarjetaPublicacionProps = {
     province: string;
     images: Array<{ url: string; alt: string | null }>;
   };
+  /** Estado de verificación del dueño; el sello solo se muestra en VERIFIED (RF-38). */
+  sellerVerified?: string | null;
 };
 
 /**
  * Tarjeta de publicación para listados e inicio. Muestra la primera imagen,
- * título, precio formateado, condición y provincia.
+ * título, precio formateado, condición y provincia. Renderiza el sello de
+ * vendedor verificado junto al título cuando el dueño está VERIFIED (RF-38);
+ * la verificación no altera el orden ni los filtros de la búsqueda.
  */
-export function TarjetaPublicacion({ publicacion }: TarjetaPublicacionProps) {
+export function TarjetaPublicacion({
+  publicacion,
+  sellerVerified,
+}: TarjetaPublicacionProps) {
   const imagenPrincipal = publicacion.images[0];
   const etiquetaCondicion =
     publicacion.condition === "NEW" ? "Nuevo" : "Usado";
@@ -47,9 +55,12 @@ export function TarjetaPublicacion({ publicacion }: TarjetaPublicacionProps) {
         </span>
       </div>
       <div className="p-4">
-        <h3 className="line-clamp-2 text-sm font-medium text-brand-900 group-hover:text-brand-700">
-          {publicacion.title}
-        </h3>
+        <div className="flex flex-wrap items-center gap-x-2">
+          <h3 className="line-clamp-2 text-sm font-medium text-brand-900 group-hover:text-brand-700">
+            {publicacion.title}
+          </h3>
+          <BadgeVerificado sellerVerified={sellerVerified} />
+        </div>
         <p className="mt-2 text-base font-semibold text-brand-900">
           {formatearPrecio(publicacion.price, publicacion.currency)}
         </p>

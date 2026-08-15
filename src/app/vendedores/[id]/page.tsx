@@ -106,7 +106,10 @@ export default async function VendedorPage({ params }: VendedorPageProps) {
           <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {perfil.publicaciones.map((publicacion) => (
               <li key={publicacion.id}>
-                <TarjetaPublicacion publicacion={publicacion} />
+                <TarjetaPublicacion
+                  publicacion={publicacion}
+                  sellerVerified={publicacion.sellerVerified}
+                />
               </li>
             ))}
           </ul>

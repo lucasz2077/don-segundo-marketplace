@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import VendedorPage from "./page";
 
@@ -237,7 +237,7 @@ describe("Página pública /vendedores/[id]", () => {
     expect(screen.queryByText(/reseñas/)).not.toBeInTheDocument();
   });
 
-  it("muestra el sello Verificado junto al nombre cuando el vendedor está VERIFIED (RF-34)", async () => {
+  it("muestra el sello Verificado en el header y en la tarjeta cuando el vendedor está VERIFIED (RF-34/RF-38)", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuario,
       profile: {
@@ -250,7 +250,13 @@ describe("Página pública /vendedores/[id]", () => {
 
     await renderizarPagina();
 
-    expect(screen.getByText("Verificado")).toBeInTheDocument();
+    // Un sello junto al nombre del perfil (RF-34) y otro en la tarjeta de la
+    // publicación (RF-38): la tarjeta recibe sellerVerified del perfil.
+    const sellos = screen.getAllByText("Verificado");
+    expect(sellos).toHaveLength(2);
+    const tarjetas = screen.getAllByRole("listitem");
+    expect(tarjetas).toHaveLength(1);
+    expect(within(tarjetas[0]).getByText("Verificado")).toBeInTheDocument();
   });
 
   it("no muestra el sello cuando la verificación no es VERIFIED (RF-34)", async () => {

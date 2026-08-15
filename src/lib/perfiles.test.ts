@@ -136,8 +136,40 @@ describe("obtenerPerfilPublicoVendedor", () => {
       },
       metricaRespuesta: { promedioHoras: 9.5, muestras: 6 },
       rating: null,
-      publicaciones,
+      // RF-38: cada publicación arrastra el sellerVerified del dueño.
+      publicaciones: [{ ...publicaciones[0], sellerVerified: "VERIFIED" }],
     });
+  });
+
+  it("propaga sellerVerified del Profile a cada publicación (RF-38)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: { bio: null, businessName: null, sellerVerified: "PENDING" },
+    });
+    mocks.findManyListings.mockResolvedValue([
+      publicaciones[0],
+      {
+        ...publicaciones[0],
+        id: "lista-2",
+        title: "Sembradora",
+      },
+    ]);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.publicaciones).toHaveLength(2);
+    for (const publicacion of resultado?.publicaciones ?? []) {
+      expect(publicacion.sellerVerified).toBe("PENDING");
+    }
+  });
+
+  it("mapea sellerVerified null en las publicaciones sin Profile (RF-38)", async () => {
+    mocks.findUser.mockResolvedValue({ ...usuarioBase, profile: null });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.publicaciones[0]?.sellerVerified).toBeNull();
   });
 
   it("selecciona sellerVerified del Profile y lo expone en el retorno (RF-34)", async () => {

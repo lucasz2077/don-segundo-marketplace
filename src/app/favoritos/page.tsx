@@ -29,7 +29,10 @@ export default async function FavoritosPage() {
               key={favorito.id}
               className="flex flex-col gap-3 rounded-lg border border-brand-100 bg-white p-3"
             >
-              <TarjetaPublicacion publicacion={favorito.listing} />
+              <TarjetaPublicacion
+                publicacion={favorito.listing}
+                sellerVerified={favorito.listing.owner?.profile?.sellerVerified ?? null}
+              />
               <BotonQuitarFavorito listingId={favorito.listingId} />
             </div>
           ))}
