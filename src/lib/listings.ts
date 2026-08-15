@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { eliminarImagen } from "@/lib/cloudinary";
 import { notificarFavoritosCambioPublicacion } from "@/lib/notificaciones";
+import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
 import type { CrearPublicacionInput } from "@/lib/validation/listing";
 
 /** Cantidad de publicaciones por página en listados y búsquedas. */
@@ -24,6 +25,20 @@ export class CategoriaInvalidaError extends Error {
   constructor() {
     super("La categoría seleccionada no es válida");
     this.name = "CategoriaInvalidaError";
+  }
+}
+
+/**
+ * Error de dominio (RF-47): el vendedor no tiene una cuenta de Mercado Pago
+ * vinculada y vigente, requisito obligatorio para publicar o editar. Las rutas
+ * lo traducen a 403 MP_NO_VINCULADA.
+ */
+export class SinCuentaMpError extends Error {
+  constructor() {
+    super(
+      "Necesitás vincular tu cuenta de Mercado Pago para publicar"
+    );
+    this.name = "SinCuentaMpError";
   }
 }
 
@@ -206,13 +221,20 @@ export async function obtenerPublicacionesDelUsuario(ownerId: string) {
 }
 
 /**
- * Crea una publicación con sus imágenes. Valida que la categoría exista;
- * si no, lanza CategoriaInvalidaError.
+ * Crea una publicación con sus imágenes. Requiere una cuenta de Mercado Pago
+ * vinculada y vigente del dueño (RF-47); si no existe, lanza
+ * `SinCuentaMpError` (403 MP_NO_VINCULADA) sin crear nada. Valida que la
+ * categoría exista; si no, lanza CategoriaInvalidaError.
  */
 export async function crearPublicacion(
   ownerId: string,
   datos: CrearPublicacionInput
 ) {
+  const cuentaMp = await obtenerCuentaMpVigente(ownerId);
+  if (!cuentaMp) {
+    throw new SinCuentaMpError();
+  }
+
   const categoria = await prisma.category.findUnique({
     where: { id: datos.categoryId },
     select: { id: true },
@@ -247,15 +269,22 @@ export async function crearPublicacion(
 }
 
 /**
- * Actualiza una publicación (solo su propietario). Si el payload trae
- * imágenes, las reemplaza por completo y limpia de Cloudinary las que ya no
- * se usan. Retorna null si la publicación no existe o no pertenece al dueño.
+ * Actualiza una publicación (solo su propietario). Requiere una cuenta de
+ * Mercado Pago vinculada y vigente del dueño (RF-47); si no existe, lanza
+ * `SinCuentaMpError` (403 MP_NO_VINCULADA). Si el payload trae imágenes, las
+ * reemplaza por completo y limpia de Cloudinary las que ya no se usan. Retorna
+ * null si la publicación no existe o no pertenece al dueño.
  */
 export async function actualizarPublicacion(
   id: string,
   ownerId: string,
   datos: CrearPublicacionInput
 ) {
+  const cuentaMp = await obtenerCuentaMpVigente(ownerId);
+  if (!cuentaMp) {
+    throw new SinCuentaMpError();
+  }
+
   const publicacion = await prisma.listing.findFirst({
     where: { id, ownerId },
     include: { images: true },

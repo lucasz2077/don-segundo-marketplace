@@ -8,6 +8,7 @@ import {
   eliminarPublicacion,
   obtenerPublicacion,
   obtenerPublicacionPorId,
+  SinCuentaMpError,
 } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,9 @@ export async function PATCH(
     }
     return NextResponse.json({ data: actualizada });
   } catch (error) {
+    if (error instanceof SinCuentaMpError) {
+      return respuestaError(403, "MP_NO_VINCULADA", error.message);
+    }
     if (error instanceof CategoriaInvalidaError) {
       return respuestaError(400, "CATEGORIA_INVALIDA", error.message);
     }

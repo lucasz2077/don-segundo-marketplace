@@ -9,6 +9,7 @@ import {
   CategoriaInvalidaError,
   crearPublicacion,
   obtenerPublicacionesActivas,
+  SinCuentaMpError,
 } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
     const publicacion = await crearPublicacion(session.user.id, parseado.data);
     return NextResponse.json({ data: publicacion }, { status: 201 });
   } catch (error) {
+    if (error instanceof SinCuentaMpError) {
+      return respuestaError(403, "MP_NO_VINCULADA", error.message);
+    }
     if (error instanceof CategoriaInvalidaError) {
       return respuestaError(400, "CATEGORIA_INVALIDA", error.message);
     }
