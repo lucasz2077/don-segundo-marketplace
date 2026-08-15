@@ -42,3 +42,19 @@ export const resolverDevolucionSchema = z
   });
 
 export type ResolverDevolucionInput = z.infer<typeof resolverDevolucionSchema>;
+
+/**
+ * Notificación de Mercado Pago (RF-46): el body real trae más campos
+ * (action, api_version, live_mode...), pero solo importan `type` y
+ * `data.id`. `data.id` se normaliza a string (MP puede enviarlo como
+ * número). Pretransform: si data.id viene como número/string, se fuerza
+ * a string sin romper el parseo.
+ */
+export const webhookPagoSchema = z.object({
+  type: z.string().optional(),
+  data: z.object({
+    id: z.union([z.string(), z.number()]).transform(String),
+  }),
+});
+
+export type WebhookPagoInput = z.infer<typeof webhookPagoSchema>;
