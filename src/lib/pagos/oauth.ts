@@ -21,12 +21,35 @@ function urlCallback(): string {
 }
 
 /**
- * State de CSRF para OAuth (RF-48/§5): hash determinístico del userId (la
- * sesión ya autenticó al usuario); el callback re-verifica contra la sesión
- * activa antes de completar la vinculación.
+ * State de CSRF para OAuth (RF-48/§5): hash determinístico del TOKEN de sesión
+ * (cookie httpOnly). A diferencia del userId (público en /vendedores/[id]), el
+ * token de sesión no es adivinable: un atacante no puede fabricar un `state`
+ * válido para otra sesión. El callback re-verifica contra la sesión activa
+ * antes de completar la vinculación.
  */
-export function stateOAuth(userId: string): string {
-  return createHash("sha256").update(userId).digest("hex");
+export function stateOAuth(sessionToken: string): string {
+  return createHash("sha256").update(sessionToken).digest("hex");
+}
+
+/**
+ * URL de autorización de Mercado Pago para el flujo OAuth (RF-48). El `estado`
+ * es el state CSRF de la sesión activa (ver `stateOAuth`). Requiere
+ * `MP_CLIENT_ID` y `NEXT_PUBLIC_APP_URL` (server-side, RNF-20); lanza si falta
+ * la credencial, y la ruta lo traduce a 500.
+ */
+export function obtenerAutorizacionMpUrl(estado: string): string {
+  const client_id = process.env.MP_CLIENT_ID;
+  if (!client_id) {
+    throw new Error("Falta MP_CLIENT_ID");
+  }
+  const parametros = new URLSearchParams({
+    client_id,
+    response_type: "code",
+    platform_id: "mp",
+    redirect_uri: urlCallback(),
+    state: estado,
+  });
+  return `https://auth.mercadopago.com.ar/authorization?${parametros.toString()}`;
 }
 
 /**
@@ -97,6 +120,22 @@ export async function obtenerCuentaMpVigente(
   return prisma.vendedorMpAccount.findFirst({
     where: { userId, revocadaAt: null },
   });
+}
+
+/**
+ * Estado del vínculo de un vendedor con Mercado Pago para la UI del perfil
+ * (RF-47/RF-48). Se resuelve server-side y solo expone el estado al cliente:
+ * nunca tokens ni mpUserId (RNF-20).
+ */
+export async function obtenerEstadoVinculacionMp(
+  userId: string
+): Promise<"VINCULADA" | "REVOCADA" | "SIN_VINCULO"> {
+  const cuenta = await prisma.vendedorMpAccount.findUnique({
+    where: { userId },
+    select: { revocadaAt: true },
+  });
+  if (!cuenta) return "SIN_VINCULO";
+  return cuenta.revocadaAt ? "REVOCADA" : "VINCULADA";
 }
 
 /** Error domínio de renovación de token (RF-48). */

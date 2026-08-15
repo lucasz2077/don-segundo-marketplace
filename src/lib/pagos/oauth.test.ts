@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -54,8 +55,10 @@ vi.mock("@/lib/notificaciones", () => ({
 
 import {
   completarVinculacionMp,
+  obtenerAutorizacionMpUrl,
   obtenerCuentaMpVigente,
   renovarTokenVendedor,
+  stateOAuth,
 } from "@/lib/pagos/oauth";
 
 const vendedorMp = {
@@ -70,6 +73,43 @@ const vendedorMp = {
   createdAt: new Date("2026-08-15T00:00:00Z"),
   updatedAt: new Date("2026-08-15T00:00:00Z"),
 };
+
+describe("stateOAuth (CSRF, design §5)", () => {
+  it("deriva el state del TOKEN de sesión con sha256", () => {
+    expect(stateOAuth("tok-sesion")).toBe(
+      createHash("sha256").update("tok-sesion").digest("hex")
+    );
+  });
+
+  it("produce states distintos para tokens de sesión distintos", () => {
+    expect(stateOAuth("tok-a")).not.toBe(stateOAuth("tok-b"));
+  });
+});
+
+describe("obtenerAutorizacionMpUrl (RF-48)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("MP_CLIENT_ID", "1234567890");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://campo.example.com");
+  });
+
+  it("arma la URL de autorización con client_id, response_type, platform_id, redirect_uri y state", () => {
+    const url = obtenerAutorizacionMpUrl("estado-1");
+
+    expect(url).toBe(
+      "https://auth.mercadopago.com.ar/authorization?" +
+        "client_id=1234567890&response_type=code&platform_id=mp" +
+        "&redirect_uri=https%3A%2F%2Fcampo.example.com%2Fapi%2Fpagos%2Foauth%2Fcallback" +
+        "&state=estado-1"
+    );
+  });
+
+  it("lanza si falta MP_CLIENT_ID (la ruta lo traduce a 500)", () => {
+    vi.stubEnv("MP_CLIENT_ID", "");
+
+    expect(() => obtenerAutorizacionMpUrl("estado-1")).toThrow(/MP_CLIENT_ID/);
+  });
+});
 
 describe("completarVinculacionMp", () => {
   beforeEach(() => {
