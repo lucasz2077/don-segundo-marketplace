@@ -204,6 +204,29 @@ Flujo de contacto (comprador → vendedor):
    únicamente en el canal autorizado por el vendedor.
 ```
 
+Flujo de verificación de vendedores (Fase 3, Slice 2):
+
+```
+1. El vendedor (accountType SELLER/BOTH) solicita verificación desde su
+   perfil: adjunta su documentación (identidad obligatoria, domicilio
+   opcional) vía POST /api/verificaciones.
+2. El servicio valida que no exista una solicitud PENDING activa y crea
+   una SolicitudVerificacion nueva; setea Profile.sellerVerified = PENDING.
+3. El admin ve la solicitud en /admin/verificaciones con su documentación
+   (solo admin, RNF-15) y el historial del vendedor (append-only).
+4. El admin aprueba o rechaza (con motivo) vía PATCH /api/verificaciones/[id];
+   la acción se registra con adminId y revisadoAt en la solicitud.
+5. Al aprobar: Profile.sellerVerified = VERIFIED → el badge de verificación
+   aparece en el perfil público y en el detalle de las publicaciones.
+   Al rechazar: Profile.sellerVerified = REJECTED y el vendedor puede
+   re-solicitar (RF-35). En ambos casos se notifica al vendedor.
+6. Los documentos nunca se exponen fuera del panel admin (RNF-15).
+```
+
+## 6.1 Autorización de admin
+
+La autorización de admin se apoya en el patrón existente de moderación (Fase 2, Slice 5): chequeo de claim de sesión (`session.user.role === "ADMIN"`) en páginas y rutas, más re-chequeo en base (`esAdministrador(userId)` en `src/lib/reportes.ts`) dentro del service. La capa de verificación reutiliza ese mismo patrón (o extrae `validarAdministrador` a un módulo compartido) para las rutas admin de `/admin/verificaciones`; nunca confía solo en el claim de la sesión.
+
 ## 7. Seguridad
 
 - **Validación:** Zod en todas las rutas y Server Actions; nunca se confía en el cliente.

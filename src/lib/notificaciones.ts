@@ -45,13 +45,21 @@ type PayloadResenia = {
   autorNombre: string;
 };
 
+/** Payload de una notificación de verificación de vendedor (tipo GENERAL,
+ * evento "verificacion", RF-32..RF-36). Refleja el estado de Profile. */
+type PayloadVerificacion = {
+  evento: "verificacion";
+  estado: "PENDING" | "APPROVED" | "REJECTED";
+};
+
 /** Payload posible de una notificación, discriminado por tipo. */
 export type NotificacionPayload =
   | PayloadMensajeNuevo
   | PayloadFavoritoPrecio
   | PayloadFavoritoEstado
   | PayloadEstadoPublicacion
-  | PayloadResenia;
+  | PayloadResenia
+  | PayloadVerificacion;
 
 const titulosEstadoCambio: Record<EstadoCambioPublicacion, string> = {
   pausada: "Publicación pausada",
@@ -324,6 +332,15 @@ function esPayloadResenia(objeto: Prisma.JsonObject): objeto is PayloadResenia {
   );
 }
 
+function esPayloadVerificacion(objeto: Prisma.JsonObject): objeto is PayloadVerificacion {
+  return (
+    objeto.evento === "verificacion" &&
+    (objeto.estado === "PENDING" ||
+      objeto.estado === "APPROVED" ||
+      objeto.estado === "REJECTED")
+  );
+}
+
 /**
  * Convierte el payload JSON (JsonValue de Prisma) de una notificación en un
  * payload tipado según su tipo. Devuelve null si no se puede parsear (por
@@ -346,11 +363,14 @@ export function parsearPayload(
       return esPayloadFavoritoEstado(payload) ? payload : null;
     case "ESTADO_PUBLICACION":
       return esPayloadEstadoPublicacion(payload) ? payload : null;
-    // Las reseñas de venta usan tipo GENERAL con el evento "resenia" en el
-    // payload (RF-27): los payloads GENERAL legados sin ese evento devuelven
-    // null, sin regresión.
+    // Las reseñas de venta y las verificaciones de vendedor usan tipo GENERAL
+    // con los eventos "resenia" y "verificacion" en el payload (RF-27, RF-32);
+    // los payloads GENERAL legados sin esos eventos devuelven null, sin regresión.
     case "GENERAL":
-      return esPayloadResenia(payload) ? payload : null;
+      if (esPayloadResenia(payload)) {
+        return payload;
+      }
+      return esPayloadVerificacion(payload) ? payload : null;
     default:
       return null;
   }

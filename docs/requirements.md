@@ -77,6 +77,14 @@
 - **RF-30 — Reseñas visibles en el detalle de la publicación:** el detalle de una publicación (`/listados/[id]`) muestra, debajo del contenido principal, las reseñas de las ventas de **esa** publicación: autor (nombre del comprador), puntaje en estrellas, comentario y fecha. El bloque se muestra aunque haya una sola reseña (no aplica el umbral de 3 muestras del perfil público, que es un agregado de vendedor). Si la publicación no tiene reseñas, el bloque no se muestra.
 - **RF-31 — Eliminación de reseña propia:** el autor de una reseña (el comprador de la `Compra`) puede eliminar su propia reseña desde el detalle de la publicación, con confirmación en la interfaz. Al eliminar, el sistema recalcula de forma atómica e inversa `ratingAvg`/`ratingCount` del vendedor (promedio ponderado inverso, sin caer por debajo de 0) en la misma transacción que borra el registro. La eliminación no está limitada por la ventana de 30 días (esa ventana restringe solo la creación). Si la reseña eliminada era la única muestra, `ratingCount` vuelve a 0 y el bloque agregado del perfil público deja de mostrarse.
 
+### Verificación de vendedores
+
+- **RF-32 — Solicitud de verificación self-service:** un usuario con rol vendedor o ambos (`accountType` SELLER/BOTH) puede solicitar su verificación desde su perfil. La solicitud es voluntaria (nunca obligatoria) y requiere adjuntar la documentación de identidad y, opcionalmente, de domicilio. No puede existir más de una solicitud pendiente a la vez: si el vendedor ya tiene una solicitud `PENDING`, al volver a solicitarla ve el estado de esa solicitud en lugar de crear otra.
+- **RF-33 — Revisión por administrador:** el panel admin (`/admin/...`) lista las solicitudes de verificación con su estado y las fechas. El admin puede **aprobar** o **rechazar** una solicitud; al rechazar, debe indicar un motivo. Aprobar una solicitud setea el perfil del vendedor a `VERIFIED` (badge visible); rechazarla lo deja en `REJECTED` con motivo, permitiendo un nuevo intento. El flujo es estricto: solo un admin puede revisar, y la aprobación/rechazo queda registrada con autor y fecha en la solicitud.
+- **RF-34 — Badge de vendedor verificado:** un vendedor con estado `VERIFIED` muestra un badge "Verificado" (sello) en su perfil público (`/vendedores/[id]`) y en el detalle de sus publicaciones (`/listados/[id]`). El sello no expone la documentación ni los datos de la solicitud: solo confirma que el vendedor fue verificado.
+- **RF-35 — Reintento tras rechazo:** si la solicitud fue rechazada, el vendedor puede volver a solicitarla (nueva solicitud con su documentación). Las solicitudes previas quedan en el historial (append-only) con su estado, motivo y autor, de modo que el admin ve la historia del vendedor.
+- **RF-36 — Mis datos y estado de verificación:** en su perfil, el vendedor ve el estado actual de su verificación (no solicitado / pendiente / verificado / rechazado con motivo) y, si aplica, el botón para solicitar o re-solicitar la verificación.
+
 ## 3. Requisitos no funcionales
 
 ### Rendimiento
@@ -92,6 +100,7 @@
 - **RNF-06 — Autorización por rol:** las rutas de administración y moderación exigen rol admin; los usuarios solo pueden modificar sus propios recursos.
 - **RNF-07 — Rate limiting:** las rutas de autenticación, contacto y creación de publicaciones tienen límites de peticiones por IP/usuario para mitigar abuso.
 - **RNF-08 — Protección de datos personales:** los datos de contacto se tratan como sensibles; no se exponen en la API salvo lo estrictamente necesario.
+- **RNF-15 — Confidencialidad de la documentación de verificación:** los documentos adjuntos en una solicitud de verificación (identidad/domicilio) son datos sensibles: solo el administrador puede verlos en el panel de revisión; nunca se exponen en la API pública, en el perfil público, en el detalle de publicaciones ni en la propia UI del vendedor.
 
 ### Móvil y conectividad
 

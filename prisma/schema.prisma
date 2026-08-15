@@ -19,6 +19,19 @@ enum AccountType {
   BOTH
 }
 
+enum VerificationStatus {
+  NONE
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum SolicitudVerificacionEstado {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum Currency {
   ARS
   USD
@@ -97,6 +110,8 @@ model User {
   compras       Compra[]
   ratingsDados     Rating[] @relation("RatingComprador")
   ratingsRecibidos Rating[] @relation("RatingVendedor")
+  verificacionesSolicitadas SolicitudVerificacion[] @relation("VerificacionesVendedor")
+  verificacionesRevisadas   SolicitudVerificacion[] @relation("VerificacionesAdmin")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -154,7 +169,7 @@ model Profile {
   user           User     @relation(fields: [userId], references: [id])
   bio            String?
   businessName   String?
-  sellerVerified Boolean  @default(false)
+  sellerVerified VerificationStatus @default(NONE) @map("seller_verified")
   ratingAvg      Float    @default(0)
   ratingCount    Int      @default(0)
   createdAt      DateTime @default(now())
@@ -358,4 +373,20 @@ model Rating {
   createdAt  DateTime @default(now())
 
   @@index([vendedorId])
+}
+
+model SolicitudVerificacion {
+  id           String                       @id @default(uuid())
+  vendedorId   String
+  vendedor     User                         @relation("VerificacionesVendedor", fields: [vendedorId], references: [id], onDelete: Cascade)
+  dniUrl       String?
+  domicilioUrl String?
+  estado       SolicitudVerificacionEstado  @default(PENDING)
+  motivoRechazo String?
+  adminId      String?
+  admin        User?                        @relation("VerificacionesAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+  revisadoAt   DateTime?
+  createdAt    DateTime                     @default(now())
+
+  @@index([vendedorId, createdAt])
 }

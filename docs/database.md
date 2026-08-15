@@ -55,10 +55,25 @@ Se modela como extensión del User (perfil de vendedor público).
 | id | uuid | PK = userId (1:1 con User) |
 | bio | text | Descripción breve |
 | businessName | string? | Razón social / nombre comercial |
-| sellerVerified | boolean | Fase 3 (verificación de vendedores) |
+| sellerVerified | enum | `VerificationStatus`: NONE / PENDING / VERIFIED / REJECTED (antes boolean; migrado en Fase 3, Slice 2) |
 | ratingAvg | float | Promedio de calificaciones del vendedor (0-5) |
 | ratingCount | int | Cantidad de calificaciones; el bloque de rating se muestra solo con ≥ 3 (RF-24) |
 | createdAt / updatedAt | timestamps | |
+
+### SolicitudVerificacion
+Registro de cada solicitud de verificación del vendedor (Fase 3, Slice 2, RF-32..RF-36). Append-only: cada solicitud queda en el historial con estado, motivo y autor.
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| id | uuid | PK |
+| vendedorId | uuid | FK → User (el que se verifica), índice |
+| dniUrl | string? | URL del documento de identidad. **Solo visible para admin (RNF-15)** |
+| domicilioUrl | string? | URL del documento de domicilio. **Solo visible para admin (RNF-15)** |
+| estado | enum | `SolicitudVerificacionEstado`: PENDING / APPROVED / REJECTED |
+| motivoRechazo | string? | Motivo requerido al rechazar |
+| adminId | string? | FK → User (admin que revisó) |
+| revisadoAt | datetime? | Fecha de la revisión |
+| createdAt | datetime | Fecha de la solicitud |
+| @@index([vendedorId, createdAt]) | | Historial cronológico por vendedor |
 
 ### Category
 | Campo | Tipo | Notas |
@@ -260,11 +275,11 @@ model Profile {
   user          User     @relation(fields: [userId], references: [id])
   bio           String?
   businessName  String?
-  sellerVerified Boolean  @default(false)
-  ratingAvg     Float    @default(0)
-  ratingCount   Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  sellerVerified VerificationStatus @default(NONE) @map("seller_verified")
+  ratingAvg       Float    @default(0)
+  ratingCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Category {
@@ -477,7 +492,7 @@ model Rating {
 ## 7. Evolución futura del esquema
 
 - **Fase 2 (Comunidad):** el modelo Conversación/Mensaje entra en pleno uso; se agrega `Notification` (user, tipo, payload JSONB, leída) y se expande `Profile` con datos públicos (tiempo de respuesta típico, en plataforma desde). `ModerationAction` ya está implementada (Slice 5 de la Fase 2, ver §7).
-- **Fase 3 (Confianza):** primer slice implementado: `Compra` registra cada compra en la misma transacción que el decremento de stock (RF-26) y `Rating` guarda una calificación por compra con recálculo atómico de `ratingAvg`/`ratingCount` (RF-27). La reseña es visible en el detalle de la publicación vendida (query de reseñas por publicación vía `Compra.listingId`, que ya tiene índice `@@index([listingId])`, con join a `Rating` por `compraId` único — ver RF-30) y el autor puede eliminarla con recálculo inverso atómico del promedio ponderado (RF-31). Pendiente en la fase: `sellerVerified` con proceso de verificación de documentos y tablas de pagos/escrow si se procesan internamente.
+- **Fase 3 (Confianza):** primer slice implementado: `Compra` registra cada compra en la misma transacción que el decremento de stock (RF-26) y `Rating` guarda una calificación por compra con recálculo atómico de `ratingAvg`/`ratingCount` (RF-27). La reseña es visible en el detalle de la publicación vendida (query de reseñas por publicación vía `Compra.listingId`, que ya tiene índice `@@index([listingId])`, con join a `Rating` por `compraId` único — ver RF-30) y el autor puede eliminarla con recálculo inverso atómico del promedio ponderado (RF-31). Slice 2 en curso: `sellerVerified` pasa de boolean a `VerificationStatus` (NONE/PENDING/VERIFIED/REJECTED, columna `seller_verified`) y nace `SolicitudVerificacion` para el flujo self-service + admin (RF-32..RF-36); los documentos (`dniUrl`/`domicilioUrl`) solo los ve el admin (RNF-15). Pendiente en la fase: tablas de pagos/escrow si se procesan internamente.
 - **Fase 4 (Escala):** `Subscription`/`PremiumPlan` para publicaciones destacadas y planes; `ServiceListing` como variante con campos específicos de servicios rurales (modalidad, zona de cobertura, disponibilidad) o extensión de `Listing` con discriminador.
 - **Búsqueda por distancia:** activación de PostGIS y columna de geografía en `Listing` cuando la búsqueda por radio lo requiera.
 - **Auditoría de moderación (implementada, Slice 5 de la Fase 2):** la tabla `ModerationAction` es el registro de auditoría del flujo de moderación (RF-25). Cada fila guarda `reportId` (FK a `Report` con `onDelete: Restrict`: la historia sobrevive al reporte y el borrado falla por Restrict), `adminId` (FK a `User`, relación `AccionesModeracion`), `accion` (enum `ModerationActionAccion`: REVIEWED/RESOLVED/DISMISSED para transiciones de estado y PAUSED/REJECTED para efectos laterales sobre la publicación), `detalles?` y `createdAt`. Es append-only y se escribe en la misma transacción que el cambio que audita; el índice `(reportId, createdAt)` acelera el historial cronológico del detalle. Las transiciones de estado (OPEN → REVIEWED → RESOLVED/DISMISSED) se validan en el service (`validarTransicionReporte`); pausar/rechazar exigen reporte REVIEWED y no mutan el estado del reporte.
