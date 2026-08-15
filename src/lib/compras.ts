@@ -1,6 +1,14 @@
-import type { Currency, Prisma } from "@/generated/prisma/client";
+import type { CompraEstadoPago, Currency, MotivoReembolso, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { VENTANA_CALIFICACION_DIAS } from "@/lib/ratings";
+import { calcularFee } from "@/lib/pagos/mp";
+import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
+import {
+  crearPreferenciaPago,
+  PreferenciaFallidaError,
+} from "@/lib/pagos/preferencias";
+import type { PagoVerificado } from "@/lib/pagos/pagos";
+import { reembolsarCompra } from "@/lib/pagos/reembolsos";
 import {
   crearNotificacion,
   notificarCambioEstadoPublicacion,
@@ -9,9 +17,16 @@ import {
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
-/** Compra con detalle mínimo para la UI de "Mis compras" (RF-29). */
+/** TTL de las órdenes PENDIENTES antes de expirar (D5): 30 minutos. */
+export const VENCIMIENTO_ORDEN_MINUTOS = 30;
+
+/** Compra con detalle mínimo para la UI de "Mis compras" (RF-29/RF-41). */
 export type CompraConDetalle = {
   id: string;
+  estadoPago: CompraEstadoPago;
+  aprobadoAt: Date | null;
+  medioPago: string | null;
+  motivoReembolso: MotivoReembolso | null;
   listing: {
     id: string;
     title: string;
@@ -30,6 +45,25 @@ export type CompraConDetalle = {
 };
 
 /**
+ * Expiración LAZY de órdenes vencidas (D5): marca EXPIRADA en batch toda
+ * Compra PENDIENTE cuya `fechaVencimiento` ya pasó. Se invoca al leer
+ * /compras y antes de procesar el webhook (sin cron en Vercel). Devuelve la
+ * cantidad de órdenes expiradas; `ahora` es inyectable para tests.
+ */
+export async function expirarOrdenesVencidas(
+  ahora = new Date()
+): Promise<number> {
+  const resultado = await prisma.compra.updateMany({
+    where: {
+      estadoPago: "PENDIENTE",
+      fechaVencimiento: { lt: ahora },
+    },
+    data: { estadoPago: "EXPIRADA" },
+  });
+  return resultado.count;
+}
+
+/**
  * Devuelve true si la compra sigue dentro de la ventana de calificación de
  * 30 días (RF-29). La ventana es INCLUSIVA: una compra con
  * `createdAt + 30 días >= ahora` todavía puede calificarse, exactamente con
@@ -46,12 +80,16 @@ export function compraEnVentanaCalificacion(
 /**
  * Devuelve las compras del usuario para la página "Mis compras" (RF-29/D7):
  * una sola consulta con include (sin N+1) que trae el detalle mínimo de la
- * publicación (solo su primera imagen) y el rating si la compra ya fue
- * calificada. Ordenadas de más reciente a más antigua.
+ * publicación (solo su primera imagen), el rating si la compra ya fue
+ * calificada y los campos de estado de pago (RF-41). Antes de leer dispara la
+ * expiración lazy de órdenes vencidas (D5). Ordenadas de más reciente a más
+ * antigua.
  */
 export async function obtenerMisCompras(
   compradorId: string
 ): Promise<CompraConDetalle[]> {
+  await expirarOrdenesVencidas();
+
   return prisma.compra.findMany({
     where: { compradorId },
     orderBy: { createdAt: "desc" },
@@ -106,6 +144,14 @@ export class SinStockError extends Error {
   }
 }
 
+/** Error de dominio: el pago no pudo inicializarse (→ 502 PAGO_INDISPONIBLE). */
+export class PagoIndisponibleError extends Error {
+  constructor(causa?: unknown) {
+    super("El pago no está disponible en este momento", { cause: causa });
+    this.name = "PagoIndisponibleError";
+  }
+}
+
 /** Error de dominio: la publicación no pertenece al usuario que la gestiona. */
 export class PublicacionNoPerteneceError extends Error {
   constructor() {
@@ -123,16 +169,17 @@ export class AccionEstadoInvalidaError extends Error {
 }
 
 /**
- * Compra una unidad de una publicación activa y registra la Compra en la
- * MISMA transacción que el decremento atómico del stock (RF-26, D1 del
- * diseño): si la transacción falla, ni el stock decrementa ni existe registro.
- * El precio y la moneda se capturan en la lectura inicial y se persisten en la
- * Compra (D2: precio histórico de la transacción). Si el stock llega a 0, la
- * publicación pasa a SOLD dentro de la tx y se notifica al dueño y a los
- * favoritos DESPUÉS del commit (best-effort: un fallo de notificación nunca
- * revierte la compra). Retorna el contrato con `compraId`.
+ * Inicia una compra creando una orden PENDIENTE con su preferencia de pago
+ * (RF-26 modificada / RF-39): valida 404/403/400/409 igual que antes, crea la
+ * Compra con `estadoPago PENDIENTE`, `fechaVencimiento` (TTL D5), el
+ * `marketplaceFee` del 5% (D6) y SIN tocar stock ni pasar a SOLD — el
+ * decremento ocurre recién al aprobarse el pago (webhook). La preferencia de
+ * Checkout Pro se crea con el token del VENDEDOR (collector); si falla, se
+ * elimina la orden compensatoria y se lanza `PagoIndisponibleError` (502, sin
+ * órdenes huérfanas). Devuelve el contrato `{ compra: { id, estadoPago },
+ * initPoint }` (el redirect al checkout es FUERA de la plataforma).
  */
-export async function comprarPublicacion({
+export async function iniciarCompra({
   compradorId,
   listingId,
 }: {
@@ -164,84 +211,278 @@ export async function comprarPublicacion({
     throw new SinStockError();
   }
 
-  const { compraId, publicacionComprada, pasoASold } =
-    await prisma.$transaction(async (tx) => {
-      // Actualización atómica contra condiciones: si dos compradores piden la
-      // última unidad a la vez, solo uno decrementa (stock > 0) y el otro recibe
-      // count 0 y se le responde "sin stock" como error de negocio (no 500).
-      const decremento = await tx.listing.updateMany({
-        where: {
-          id: listingId,
-          status: "ACTIVE",
-          deletedAt: null,
-          stock: { gt: 0 },
-        },
-        data: {
-          stock: { decrement: 1 },
-          soldCount: { increment: 1 },
-        },
+  // Orden PENDIENTE con external_reference = compra.id (RF-39). El decremento
+  // y SOLD se mueven a la aprobación del pago (RF-26 modificada).
+  const fechaVencimiento = new Date(
+    Date.now() + VENCIMIENTO_ORDEN_MINUTOS * 60 * 1000
+  );
+  const marketplaceFee = calcularFee(publicacion.price);
+
+  const compra = await prisma.compra.create({
+    data: {
+      compradorId,
+      listingId,
+      precioUnitario: publicacion.price,
+      currency: publicacion.currency,
+      cantidad: 1,
+      estadoPago: "PENDIENTE",
+      fechaVencimiento,
+      marketplaceFee,
+    },
+    select: { id: true, estadoPago: true },
+  });
+
+  // Cuenta de MP del vendedor: collector del pago (RF-47/RF-48). Sin cuenta
+  // vigente no se puede cobrar: se compensa la orden y se responde 502.
+  const vendedorMp = await obtenerCuentaMpVigente(publicacion.ownerId);
+  if (!vendedorMp) {
+    await prisma.compra
+      .delete({ where: { id: compra.id } })
+      .catch(() => undefined);
+    throw new PagoIndisponibleError(
+      new Error("El vendedor no tiene cuenta de Mercado Pago vigente")
+    );
+  }
+
+  try {
+    const { initPoint } = await crearPreferenciaPago({
+      compra: {
+        id: compra.id,
+        listingId: publicacion.id,
+        precioUnitario: publicacion.price,
+        currency: publicacion.currency,
+        cantidad: 1,
+        fechaVencimiento,
+        marketplaceFee,
+      },
+      vendedorMp: { accessToken: vendedorMp.accessToken },
+    });
+    return {
+      compra: { id: compra.id, estadoPago: compra.estadoPago },
+      initPoint,
+    };
+  } catch (error) {
+    if (error instanceof PreferenciaFallidaError) {
+      // Compensación: nunca quedan órdenes huérfanas sin preferencia creada.
+      await prisma.compra
+        .delete({ where: { id: compra.id } })
+        .catch(() => undefined);
+      throw new PagoIndisponibleError(error);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Procesa un pago `approved` verificado server-side (RF-43..RF-46, RNF-17/18):
+ * 1) RF-46: si el monto o la moneda pagados difieren de la Compra → registra
+ *    `PAGO_INCONSISTENTE` y NO procesa (sin decremento ni SOLD).
+ * 2) `$transaction` con el patrón atómico de la casa:
+ *    (a) updateMany Compra PENDIENTE|EXPIRADA → APROBADO (RNF-17: count 0 ⇒
+ *        ya procesada ⇒ no-op idempotente; EXPIRADA se procesa igual porque
+ *        un pago real nunca se pierde, D5);
+ *    (b) updateMany Listing { ACTIVE, deletedAt null, stock > 0 } →
+ *        stock −1 / soldCount +1; count 0 ⇒ carrera SIN_STOCK → reembolso
+ *        automático D4; count 1 ⇒ stock 0 → SOLD en la misma tx.
+ * Notificaciones best-effort POST-commit (un fallo nunca revierte la tx):
+ * venta paga al vendedor (`pago_aprobado`), y si SOLD, estado vendida +
+ * favoritos. Devuelve un resumen del resultado de la transacción.
+ */
+export async function aprobarPagoCompra({
+  externalReference,
+  pago,
+}: {
+  externalReference: string;
+  pago: PagoVerificado;
+}) {
+  const compra = await prisma.compra.findUnique({
+    where: { id: externalReference },
+    select: {
+      id: true,
+      compradorId: true,
+      listingId: true,
+      precioUnitario: true,
+      currency: true,
+      listing: { select: { id: true, ownerId: true, title: true } },
+    },
+  });
+  if (!compra) {
+    return { procesada: false, sinStock: false, pasoASold: false };
+  }
+
+  // RF-46: el monto/moneda reales vienen de Payment.get (RNF-16); una
+  // discrepancia es un intento inconsistente → rechazo sin efectos.
+  const montoCoincide = compra.precioUnitario.equals(pago.transactionAmount);
+  const monedaCoincide = compra.currency === pago.currencyId;
+  if (!montoCoincide || !monedaCoincide) {
+    console.error("PAGO_INCONSISTENTE", {
+      compraId: compra.id,
+      montoEsperado: compra.precioUnitario.toString(),
+      montoPagado: pago.transactionAmount.toString(),
+      monedaEsperada: compra.currency,
+      monedaPagada: pago.currencyId,
+    });
+    return { procesada: false, sinStock: false, pasoASold: false };
+  }
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    // (a) RNF-17: transición atómica de estado. PENDIENTE o EXPIRADA son
+    // "no procesadas" (D5: un pago real de una orden vencida se procesa
+    // igual); APROBADO/REEMBOLSADO/FALLIDO → count 0 → no-op idempotente.
+    const aprobacion = await tx.compra.updateMany({
+      where: { id: compra.id, estadoPago: { in: ["PENDIENTE", "EXPIRADA"] } },
+      data: {
+        estadoPago: "APROBADO",
+        mpPaymentId: String(pago.id),
+        aprobadoAt: new Date(),
+        medioPago: pago.paymentMethodId ?? null,
+      },
+    });
+    if (aprobacion.count === 0) {
+      return { aprobada: false, sinStock: false, pasoASold: false };
+    }
+
+    // (b) RNF-18: decremento condicionado en la MISMA transacción; el
+    // perdedor de la carrera obtiene count 0 (→ D4, reembolso automático).
+    const decremento = await tx.listing.updateMany({
+      where: {
+        id: compra.listingId,
+        status: "ACTIVE",
+        deletedAt: null,
+        stock: { gt: 0 },
+      },
+      data: {
+        stock: { decrement: 1 },
+        soldCount: { increment: 1 },
+      },
+    });
+    if (decremento.count === 0) {
+      return { aprobada: true, sinStock: true, pasoASold: false };
+    }
+
+    // La última unidad vendida pausa la publicación (SOLD) en la misma tx.
+    const trasCompra = await tx.listing.findUnique({
+      where: { id: compra.listingId },
+      select: { id: true, status: true, stock: true },
+    });
+    const pasoASold = trasCompra?.stock === 0 && trasCompra.status === "ACTIVE";
+    if (pasoASold) {
+      await tx.listing.update({
+        where: { id: compra.listingId },
+        data: { status: "SOLD" },
       });
-      if (decremento.count === 0) {
-        throw new SinStockError();
-      }
+    }
 
-      // Registro de la compra en la misma tx que el decremento: o se persisten
-      // ambos, o ninguno (RF-26).
-      const compra = await tx.compra.create({
-        data: {
-          compradorId,
-          listingId,
-          precioUnitario: publicacion.price,
-          currency: publicacion.currency,
-          cantidad: 1,
-        },
-        select: { id: true },
-      });
+    return { aprobada: true, sinStock: false, pasoASold };
+  });
 
-      const trasCompra = await tx.listing.findUnique({
-        where: { id: listingId },
-        select: {
-          id: true,
-          status: true,
-          stock: true,
-          soldCount: true,
-          title: true,
-        },
-      });
-      if (!trasCompra) {
-        throw new PublicacionNoEncontradaError();
-      }
+  // Post-commit, best-effort: nunca revierte la aprobación ya persistida.
+  if (resultado.aprobada && resultado.sinStock) {
+    await reembolsarPorSinStock({ compra, pago });
+  } else if (resultado.aprobada) {
+    await notificarVentaPagada({ compra, pasoASold: resultado.pasoASold });
+  }
 
-      // La última unidad vendida pausa automáticamente la publicación (SOLD),
-      // también dentro de la tx para que el cambio de estado quede atómico con
-      // el decremento y el registro de la compra.
-      const pasoASold =
-        trasCompra.stock === 0 && trasCompra.status === "ACTIVE";
-      if (pasoASold) {
-        await tx.listing.update({
-          where: { id: listingId },
-          data: { status: "SOLD" },
-          select: { id: true, status: true },
-        });
-      }
+  return {
+    procesada: resultado.aprobada,
+    sinStock: resultado.sinStock,
+    pasoASold: resultado.pasoASold,
+  };
+}
 
-      return {
-        compraId: compra.id,
-        publicacionComprada: pasoASold
-          ? { ...trasCompra, status: "SOLD" as const }
-          : trasCompra,
-        pasoASold,
-      };
+/**
+ * D4: la carrera por la última unidad se resuelve con reembolso AUTOMÁTICO —
+ * el pago ya está `approved` en MP, el dinero hay que devolverlo sí o sí. Se
+ * ejecuta post-commit: Payment.refund del monto completo + Compra
+ * REEMBOLSADO + motivoReembolso SIN_STOCK + notificación al comprador. Si el
+ * refund falla se loguea para conciliación manual (la tx ya quedó persistida).
+ */
+async function reembolsarPorSinStock({
+  compra,
+  pago,
+}: {
+  compra: {
+    id: string;
+    compradorId: string;
+    listingId: string;
+  };
+  pago: PagoVerificado;
+}) {
+  try {
+    const { mpRefundId } = await reembolsarCompra({
+      compra: { id: compra.id, mpPaymentId: String(pago.id) },
     });
 
-  // Notificaciones FUERA de la tx (best-effort post-commit, D1): si la compra
-  // ya quedó persistida, un fallo de notificación no debe revertirla.
+    await prisma.compra.update({
+      where: { id: compra.id },
+      data: {
+        estadoPago: "REEMBOLSADO",
+        motivoReembolso: "SIN_STOCK",
+        reembolsadoAt: new Date(),
+      },
+    });
+
+    await crearNotificacion(
+      compra.compradorId,
+      compra.listingId,
+      "Compra reembolsada",
+      `Tu pago fue reembolsado porque la publicación se agotó antes de confirmarse (reembolso ${mpRefundId}).`,
+      "GENERAL",
+      null
+    );
+  } catch (error) {
+    console.error("REFUND_SIN_STOCK_FALLIDO", { compraId: compra.id, error });
+  }
+}
+
+/**
+ * Notifica la venta paga al vendedor (payload `pago_aprobado`, tipo GENERAL)
+ * y, si la publicación pasó a SOLD, reutiliza las notificaciones de cambio de
+ * estado y de favoritos. Todo best-effort post-commit.
+ */
+async function notificarVentaPagada({
+  compra,
+  pasoASold,
+}: {
+  compra: {
+    id: string;
+    compradorId: string;
+    listingId: string;
+    precioUnitario: Prisma.Decimal;
+    currency: Currency;
+    listing: { id: string; ownerId: string; title: string };
+  };
+  pasoASold: boolean;
+}) {
+  const { ownerId, title } = compra.listing;
+  // toFixed(2) normaliza la escala del monto (RNF-19): "1500.50", no "1500.5".
+  const monto = compra.precioUnitario.toFixed(2);
+
+  try {
+    await crearNotificacion(
+      ownerId,
+      compra.listingId,
+      "Pago recibido",
+      `Recibiste el pago de "${title}" por ${monto} ${compra.currency}.`,
+      "GENERAL",
+      {
+        evento: "pago_aprobado",
+        compraId: compra.id,
+        listingId: compra.listingId,
+        titulo: title,
+        monto,
+      }
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
   if (pasoASold) {
     try {
       await notificarCambioEstadoPublicacion(
-        publicacion.ownerId,
-        listingId,
-        publicacion.title,
+        ownerId,
+        compra.listingId,
+        title,
         "vendida"
       );
     } catch {
@@ -250,23 +491,21 @@ export async function comprarPublicacion({
 
     try {
       await notificarFavoritosCambioPublicacion(
-        listingId,
+        compra.listingId,
         "FAVORITO_CAMBIO_ESTADO",
         {
-          listingId,
-          titulo: publicacion.title,
+          listingId: compra.listingId,
+          titulo: title,
           estadoAnterior: "ACTIVE",
           estadoNuevo: "SOLD",
         },
         "Cambió el estado de un favorito",
-        `"${publicacion.title}" cambió de estado a SOLD.`
+        `"${title}" cambió de estado a SOLD.`
       );
     } catch {
       // La notificación es complementaria: se ignora el error silenciosamente.
     }
   }
-
-  return { ...publicacionComprada, compraId };
 }
 
 type PublicacionPropia = {

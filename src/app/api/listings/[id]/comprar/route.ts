@@ -2,8 +2,9 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import {
-  comprarPublicacion,
+  iniciarCompra,
   CompraPublicacionPropiaError,
+  PagoIndisponibleError,
   PublicacionNoActivaError,
   PublicacionNoEncontradaError,
   SinStockError,
@@ -24,11 +25,13 @@ function respuestaError(
 }
 
 /**
- * POST /api/listings/[id]/comprar — compra directa de una publicación.
- * Requiere sesión. Decrementa el stock de forma atómica y, si llega a 0,
- * pasa la publicación a SOLD. Respuestas de negocio tipadas: 404 si no
- * existe, 403 si el comprador es el dueño, 400 si no está activa y 409 si no
- * hay stock.
+ * POST /api/listings/[id]/comprar — inicia la compra de una publicación
+ * (RF-39): crea la orden PENDIENTE y la preferencia de pago en Mercado Pago,
+ * devolviendo el `initPoint` para redirigir al checkout. La confirmación
+ * llega por el webhook de pagos; aquí NO se descuenta stock. Respuestas de
+ * negocio tipadas: 404 si no existe, 403 si el comprador es el dueño, 400 si
+ * no está activa, 409 si no hay stock y 502 si MP no pudo generar la
+ * preferencia.
  */
 export async function POST(
   _request: NextRequest,
@@ -42,7 +45,7 @@ export async function POST(
   }
 
   try {
-    const data = await comprarPublicacion({
+    const data = await iniciarCompra({
       compradorId: session.user.id,
       listingId: id,
     });
@@ -60,7 +63,10 @@ export async function POST(
     if (error instanceof PublicacionNoActivaError) {
       return respuestaError(400, "NO_ACTIVA", error.message);
     }
-    console.error("Error al comprar publicación:", error);
-    return respuestaError(500, "ERROR_INTERNO", "No se pudo concretar la compra. Intenta de nuevo.");
+    if (error instanceof PagoIndisponibleError) {
+      return respuestaError(502, "PAGO_INDISPONIBLE", error.message);
+    }
+    console.error("Error al iniciar la compra:", error);
+    return respuestaError(500, "ERROR_INTERNO", "No se pudo iniciar la compra. Intenta de nuevo.");
   }
 }
