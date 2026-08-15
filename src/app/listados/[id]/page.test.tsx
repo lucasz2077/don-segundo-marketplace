@@ -43,6 +43,7 @@ vi.mock("next/image", () => ({
 
 const publicacionActiva = {
   id: "lista-1",
+  ownerId: "owner-1",
   title: "Tractor John Deere",
   description: "En perfecto estado",
   price: { toString: () => "1500000" },
@@ -69,19 +70,19 @@ async function renderizarPagina(id = "lista-1") {
   return render(pagina);
 }
 
-describe("Detalle de publicación /listados/[id]", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.notFound.mockImplementation(() => {
-      throw new Error("NEXT_NOT_FOUND");
-    });
-    mocks.usePathname.mockReturnValue("/listados/lista-1");
-    mocks.useRouter.mockReturnValue({ push: vi.fn(), refresh: vi.fn() });
-    mocks.getSession.mockResolvedValue({ user: { id: "comprador-1" } });
-    mocks.esFavorito.mockResolvedValue(false);
-    mocks.obtenerResenasDePublicacion.mockResolvedValue([]);
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.notFound.mockImplementation(() => {
+    throw new Error("NEXT_NOT_FOUND");
   });
+  mocks.usePathname.mockReturnValue("/listados/lista-1");
+  mocks.useRouter.mockReturnValue({ push: vi.fn(), refresh: vi.fn() });
+  mocks.getSession.mockResolvedValue({ user: { id: "comprador-1" } });
+  mocks.esFavorito.mockResolvedValue(false);
+  mocks.obtenerResenasDePublicacion.mockResolvedValue([]);
+});
 
+describe("Detalle de publicación /listados/[id]", () => {
   it("enlaza el nombre del vendedor a su perfil público y muestra el businessName (REQ-7)", async () => {
     mocks.obtenerPublicacionPorId.mockResolvedValue(publicacionActiva);
 
@@ -204,5 +205,81 @@ describe("Detalle de publicación /listados/[id]", () => {
     await renderizarPagina();
 
     expect(screen.queryByText("Verificado")).not.toBeInTheDocument();
+  });
+});
+
+describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con stock (todo paga por plataforma)", () => {
+  // Categorías raíz del catálogo (docs/database.md). El botón de compra no
+  // depende de la categoría: toda publicación ACTIVE con stock es comprable.
+  const categoriasRaiz = [
+    { slug: "maquinaria-agricola", name: "Maquinaria agrícola" },
+    { slug: "herramientas-equipos", name: "Herramientas y equipos" },
+    { slug: "insumos", name: "Insumos" },
+    { slug: "hacienda-ganado", name: "Hacienda y ganado" },
+    { slug: "repuestos", name: "Repuestos" },
+    { slug: "servicios-rurales", name: "Servicios rurales" },
+    { slug: "otros", name: "Otros" },
+  ];
+
+  it.each(categoriasRaiz)(
+    "muestra el botón Comprar en la categoría raíz $slug",
+    async ({ slug, name }) => {
+      mocks.obtenerPublicacionPorId.mockResolvedValue({
+        ...publicacionActiva,
+        category: { slug, name },
+      });
+
+      await renderizarPagina();
+
+      // Visitante con sesión iniciada y no dueño: botón Comprar visible.
+      expect(screen.getByRole("button", { name: "Comprar" })).toBeVisible();
+      // El fixture con la categoría se aplicó de verdad: el breadcrumb apunta a ella.
+      expect(screen.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        `/categorias/${slug}`
+      );
+    }
+  );
+
+  it("oculta el botón Comprar al dueño de la publicación", async () => {
+    mocks.obtenerPublicacionPorId.mockResolvedValue(publicacionActiva);
+    mocks.getSession.mockResolvedValue({ user: { id: "owner-1" } });
+
+    await renderizarPagina();
+
+    expect(
+      screen.queryByRole("button", { name: "Comprar" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Editar" })).toBeVisible();
+  });
+
+  it("oculta el botón Comprar cuando no hay stock", async () => {
+    mocks.obtenerPublicacionPorId.mockResolvedValue({
+      ...publicacionActiva,
+      stock: 0,
+    });
+
+    await renderizarPagina();
+
+    expect(
+      screen.queryByRole("button", { name: "Comprar" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("oculta el botón Comprar cuando la publicación no está ACTIVE", async () => {
+    mocks.obtenerPublicacionPorId.mockResolvedValue({
+      ...publicacionActiva,
+      status: "PAUSED",
+    });
+    // Un visitante no dueño solo ve una pausada si la tiene en favoritos
+    // (RF-13 / CA-07); de lo contrario la página responde 404.
+    mocks.esFavorito.mockResolvedValue(true);
+
+    await renderizarPagina();
+
+    expect(
+      screen.queryByRole("button", { name: "Comprar" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Publicación pausada")).toBeVisible();
   });
 });
