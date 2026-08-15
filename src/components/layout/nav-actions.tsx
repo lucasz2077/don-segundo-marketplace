@@ -80,12 +80,20 @@ export function NavActions({ user }: NavActionsProps) {
         <ContadorNotificaciones />
       </Link>
       {user.role === "ADMIN" ? (
-        <Link
-          href="/admin/reportes"
-          className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
-        >
-          Reportes
-        </Link>
+        <>
+          <Link
+            href="/admin/reportes"
+            className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+          >
+            Reportes
+          </Link>
+          <Link
+            href="/admin/verificaciones"
+            className="text-sm font-medium text-brand-900 transition-colors hover:text-brand-700"
+          >
+            Verificaciones
+          </Link>
+        </>
       ) : null}
       <Link
         href="/perfil"

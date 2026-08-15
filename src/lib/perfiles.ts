@@ -1,5 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
-import type { Currency, ListingCondition } from "@/generated/prisma/client";
+import type {
+  Currency,
+  ListingCondition,
+  VerificationStatus,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 /** Cantidad mínima de conversaciones con respuesta para mostrar la métrica. */
@@ -38,7 +42,12 @@ export type PerfilPublicoVendedor = {
     createdAt: Date;
   };
   /** null si el vendedor no creó su Profile todavía (REQ-3). */
-  profile: { bio: string | null; businessName: string | null } | null;
+  profile: {
+    bio: string | null;
+    businessName: string | null;
+    /** Estado de verificación del vendedor (RF-34, sello Verificado). */
+    sellerVerified: VerificationStatus | null;
+  } | null;
   metricaRespuesta: MetricaRespuesta;
   /** Rating agregado del vendedor: null si ratingCount < 3 (RF-24). */
   rating: RatingVendedor;
@@ -115,6 +124,7 @@ export async function obtenerPerfilPublicoVendedor(
           businessName: true,
           ratingAvg: true,
           ratingCount: true,
+          sellerVerified: true,
         },
       },
     },
@@ -172,6 +182,7 @@ export async function obtenerPerfilPublicoVendedor(
       ? {
           bio: usuario.profile.bio,
           businessName: usuario.profile.businessName,
+          sellerVerified: usuario.profile.sellerVerified ?? null,
         }
       : null,
     metricaRespuesta,

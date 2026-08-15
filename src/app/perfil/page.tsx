@@ -46,6 +46,14 @@ export default async function PerfilPage() {
             Consultá el stock, pausá o reanudá tus publicaciones y editalas.
           </p>
         </Link>
+        <Link href="/perfil/verificacion" className={estiloCard}>
+          <h2 className="text-lg font-semibold text-brand-900">
+            Verificación de vendedor
+          </h2>
+          <p className="mt-1 text-sm text-brand-600">
+            Estado de tu verificación y solicitud.
+          </p>
+        </Link>
         {/* La card de perfil público lleva dos acciones (editar y ver el
             perfil público), así que es un div y no un Link completo como las
             otras tres cards: un enlace dentro de otro enlace es HTML inválido. */}

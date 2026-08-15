@@ -8,6 +8,7 @@ import {
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
 import { BotonContactar } from "@/components/listing/boton-contactar";
 import { BloqueRatingVendedor } from "@/components/vendedores/bloque-rating-vendedor";
+import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,14 @@ export default async function VendedorPage({ params }: VendedorPageProps) {
       <header className="mt-6 rounded-lg border border-brand-100 bg-white p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-              {perfil.usuario.name}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
+                {perfil.usuario.name}
+              </h1>
+              <BadgeVerificado
+                sellerVerified={perfil.profile?.sellerVerified ?? null}
+              />
+            </div>
             {perfil.profile?.businessName ? (
               <p className="mt-1 text-sm font-medium text-brand-700 dark:text-brand-200">
                 {perfil.profile.businessName}

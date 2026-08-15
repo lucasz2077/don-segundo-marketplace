@@ -28,11 +28,14 @@ export class CategoriaInvalidaError extends Error {
 }
 
 // Solo campos públicos del dueño (REQ-12/RF-19): el profile aporta el
-// businessName para el bloque Vendedor del detalle (RF-24).
+// businessName para el bloque Vendedor del detalle (RF-24) y el estado de
+// verificación para el sello Verificado (RF-34).
 const seleccionPropietario = {
   id: true,
   name: true,
-  profile: { select: { bio: true, businessName: true } },
+  profile: {
+    select: { bio: true, businessName: true, sellerVerified: true },
+  },
 } as const;
 
 const incluirDependencias = {

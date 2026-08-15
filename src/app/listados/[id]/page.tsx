@@ -11,6 +11,7 @@ import { BotonReportar } from "@/components/listing/boton-reportar";
 import { esFavorito } from "@/lib/favoritos";
 import { obtenerResenasDePublicacion } from "@/lib/ratings";
 import { BloqueResenasPublicacion } from "@/components/ratings/bloque-resenas-publicacion";
+import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
 
 export const dynamic = "force-dynamic";
 
@@ -135,12 +136,17 @@ export default async function DetallePublicacionPage({
 
           <div className="mt-6 rounded-lg border border-brand-100 bg-white p-4">
             <p className="text-sm text-brand-600">Vendedor</p>
-            <Link
-              href={`/vendedores/${publicacion.owner.id}`}
-              className="text-lg font-semibold text-brand-900 underline-offset-2 hover:underline"
-            >
-              {publicacion.owner.name}
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/vendedores/${publicacion.owner.id}`}
+                className="text-lg font-semibold text-brand-900 underline-offset-2 hover:underline"
+              >
+                {publicacion.owner.name}
+              </Link>
+              <BadgeVerificado
+                sellerVerified={publicacion.owner.profile?.sellerVerified ?? null}
+              />
+            </div>
             {publicacion.owner.profile?.businessName ? (
               <p className="mt-1 text-sm font-medium text-brand-700">
                 {publicacion.owner.profile.businessName}
