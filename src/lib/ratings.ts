@@ -23,6 +23,14 @@ export class CompraDeOtroUsuarioError extends Error {
   }
 }
 
+/** Error de dominio: el pago de la compra no está aprobado. (409 COMPRA_NO_APROBADA) */
+export class CompraNoAprobadaError extends Error {
+  constructor() {
+    super("Solo podés calificar compras con pago aprobado");
+    this.name = "CompraNoAprobadaError";
+  }
+}
+
 /** Error de dominio: la compra superó la ventana de 30 días. (410 VENTANA_EXPIRADA) */
 export class VentanaExpiradaError extends Error {
   constructor() {
@@ -66,8 +74,10 @@ function esErrorClaveDuplicada(error: unknown): boolean {
 
 /**
  * Califica una venta (RF-27). Solo el comprador de la Compra puede calificar,
- * una sola vez por compra (unique compraId) y dentro de los 30 días
- * posteriores a la compra. Dentro de la MISMA transacción que crea el Rating:
+ * una sola vez por compra (unique compraId), con el pago APROBADO (D9) y
+ * dentro de los 30 días posteriores a la aprobación del pago (D9: la ventana
+ * se ancla a `aprobadoAt`, no a `createdAt`). Dentro de la MISMA transacción
+ * que crea el Rating:
  * - D3: bloquea el Profile del vendedor con SELECT ... FOR UPDATE (serializa
  *   escritores concurrentes del mismo vendedor) y recalcula los agregados con
  *   el promedio ponderado (ratingAvg * ratingCount + puntaje) / (count + 1).
@@ -102,10 +112,18 @@ export async function calificarVenta({
   if (compra.compradorId !== compradorId) {
     throw new CompraDeOtroUsuarioError();
   }
+  // D9 (6.6): solo se califican compras con pago APROBADO; una compra
+  // aprobada sin `aprobadoAt` es dato corrupto y tampoco es calificable.
+  const aprobadoAt = compra.aprobadoAt;
+  if (compra.estadoPago !== "APROBADO" || !aprobadoAt) {
+    throw new CompraNoAprobadaError();
+  }
 
   const vendedorId = compra.listing.ownerId;
   const ventanaMs = VENTANA_CALIFICACION_DIAS * DIA_MS;
-  if (Date.now() - compra.createdAt.getTime() > ventanaMs) {
+  // D9 (6.6): la ventana de 30 días arranca en la aprobación del pago
+  // (`aprobadoAt`), no en la creación de la orden (`createdAt`).
+  if (Date.now() - aprobadoAt.getTime() > ventanaMs) {
     throw new VentanaExpiradaError();
   }
 

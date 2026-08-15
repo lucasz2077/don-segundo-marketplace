@@ -65,16 +65,21 @@ export async function expirarOrdenesVencidas(
 
 /**
  * Devuelve true si la compra sigue dentro de la ventana de calificación de
- * 30 días (RF-29). La ventana es INCLUSIVA: una compra con
- * `createdAt + 30 días >= ahora` todavía puede calificarse, exactamente con
- * la misma semántica del check de `calificarVenta` (RF-27, `>` 30 días
- * rechaza). `ahora` es inyectable para tests deterministas.
+ * 30 días (RF-29). La ventana arranca en la APROBACIÓN del pago (D9, 6.6):
+ * se mide desde `aprobadoAt`, no desde `createdAt`. Una compra sin fecha de
+ * aprobación (no aprobada) nunca está en ventana → false. La ventana es
+ * INCLUSIVA: `aprobadoAt + 30 días >= ahora` todavía puede calificarse,
+ * exactamente con la misma semántica del check de `calificarVenta` (RF-27,
+ * `>` 30 días rechaza). `ahora` es inyectable para tests deterministas.
  */
 export function compraEnVentanaCalificacion(
-  createdAt: Date,
+  aprobadoAt: Date | null,
   ahora = Date.now()
 ): boolean {
-  return ahora - createdAt.getTime() <= VENTANA_CALIFICACION_DIAS * DIA_MS;
+  if (!aprobadoAt) {
+    return false;
+  }
+  return ahora - aprobadoAt.getTime() <= VENTANA_CALIFICACION_DIAS * DIA_MS;
 }
 
 /**

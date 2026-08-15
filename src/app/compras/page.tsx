@@ -14,9 +14,10 @@ export const dynamic = "force-dynamic";
  * "Mis compras" (RF-29, D7): RSC server-rendered con sesión obligatoria —
  * sin sesión redirige a /sign-in (patrón dashboard). Lista las compras del
  * usuario con una sola consulta (sin N+1) y muestra el CTA "Calificar" solo
- * en compras con pago APROBADO (RF-41/D9), dentro de la ventana de 30 días
- * y sin rating. El estado de pago se exhibe siempre en la tarjeta. Estados:
- * vacío con CTA a explorar publicaciones (E3).
+ * en compras con pago APROBADO (RF-41/D9), dentro de los 30 días desde la
+ * aprobación del pago (D9, 6.6: la ventana se ancla a `aprobadoAt`) y sin
+ * rating. El estado de pago se exhibe siempre en la tarjeta. Estados: vacío
+ * con CTA a explorar publicaciones (E3).
  */
 export default async function ComprasPage() {
   const session = await getSession();
@@ -42,7 +43,7 @@ export default async function ComprasPage() {
                 calificable={
                   !compra.rating &&
                   compra.estadoPago === "APROBADO" &&
-                  compraEnVentanaCalificacion(compra.createdAt)
+                  compraEnVentanaCalificacion(compra.aprobadoAt)
                 }
               />
             </li>

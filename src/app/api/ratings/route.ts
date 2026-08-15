@@ -6,6 +6,7 @@ import { crearRatingSchema } from "@/lib/validation/rating";
 import {
   calificarVenta,
   CompraDeOtroUsuarioError,
+  CompraNoAprobadaError,
   CompraNoEncontradaError,
   obtenerResenasDePublicacion,
   VentanaExpiradaError,
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
  * POST /api/ratings — califica una venta (RF-28). Requiere sesión y valida el
  * cuerpo con Zod (compraId uuid, puntaje entero 1-5, comentario opcional ≤500).
  * Errores de dominio tipados: 404 si la compra no existe, 403 si es de otro
- * usuario, 409 si ya fue calificada y 410 si venció la ventana de 30 días.
+ * usuario, 409 si el pago no está aprobado o si ya fue calificada, y 410 si
+ * venció la ventana de 30 días desde la aprobación del pago.
  * Respuesta de éxito: 200 { data: { id, puntaje } }.
  */
 export async function POST(request: NextRequest) {
@@ -87,6 +89,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof CompraDeOtroUsuarioError) {
       return respuestaError(403, "SIN_PERMISO", error.message);
+    }
+    if (error instanceof CompraNoAprobadaError) {
+      return respuestaError(409, "COMPRA_NO_APROBADA", error.message);
     }
     if (error instanceof YaCalificadaError) {
       return respuestaError(409, "YA_CALIFICADA", error.message);
