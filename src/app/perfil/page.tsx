@@ -79,14 +79,18 @@ export default async function PerfilPage() {
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
+            {/* `<a>` nativo, no `<Link>`: la ruta responde 302 hacia
+                auth.mercadopago.com.ar y el prefetch RSC de `<Link>` seguía la
+                redirección con fetch, que MP bloquea por CORS (error de
+                consola en /perfil). Navegación de documento completo. */}
+            <a
               href="/api/pagos/oauth/iniciar"
               className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
             >
               {estadoMp === "SIN_VINCULO"
                 ? "Vincular Mercado Pago"
                 : "Re-vincular"}
-            </Link>
+            </a>
           </div>
         </div>
         {/* La card de perfil público lleva dos acciones (editar y ver el
