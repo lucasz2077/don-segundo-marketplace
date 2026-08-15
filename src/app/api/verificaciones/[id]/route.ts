@@ -28,7 +28,9 @@ function respuestaError(
  * PATCH /api/verificaciones/[id] — aprueba o rechaza una solicitud de
  * verificación (RF-33). Requiere sesión de admin (chequeo inline del claim
  * `session.user.role` + re-chequeo en DB dentro del service) y valida el
- * cuerpo con Zod. El motivo de rechazo es exigido por el service (422).
+ * cuerpo con Zod: un fallo de parse responde 400 CUERPO_INVALIDO (decisión
+ * 4a). 422 queda reservado a la regla de negocio MOTIVO_RECHAZO_REQUERIDO
+ * que impone el service al rechazar.
  * Éxito: 200 { data: { id, estado } }.
  */
 export async function PATCH(
@@ -63,7 +65,7 @@ export async function PATCH(
   const parseado = revisarSolicitudSchema.safeParse(cuerpo);
   if (!parseado.success) {
     return respuestaError(
-      422,
+      400,
       "CUERPO_INVALIDO",
       parseado.error.issues[0]?.message ??
         "Los datos de la revisión no son válidos"
