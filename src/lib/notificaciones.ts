@@ -59,6 +59,25 @@ type PayloadVinculacionMp = {
   estado: "REVOCADA";
 };
 
+/** Payload de venta paga al vendedor (tipo GENERAL, evento "pago_aprobado",
+ * RF-45): se crea al confirmar un pago approved en el webhook. */
+type PayloadPagoAprobado = {
+  evento: "pago_aprobado";
+  compraId: string;
+  listingId: string;
+  titulo: string;
+  monto: string; // toFixed(2), RNF-19: escala de moneda normalizada
+};
+
+/** Payload de una resolución de devolución (tipo GENERAL, evento
+ * "devolucion", RF-49): informa al comprador/vendedor el estado de la
+ * solicitud. */
+type PayloadDevolucion = {
+  evento: "devolucion";
+  solicitudId: string;
+  estado: string;
+};
+
 /** Payload posible de una notificación, discriminado por tipo. */
 export type NotificacionPayload =
   | PayloadMensajeNuevo
@@ -67,7 +86,9 @@ export type NotificacionPayload =
   | PayloadEstadoPublicacion
   | PayloadResenia
   | PayloadVerificacion
-  | PayloadVinculacionMp;
+  | PayloadVinculacionMp
+  | PayloadPagoAprobado
+  | PayloadDevolucion;
 
 const titulosEstadoCambio: Record<EstadoCambioPublicacion, string> = {
   pausada: "Publicación pausada",
@@ -353,6 +374,24 @@ function esPayloadVinculacionMp(objeto: Prisma.JsonObject): objeto is PayloadVin
   return objeto.evento === "vinculacion_mp" && objeto.estado === "REVOCADA";
 }
 
+function esPayloadPagoAprobado(objeto: Prisma.JsonObject): objeto is PayloadPagoAprobado {
+  return (
+    objeto.evento === "pago_aprobado" &&
+    esCadena(objeto.compraId) &&
+    esCadena(objeto.listingId) &&
+    esCadena(objeto.titulo) &&
+    esCadena(objeto.monto)
+  );
+}
+
+function esPayloadDevolucion(objeto: Prisma.JsonObject): objeto is PayloadDevolucion {
+  return (
+    objeto.evento === "devolucion" &&
+    esCadena(objeto.solicitudId) &&
+    esCadena(objeto.estado)
+  );
+}
+
 /**
  * Convierte el payload JSON (JsonValue de Prisma) de una notificación en un
  * payload tipado según su tipo. Devuelve null si no se puede parsear (por
@@ -385,7 +424,13 @@ export function parsearPayload(
       if (esPayloadVerificacion(payload)) {
         return payload;
       }
-      return esPayloadVinculacionMp(payload) ? payload : null;
+      if (esPayloadVinculacionMp(payload)) {
+        return payload;
+      }
+      if (esPayloadPagoAprobado(payload)) {
+        return payload;
+      }
+      return esPayloadDevolucion(payload) ? payload : null;
     default:
       return null;
   }
