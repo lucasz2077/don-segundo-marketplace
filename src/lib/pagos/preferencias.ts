@@ -40,6 +40,10 @@ export async function crearPreferenciaPago({
   vendedorMp: Pick<VendedorMpAccount, "accessToken">;
 }): Promise<{ initPoint: string }> {
   const base = appUrl();
+  // MP rechaza `auto_return: "approved"` (400 invalid_auto_return) salvo que la
+  // URL de back_urls sea https. En dev (http://localhost) se omite y el usuario
+  // vuelve manualmente; en producción (https) el retorno automático queda activo.
+  const autoReturn = base.startsWith("https://") ? ("approved" as const) : undefined;
   const preference = new Preference(clienteMpVendedor(vendedorMp));
 
   try {
@@ -61,7 +65,7 @@ export async function crearPreferenciaPago({
           pending: `${base}/pagos/resultado?compra=${compra.id}&estado=pending`,
         },
         marketplace_fee: aCentavos(compra.marketplaceFee),
-        auto_return: "approved",
+        auto_return: autoReturn,
         expires: true,
         date_of_expiration: compra.fechaVencimiento?.toISOString(),
         notification_url: `${base}/api/pagos/webhook`,

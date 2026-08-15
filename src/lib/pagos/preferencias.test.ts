@@ -122,6 +122,20 @@ describe("crearPreferenciaPago", () => {
     });
   });
 
+  it("omite auto_return cuando la app base es http (MP exige https para retorno automático)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+    mocks.preferenceCreate.mockResolvedValue({ id: "12345678", init_point: "https://mp.example/init" });
+
+    await crearPreferenciaPago({ compra, vendedorMp });
+
+    const llamado = mocks.preferenceCreate.mock.calls[0][0] as { body: Record<string, unknown> };
+    expect(llamado.body.auto_return).toBeUndefined();
+    expect(llamado.body.expires).toBe(true);
+    expect(llamado.body.date_of_expiration).toBe(
+      new Date("2026-08-15T12:30:00Z").toISOString()
+    );
+  });
+
   it("lanza PreferenciaFallidaError cuando Mercado Pago rechaza la preferencia", async () => {
     mocks.preferenceCreate.mockRejectedValue(new Error("invalid marketplace_fee"));
 
