@@ -50,3 +50,17 @@ export const estadoSolicitudSchema = z.enum(
     message: "El estado de la solicitud no es válido",
   }
 );
+
+/**
+ * Query params del listado admin (RF-37). `page` se coercea a entero SIN
+ * `min(1)`: la normalización de page < 1 a 1 la hace el service (spec edge).
+ * `limit` se acota a 1..50 con default 10. Un fallo de parse responde 400
+ * CUERPO_INVALIDO (decisión 4a).
+ */
+export const listadoAdminSchema = z.object({
+  estado: estadoSolicitudSchema.optional(),
+  page: z.coerce.number().int().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+export type ListadoAdminInput = z.infer<typeof listadoAdminSchema>;

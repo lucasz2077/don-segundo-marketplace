@@ -23,15 +23,29 @@ const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
 });
 
 type AdminVerificacionesPageProps = {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; pagina?: string }>;
 };
 
+/** Construye un enlace del panel conservando los filtros activos y la página. */
+function construirUrl(estado?: SolicitudVerificacionEstado, paginaDestino?: number) {
+  const parametros = new URLSearchParams();
+  if (estado) {
+    parametros.set("estado", estado);
+  }
+  if (paginaDestino !== undefined) {
+    parametros.set("pagina", String(paginaDestino));
+  }
+  const consulta = parametros.toString();
+  return consulta ? `/admin/verificaciones?${consulta}` : "/admin/verificaciones";
+}
+
 /**
- * Panel admin de solicitudes de verificación (RF-33). Lista las solicitudes
- * con su vendedor y estado, con filtro por estado (chips). Los documentos solo
- * se muestran en el detalle (RNF-15). Resuelve la data con el service del
- * server, igual que hace /admin/reportes con reportes.ts, sin pasar por la
- * propia API.
+ * Panel admin de solicitudes de verificación (RF-33/RF-37). Lista las
+ * solicitudes paginadas con su vendedor y estado, con filtro por estado
+ * (chips) y controles Anterior/Siguiente + "Página X de Y" (patrón
+ * /admin/reportes). Los documentos solo se muestran en el detalle (RNF-15).
+ * Resuelve la data con el service del server, igual que hace /admin/reportes
+ * con reportes.ts, sin pasar por la propia API.
  */
 export default async function AdminVerificacionesPage({
   searchParams,
@@ -48,11 +62,16 @@ export default async function AdminVerificacionesPage({
   const estado = estadosValidos.includes(parametros.estado as SolicitudVerificacionEstado)
     ? (parametros.estado as SolicitudVerificacionEstado)
     : undefined;
+  const pagina = Math.max(1, Number(parametros.pagina) || 1);
 
-  const solicitudes = await listarSolicitudesVerificacion({
+  const resultado = await listarSolicitudesVerificacion({
     adminId: session.user.id,
     estado,
+    page: pagina,
   });
+  const { solicitudes, total, totalPaginas, pagina: paginaActual } = resultado;
+  const tieneAnterior = paginaActual > 1;
+  const tieneSiguiente = paginaActual < totalPaginas;
 
   const filtros: Array<{ estado?: SolicitudVerificacionEstado; etiqueta: string }> = [
     { etiqueta: "Todos" },
@@ -105,7 +124,7 @@ export default async function AdminVerificacionesPage({
         })}
       </div>
 
-      {solicitudes.length === 0 ? (
+      {total === 0 ? (
         <div className="mt-8">
           <EstadoVacio
             titulo="No hay solicitudes para mostrar"
@@ -113,53 +132,86 @@ export default async function AdminVerificacionesPage({
           />
         </div>
       ) : (
-        <ul className="mt-6 flex flex-col gap-4">
-          {solicitudes.map((solicitud) => (
-            <li
-              key={solicitud.id}
-              className="rounded-lg border border-brand-100 bg-white p-4"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${clasesBadgeEstadoSolicitud[solicitud.estado]}`}
+        <>
+          {solicitudes.length > 0 ? (
+            <ul className="mt-6 flex flex-col gap-4">
+              {solicitudes.map((solicitud) => (
+                <li
+                  key={solicitud.id}
+                  className="rounded-lg border border-brand-100 bg-white p-4"
                 >
-                  {etiquetasEstadoSolicitud[solicitud.estado]}
-                </span>
-                <time className="text-xs text-brand-600">
-                  {formateadorFecha.format(solicitud.createdAt)}
-                </time>
-                {solicitud.estado === "PENDING" ? (
-                  <Link
-                    href={`/admin/verificaciones/${solicitud.id}`}
-                    className="ml-auto rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
-                  >
-                    Revisar
-                  </Link>
-                ) : null}
-              </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${clasesBadgeEstadoSolicitud[solicitud.estado]}`}
+                    >
+                      {etiquetasEstadoSolicitud[solicitud.estado]}
+                    </span>
+                    <time className="text-xs text-brand-600">
+                      {formateadorFecha.format(solicitud.createdAt)}
+                    </time>
+                    {solicitud.estado === "PENDING" ? (
+                      <Link
+                        href={`/admin/verificaciones/${solicitud.id}`}
+                        className="ml-auto rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                      >
+                        Revisar
+                      </Link>
+                    ) : null}
+                  </div>
 
-              <div className="mt-2">
-                <p className="font-semibold text-brand-900">
-                  {solicitud.vendedor.name ?? "Vendedor"}
-                </p>
-                {solicitud.vendedor.email ? (
-                  <p className="text-sm text-brand-600">
-                    {solicitud.vendedor.email}
-                  </p>
-                ) : null}
-              </div>
+                  <div className="mt-2">
+                    <p className="font-semibold text-brand-900">
+                      {solicitud.vendedor.name ?? "Vendedor"}
+                    </p>
+                    {solicitud.vendedor.email ? (
+                      <p className="text-sm text-brand-600">
+                        {solicitud.vendedor.email}
+                      </p>
+                    ) : null}
+                  </div>
 
-              {solicitud.estado !== "PENDING" ? (
-                <p className="mt-2 text-xs text-brand-600">
-                  {solicitud.estado === "APPROVED" ? "Aprobada por" : "Rechazada por"}{" "}
-                  <span className="font-medium text-brand-900">
-                    {solicitud.adminNombre ?? "un administrador"}
-                  </span>
-                </p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+                  {solicitud.estado !== "PENDING" ? (
+                    <p className="mt-2 text-xs text-brand-600">
+                      {solicitud.estado === "APPROVED" ? "Aprobada por" : "Rechazada por"}{" "}
+                      <span className="font-medium text-brand-900">
+                        {solicitud.adminNombre ?? "un administrador"}
+                      </span>
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <nav className="mt-8 flex items-center justify-between">
+            {tieneAnterior ? (
+              <Link
+                href={construirUrl(estado, paginaActual - 1)}
+                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              >
+                Anterior
+              </Link>
+            ) : (
+              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
+                Anterior
+              </span>
+            )}
+            <span className="text-sm text-brand-600">
+              Página {paginaActual} de {totalPaginas}
+            </span>
+            {tieneSiguiente ? (
+              <Link
+                href={construirUrl(estado, paginaActual + 1)}
+                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              >
+                Siguiente
+              </Link>
+            ) : (
+              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
+                Siguiente
+              </span>
+            )}
+          </nav>
+        </>
       )}
     </main>
   );

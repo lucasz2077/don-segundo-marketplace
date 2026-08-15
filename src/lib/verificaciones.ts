@@ -228,36 +228,69 @@ function mapearSolicitudAdmin(
   };
 }
 
+/** Resultado paginado del listado del panel admin (RF-37). */
+export type ResultadoSolicitudesVerificacion = {
+  solicitudes: SolicitudVerificacionAdmin[];
+  total: number;
+  pagina: number;
+  tamanioPagina: number;
+  totalPaginas: number;
+};
+
+/** Tamaño máximo de página aceptado por el listado admin (RF-37). */
+export const TAMANIO_PAGINA_VERIFICACIONES = 10;
+
 /**
- * Lista las solicitudes de verificación para el panel admin (RF-33), de la
- * más reciente a la más antigua, con el vendedor y el admin que revisó.
+ * Lista las solicitudes de verificación para el panel admin (RF-33/RF-37),
+ * de la más reciente a la más antigua, con el vendedor y el admin que revisó.
  * Incluye los documentos (dniUrl/domicilioUrl), que solo son visibles aquí
- * (RNF-15). Filtra por estado opcionalmente.
+ * (RNF-15). Filtra por estado opcionalmente. Devuelve la página pedida junto
+ * con el total sin paginar; `page < 1` se normaliza a 1 y `totalPaginas` es
+ * siempre >= 1. El count y el findMany se resuelven en paralelo.
  */
 export async function listarSolicitudesVerificacion({
   adminId,
   estado,
+  page,
+  limit,
 }: {
   adminId: string;
   estado?: string;
-}): Promise<SolicitudVerificacionAdmin[]> {
+  page?: number;
+  limit?: number;
+}): Promise<ResultadoSolicitudesVerificacion> {
   const esAdmin = await esAdministrador(adminId);
   if (!esAdmin) {
     throw new SinPermisoVerificacionError();
   }
 
-  const solicitudes = await prisma.solicitudVerificacion.findMany({
-    where: estado
-      ? { estado: estado as SolicitudVerificacionEstado }
-      : {},
-    orderBy: { createdAt: "desc" },
-    include: {
-      vendedor: { select: { name: true, email: true } },
-      admin: { select: { name: true } },
-    },
-  });
+  const pagina = Math.max(1, page ?? 1);
+  const tamanioPagina = Math.min(50, Math.max(1, limit ?? TAMANIO_PAGINA_VERIFICACIONES));
+  const where = estado
+    ? { estado: estado as SolicitudVerificacionEstado }
+    : {};
 
-  return solicitudes.map((solicitud) => mapearSolicitudAdmin(solicitud));
+  const [solicitudes, total] = await Promise.all([
+    prisma.solicitudVerificacion.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: (pagina - 1) * tamanioPagina,
+      take: tamanioPagina,
+      include: {
+        vendedor: { select: { name: true, email: true } },
+        admin: { select: { name: true } },
+      },
+    }),
+    prisma.solicitudVerificacion.count({ where }),
+  ]);
+
+  return {
+    solicitudes: solicitudes.map((solicitud) => mapearSolicitudAdmin(solicitud)),
+    total,
+    pagina,
+    tamanioPagina,
+    totalPaginas: Math.max(1, Math.ceil(total / tamanioPagina)),
+  };
 }
 
 /**

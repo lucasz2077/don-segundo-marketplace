@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { estadoSolicitudSchema } from "@/lib/validation/verificacion";
+import { listadoAdminSchema } from "@/lib/validation/verificacion";
 import {
   listarSolicitudesVerificacion,
   SinPermisoVerificacionError,
@@ -22,12 +22,14 @@ function respuestaError(
 }
 
 /**
- * GET /api/verificaciones/admin — listado de solicitudes de verificación para
- * el panel admin (RF-33), de la más reciente a la más antigua. Requiere sesión
- * de admin (chequeo inline del claim + re-chequeo en DB dentro del service).
- * `estado` (PENDING/APPROVED/REJECTED) es un filtro opcional. Incluye los
- * documentos adjuntos, solo visibles aquí (RNF-15).
- * Éxito: 200 { data: { solicitudes, total } }.
+ * GET /api/verificaciones/admin — listado paginado de solicitudes de
+ * verificación para el panel admin (RF-33/RF-37), de la más reciente a la más
+ * antigua. Requiere sesión de admin (chequeo inline del claim + re-chequeo en
+ * DB dentro del service). Acepta `estado` (PENDING/APPROVED/REJECTED),
+ * `page` (default 1, se normaliza en el service) y `limit` (1..50, default
+ * 10); un fallo de parse responde 400 CUERPO_INVALIDO (decisión 4a). Incluye
+ * los documentos adjuntos, solo visibles aquí (RNF-15).
+ * Éxito: 200 { data: { solicitudes, total, pagina, tamanioPagina, totalPaginas } }.
  */
 export async function GET(request: NextRequest) {
   const session = await getSession();
@@ -42,28 +44,29 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const estadoParam = new URL(request.url).searchParams.get("estado");
-  let estado: string | undefined;
-  if (estadoParam) {
-    const parseado = estadoSolicitudSchema.safeParse(estadoParam);
-    if (!parseado.success) {
-      return respuestaError(
-        400,
-        "CUERPO_INVALIDO",
-        parseado.error.issues[0]?.message ?? "El estado no es válido"
-      );
-    }
-    estado = parseado.data;
+  const parametros = new URL(request.url).searchParams;
+  const parseado = listadoAdminSchema.safeParse({
+    estado: parametros.get("estado") || undefined,
+    page: parametros.get("page") || undefined,
+    limit: parametros.get("limit") || undefined,
+  });
+  if (!parseado.success) {
+    return respuestaError(
+      400,
+      "CUERPO_INVALIDO",
+      parseado.error.issues[0]?.message ??
+        "Los parámetros del listado no son válidos"
+    );
   }
 
   try {
-    const solicitudes = await listarSolicitudesVerificacion({
+    const resultado = await listarSolicitudesVerificacion({
       adminId: session.user.id,
-      estado,
+      estado: parseado.data.estado,
+      page: parseado.data.page,
+      limit: parseado.data.limit,
     });
-    return NextResponse.json({
-      data: { solicitudes, total: solicitudes.length },
-    });
+    return NextResponse.json({ data: resultado });
   } catch (error) {
     if (error instanceof SinPermisoVerificacionError) {
       return respuestaError(403, "SIN_PERMISO", error.message);
