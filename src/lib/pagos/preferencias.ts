@@ -1,7 +1,7 @@
 import { Preference } from "mercadopago";
 import { Prisma } from "@/generated/prisma/client";
 import type { Compra, VendedorMpAccount } from "@/generated/prisma/client";
-import { aCentavos, clienteMpVendedor } from "@/lib/pagos/mp";
+import { clienteMpVendedor } from "@/lib/pagos/mp";
 
 /** Fallo al crear la preferencia de pago en MP → 502 PAGO_INDISPONIBLE (RF-39). */
 export class PreferenciaFallidaError extends Error {
@@ -28,9 +28,10 @@ function appUrl(): string {
 /**
  * Crea la preferencia de Checkout Pro con el COLLECTOR del vendedor (RF-39,
  * D6): el dinero acredita en la cuenta MP del vendedor; la plataforma cobra
- * `marketplace_fee` (centavos, aCentavos sin float — RNF-19). La orden expira
- * al mismo `fechaVencimiento` (TTL D5): MP no acredita pagos vencidos.
- * Lanza `PreferenciaFallidaError` si MP rechaza (502).
+ * `marketplace_fee`. Checkout Pro espera `unit_price` y `marketplace_fee` EN
+ * LA MONEDA (ARS, no centavos) — verificado empíricamente en el deploy (A5).
+ * La orden expira al mismo `fechaVencimiento` (TTL D5): MP no acredita pagos
+ * vencidos. Lanza `PreferenciaFallidaError` si MP rechaza (502).
  */
 export async function crearPreferenciaPago({
   compra,
@@ -54,7 +55,7 @@ export async function crearPreferenciaPago({
             id: compra.listingId,
             title: compra.id,
             quantity: compra.cantidad,
-            unit_price: aCentavos(compra.precioUnitario),
+            unit_price: compra.precioUnitario.toNumber(),
             currency_id: compra.currency,
           },
         ],
@@ -64,7 +65,7 @@ export async function crearPreferenciaPago({
           failure: `${base}/pagos/resultado?compra=${compra.id}&estado=failure`,
           pending: `${base}/pagos/resultado?compra=${compra.id}&estado=pending`,
         },
-        marketplace_fee: aCentavos(compra.marketplaceFee),
+        marketplace_fee: compra.marketplaceFee.toNumber(),
         auto_return: autoReturn,
         expires: true,
         date_of_expiration: compra.fechaVencimiento?.toISOString(),
