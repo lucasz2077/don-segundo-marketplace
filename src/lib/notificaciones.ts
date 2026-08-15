@@ -52,6 +52,13 @@ type PayloadVerificacion = {
   estado: "PENDING" | "APPROVED" | "REJECTED";
 };
 
+/** Payload de revocación del vínculo con Mercado Pago (tipo GENERAL, evento
+ * "vinculacion_mp", RF-48): avisa al vendedor que debe re-vincular su cuenta. */
+type PayloadVinculacionMp = {
+  evento: "vinculacion_mp";
+  estado: "REVOCADA";
+};
+
 /** Payload posible de una notificación, discriminado por tipo. */
 export type NotificacionPayload =
   | PayloadMensajeNuevo
@@ -59,7 +66,8 @@ export type NotificacionPayload =
   | PayloadFavoritoEstado
   | PayloadEstadoPublicacion
   | PayloadResenia
-  | PayloadVerificacion;
+  | PayloadVerificacion
+  | PayloadVinculacionMp;
 
 const titulosEstadoCambio: Record<EstadoCambioPublicacion, string> = {
   pausada: "Publicación pausada",
@@ -341,6 +349,10 @@ function esPayloadVerificacion(objeto: Prisma.JsonObject): objeto is PayloadVeri
   );
 }
 
+function esPayloadVinculacionMp(objeto: Prisma.JsonObject): objeto is PayloadVinculacionMp {
+  return objeto.evento === "vinculacion_mp" && objeto.estado === "REVOCADA";
+}
+
 /**
  * Convierte el payload JSON (JsonValue de Prisma) de una notificación en un
  * payload tipado según su tipo. Devuelve null si no se puede parsear (por
@@ -370,7 +382,10 @@ export function parsearPayload(
       if (esPayloadResenia(payload)) {
         return payload;
       }
-      return esPayloadVerificacion(payload) ? payload : null;
+      if (esPayloadVerificacion(payload)) {
+        return payload;
+      }
+      return esPayloadVinculacionMp(payload) ? payload : null;
     default:
       return null;
   }
