@@ -198,4 +198,83 @@ describe("Página pública /vendedores/[id]", () => {
       screen.queryByRole("button", { name: "Contactar" })
     ).not.toBeInTheDocument();
   });
+
+  it("muestra el bloque de rating con 3 o más muestras (RF-24)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuario,
+      profile: {
+        bio: "Vendo maquinaria",
+        businessName: "Agro Juan",
+        ratingAvg: 4.5,
+        ratingCount: 12,
+      },
+    });
+    mocks.findManyListings.mockResolvedValue([publicacionActiva]);
+
+    await renderizarPagina();
+
+    expect(
+      screen.getByRole("img", { name: "4,5 de 5 (12 reseñas)" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("(12 reseñas)")).toBeInTheDocument();
+  });
+
+  it("oculta el bloque de rating con menos de 3 muestras (RF-24)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuario,
+      profile: {
+        bio: "Vendo maquinaria",
+        businessName: "Agro Juan",
+        ratingAvg: 5,
+        ratingCount: 2,
+      },
+    });
+    mocks.findManyListings.mockResolvedValue([publicacionActiva]);
+
+    await renderizarPagina();
+
+    expect(screen.queryByRole("img", { name: /de 5/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/reseñas/)).not.toBeInTheDocument();
+  });
+
+  it("muestra el sello Verificado junto al nombre cuando el vendedor está VERIFIED (RF-34)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuario,
+      profile: {
+        bio: null,
+        businessName: null,
+        sellerVerified: "VERIFIED",
+      },
+    });
+    mocks.findManyListings.mockResolvedValue([publicacionActiva]);
+
+    await renderizarPagina();
+
+    expect(screen.getByText("Verificado")).toBeInTheDocument();
+  });
+
+  it("no muestra el sello cuando la verificación no es VERIFIED (RF-34)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuario,
+      profile: {
+        bio: null,
+        businessName: null,
+        sellerVerified: "NONE",
+      },
+    });
+    mocks.findManyListings.mockResolvedValue([publicacionActiva]);
+
+    await renderizarPagina();
+
+    expect(screen.queryByText("Verificado")).not.toBeInTheDocument();
+  });
+
+  it("no muestra el sello sin Profile (RF-34)", async () => {
+    mocks.findUser.mockResolvedValue({ ...usuario, profile: null });
+    mocks.findManyListings.mockResolvedValue([publicacionActiva]);
+
+    await renderizarPagina();
+
+    expect(screen.queryByText("Verificado")).not.toBeInTheDocument();
+  });
 });

@@ -63,4 +63,12 @@ describe("Página /perfil", () => {
       screen.getByRole("link", { name: /Mis publicaciones/ })
     ).toHaveAttribute("href", "/perfil/publicaciones");
   });
+
+  it("incluye la card de verificación de vendedor (RF-32)", async () => {
+    await renderizarPagina();
+
+    const card = screen.getByRole("link", { name: /Verificación de vendedor/ });
+    expect(card).toHaveAttribute("href", "/perfil/verificacion");
+    expect(screen.getByText(/Estado de tu verificación/)).toBeInTheDocument();
+  });
 });

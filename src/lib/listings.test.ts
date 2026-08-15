@@ -30,7 +30,7 @@ describe("seleccionPropietario ampliado (TC-1)", () => {
       }
     ];
     expect(argumento.include.owner.select.profile).toEqual({
-      select: { bio: true, businessName: true },
+      select: { bio: true, businessName: true, sellerVerified: true },
     });
     // La ampliación no expone datos privados del vendedor (REQ-12/RF-19).
     expect(argumento.include.owner.select.email).toBeUndefined();

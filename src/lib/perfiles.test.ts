@@ -116,7 +116,11 @@ describe("obtenerPerfilPublicoVendedor", () => {
   it("arma el perfil completo con profile, métrica y publicaciones activas", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuarioBase,
-      profile: { bio: "Vendo maquinaria", businessName: "Agro Juan" },
+      profile: {
+        bio: "Vendo maquinaria",
+        businessName: "Agro Juan",
+        sellerVerified: "VERIFIED",
+      },
     });
     mocks.queryRaw.mockResolvedValue([{ muestras: 6, promedioHoras: 9.5 }]);
     mocks.findManyListings.mockResolvedValue(publicaciones);
@@ -125,10 +129,105 @@ describe("obtenerPerfilPublicoVendedor", () => {
 
     expect(resultado).toEqual({
       usuario: usuarioBase,
-      profile: { bio: "Vendo maquinaria", businessName: "Agro Juan" },
+      profile: {
+        bio: "Vendo maquinaria",
+        businessName: "Agro Juan",
+        sellerVerified: "VERIFIED",
+      },
       metricaRespuesta: { promedioHoras: 9.5, muestras: 6 },
+      rating: null,
       publicaciones,
     });
+  });
+
+  it("selecciona sellerVerified del Profile y lo expone en el retorno (RF-34)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: { bio: null, businessName: null, sellerVerified: "VERIFIED" },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    const [arg] = mocks.findUser.mock.calls[0] as [
+      { select: { profile: { select: Record<string, unknown> } } }
+    ];
+    expect(arg.select.profile.select.sellerVerified).toBe(true);
+    expect(resultado?.profile?.sellerVerified).toBe("VERIFIED");
+  });
+
+  it("normaliza a null un sellerVerified ausente en el Profile", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: { bio: null, businessName: null },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.profile?.sellerVerified).toBeNull();
+  });
+
+  it("expone el rating del vendedor con 3 o más muestras (RF-24)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: {
+        bio: null,
+        businessName: null,
+        ratingAvg: 4.5,
+        ratingCount: 12,
+      },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.rating).toEqual({ promedio: 4.5, cantidad: 12 });
+  });
+
+  it("oculta el rating con menos de 3 muestras (RF-24)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: { bio: null, businessName: null, ratingAvg: 5, ratingCount: 2 },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.rating).toBeNull();
+  });
+
+  it("oculta el rating sin reseñas (ratingCount 0)", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: { bio: null, businessName: null, ratingAvg: 0, ratingCount: 0 },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    const resultado = await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    expect(resultado?.rating).toBeNull();
+  });
+
+  it("selecciona ratingAvg y ratingCount del Profile para el agregado", async () => {
+    mocks.findUser.mockResolvedValue({
+      ...usuarioBase,
+      profile: {
+        bio: null,
+        businessName: null,
+        ratingAvg: 4.5,
+        ratingCount: 12,
+      },
+    });
+    mocks.findManyListings.mockResolvedValue(publicaciones);
+
+    await obtenerPerfilPublicoVendedor("vendedor-1");
+
+    const [arg] = mocks.findUser.mock.calls[0] as [
+      { select: { profile: { select: Record<string, unknown> } } }
+    ];
+    expect(arg.select.profile.select.ratingAvg).toBe(true);
+    expect(arg.select.profile.select.ratingCount).toBe(true);
   });
 
   it("sin Profile: devuelve bio y métrica como null y no consulta la métrica (REQ-3)", async () => {
