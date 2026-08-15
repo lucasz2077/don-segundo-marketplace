@@ -9,6 +9,8 @@ import { BotonEliminarPublicacion } from "@/components/listing/boton-eliminar-pu
 import { BotonContactar } from "@/components/listing/boton-contactar";
 import { BotonReportar } from "@/components/listing/boton-reportar";
 import { esFavorito } from "@/lib/favoritos";
+import { obtenerResenasDePublicacion } from "@/lib/ratings";
+import { BloqueResenasPublicacion } from "@/components/ratings/bloque-resenas-publicacion";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +55,7 @@ export default async function DetallePublicacionPage({
   const ubicacion = publicacion.city
     ? `${publicacion.city}, ${publicacion.province}`
     : publicacion.province;
+  const resenas = await obtenerResenasDePublicacion(id);
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
@@ -179,6 +182,13 @@ export default async function DetallePublicacionPage({
           ) : null}
         </div>
       </div>
+
+      {resenas.length > 0 ? (
+        <BloqueResenasPublicacion
+          resenas={resenas}
+          usuarioId={session?.user.id}
+        />
+      ) : null}
     </main>
   );
 }

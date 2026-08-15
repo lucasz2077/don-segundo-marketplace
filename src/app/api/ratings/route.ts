@@ -1,11 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { crearRatingSchema } from "@/lib/validation/rating";
 import {
   calificarVenta,
   CompraDeOtroUsuarioError,
   CompraNoEncontradaError,
+  obtenerResenasDePublicacion,
   VentanaExpiradaError,
   YaCalificadaError,
 } from "@/lib/ratings";
@@ -22,6 +24,21 @@ function respuestaError(
   message: string
 ): NextResponse<ErrorRespuesta> {
   return NextResponse.json({ error: { code, message } }, { status });
+}
+
+/**
+ * GET /api/ratings — listado público de reseñas de una publicación (RF-30).
+ * No requiere sesión. `listingId` es obligatorio y debe ser un uuid; responde
+ * 200 { data: ResenaPublicacion[] } ([] si la publicación no tiene reseñas).
+ */
+export async function GET(request: NextRequest) {
+  const listingId = new URL(request.url).searchParams.get("listingId");
+  if (!listingId || !z.string().uuid().safeParse(listingId).success) {
+    return respuestaError(400, "CUERPO_INVALIDO", "listingId inválido");
+  }
+
+  const resenas = await obtenerResenasDePublicacion(listingId);
+  return NextResponse.json({ data: resenas });
 }
 
 /**

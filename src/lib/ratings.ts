@@ -39,6 +39,22 @@ export class YaCalificadaError extends Error {
   }
 }
 
+/** Error de dominio: la reseña a eliminar no existe. (404 RESENIA_NO_ENCONTRADA) */
+export class ReseniaNoEncontradaError extends Error {
+  constructor() {
+    super("La reseña no existe");
+    this.name = "ReseniaNoEncontradaError";
+  }
+}
+
+/** Error de dominio: la reseña pertenece a otro usuario. (403 SIN_PERMISO) */
+export class ReseniaDeOtroUsuarioError extends Error {
+  constructor() {
+    super("No puedes eliminar una reseña que no es tuya");
+    this.name = "ReseniaDeOtroUsuarioError";
+  }
+}
+
 function esErrorClaveDuplicada(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -180,4 +196,135 @@ export async function calificarVenta({
   }
 
   return { id: rating.id, puntaje: rating.puntaje };
+}
+
+/**
+ * Reseña pública de una publicación (RF-30). `autor` es el nombre del
+ * comprador y `autorId` su id (para permitir al propio autor eliminar su
+ * reseña desde la UI, RF-31).
+ */
+export type ResenaPublicacion = {
+  id: string;
+  puntaje: number;
+  comentario: string | null;
+  autor: string;
+  autorId: string;
+  fecha: Date;
+};
+
+/**
+ * Lista las reseñas de una publicación (RF-30), de más reciente a más
+ * antigua. No es un error no tener reseñas: devuelve [].
+ */
+export async function obtenerResenasDePublicacion(
+  listingId: string
+): Promise<ResenaPublicacion[]> {
+  const resenas = await prisma.rating.findMany({
+    where: { compra: { listingId } },
+    select: {
+      id: true,
+      puntaje: true,
+      comentario: true,
+      createdAt: true,
+      compradorId: true,
+      comprador: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return resenas.map((resena) => ({
+    id: resena.id,
+    puntaje: resena.puntaje,
+    comentario: resena.comentario,
+    autor: resena.comprador.name ?? "Comprador",
+    autorId: resena.compradorId,
+    fecha: resena.createdAt,
+  }));
+}
+
+/**
+ * Elimina una reseña (RF-31). Solo el comprador autor puede borrar su propia
+ * reseña. Dentro de la MISMA transacción revierte los agregados del vendedor
+ * con el lock pesimista de calificarVenta (D3): si quedaba una sola reseña el
+ * promedio vuelve a 0; si quedaban varias se resta el puntaje del promedio
+ * ponderado. Sin notificación al borrar (best-effort no aplica aquí).
+ */
+export async function eliminarResenia({
+  ratingId,
+  compradorId,
+}: {
+  ratingId: string;
+  compradorId: string;
+}): Promise<{ eliminado: true }> {
+  return prisma.$transaction(async (tx) => {
+    const rating = await tx.rating.findUnique({
+      where: { id: ratingId },
+      select: {
+        compradorId: true,
+        puntaje: true,
+        compra: {
+          select: {
+            listing: { select: { ownerId: true, title: true } },
+          },
+        },
+      },
+    });
+
+    if (!rating) {
+      throw new ReseniaNoEncontradaError();
+    }
+    if (rating.compradorId !== compradorId) {
+      throw new ReseniaDeOtroUsuarioError();
+    }
+
+    const vendedorId = rating.compra.listing.ownerId;
+
+    // Replica el lock pesimista de calificarVenta (D3): sin él, dos borrados
+    // concurrentes de reseñas del mismo vendedor partirían del mismo
+    // ratingCount y perderían una reversión (lost update).
+    const perfiles = await tx.$queryRaw<
+      Array<{ userId: string; ratingAvg: number; ratingCount: number }>
+    >(
+      Prisma.sql`
+        SELECT "userId", "ratingAvg", "ratingCount"
+        FROM "Profile"
+        WHERE "userId" = ${vendedorId}
+        FOR UPDATE
+      `
+    );
+    const perfil = perfiles[0];
+
+    await tx.rating.delete({ where: { id: ratingId } });
+
+    const cantidadPrevia = perfil ? perfil.ratingCount : 0;
+    const promedioPrevio = perfil ? perfil.ratingAvg : 0;
+    const esUltimaResenia = cantidadPrevia <= 1;
+
+    let cantidadNueva = 0;
+    let promedioNuevo = 0;
+    if (!esUltimaResenia) {
+      cantidadNueva = cantidadPrevia - 1;
+      const promedioCrudo =
+        (promedioPrevio * cantidadPrevia - rating.puntaje) / cantidadNueva;
+      // Nunca dejar el promedio por debajo de 0 (correcto por construcción,
+      // pero se defiende del redondeo) y redondear a 2 decimales.
+      promedioNuevo = Math.max(0, Math.round(promedioCrudo * 100) / 100);
+    }
+
+    await tx.profile.upsert({
+      where: { userId: vendedorId },
+      create: {
+        userId: vendedorId,
+        ratingAvg: promedioNuevo,
+        ratingCount: cantidadNueva,
+      },
+      update: {
+        ratingAvg: promedioNuevo,
+        ratingCount: cantidadNueva,
+      },
+      select: { id: true },
+    });
+
+    return { eliminado: true };
+  });
 }
