@@ -32,6 +32,25 @@ enum SolicitudVerificacionEstado {
   REJECTED
 }
 
+enum CompraEstadoPago {
+  PENDIENTE
+  APROBADO
+  FALLIDO
+  REEMBOLSADO
+  EXPIRADA
+}
+
+enum SolicitudDevolucionEstado {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+enum MotivoReembolso {
+  DEVOLUCION_VENDEDOR
+  SIN_STOCK
+}
+
 enum Currency {
   ARS
   USD
@@ -112,6 +131,9 @@ model User {
   ratingsRecibidos Rating[] @relation("RatingVendedor")
   verificacionesSolicitadas SolicitudVerificacion[] @relation("VerificacionesVendedor")
   verificacionesRevisadas   SolicitudVerificacion[] @relation("VerificacionesAdmin")
+  vendedorMp                VendedorMpAccount?
+  devolucionesCompradas     SolicitudDevolucion[]   @relation("DevolucionesComprador")
+  devolucionesVendidas      SolicitudDevolucion[]   @relation("DevolucionesVendedor")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -354,10 +376,24 @@ model Compra {
   currency       Currency @default(ARS)
   cantidad       Int      @default(1)
   rating         Rating?
+  // Campos de pago (Fase 3, Slice 3 — pagos/checkout, D1/D6):
+  // el estado de pago nace PENDIENTE; la orden expira por TTL (D5) y el
+  // decremento de stock ocurre SOLO al aprobarse el pago (RF-26 modificada).
+  estadoPago            CompraEstadoPago       @default(PENDIENTE) @map("estado_pago")
+  fechaVencimiento      DateTime?              @map("fecha_vencimiento")
+  marketplaceFee        Decimal?               @db.Decimal(12, 2) @map("marketplace_fee")
+  mpPreferenceId        String?                @map("mp_preference_id")
+  mpPaymentId           String?                @unique @map("mp_payment_id")
+  aprobadoAt            DateTime?              @map("aprobado_at")
+  medioPago             String?                @map("medio_pago")
+  reembolsadoAt         DateTime?              @map("reembolsado_at")
+  motivoReembolso       MotivoReembolso?       @map("motivo_reembolso")
+  solicitudesDevolucion SolicitudDevolucion[]
   createdAt      DateTime @default(now())
 
   @@index([compradorId, createdAt])
   @@index([listingId])
+  @@index([estadoPago, fechaVencimiento])
 }
 
 model Rating {
@@ -389,4 +425,49 @@ model SolicitudVerificacion {
   createdAt    DateTime                     @default(now())
 
   @@index([vendedorId, createdAt])
+}
+
+/// Cuenta de Mercado Pago vinculada a un vendedor vía OAuth (RF-47/RF-48, D2).
+/// 1:1 con User; los tokens se guardan SOLO server-side (RNF-20) y se anulan
+/// (revocadaAt) si MP rechaza el refresh (RF-48). `mpUserId` es String para
+/// evitar problemas de precisión numérica con el user_id de MP.
+model VendedorMpAccount {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mpUserId             String
+  accessToken          String
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
+  liveMode             Boolean  @default(false)
+  revocadaAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([revocadaAt])
+}
+
+/// Solicitud de devolución de una compra (RF-49..RF-51, D4). Append-only:
+/// cada solicitud queda en el historial con su estado; la FK a Compra usa
+/// onDelete Restrict para que la historia sobreviva (patrón SolicitudVerificacion).
+/// `vendedorId` está denormalizado (patrón Rating) para la bandeja del vendedor.
+model SolicitudDevolucion {
+  id               String                    @id @default(uuid())
+  compraId         String
+  compra           Compra                    @relation(fields: [compraId], references: [id], onDelete: Restrict)
+  compradorId      String
+  comprador        User                      @relation("DevolucionesComprador", fields: [compradorId], references: [id])
+  vendedorId       String
+  vendedor         User                      @relation("DevolucionesVendedor", fields: [vendedorId], references: [id])
+  estado           SolicitudDevolucionEstado @default(PENDIENTE)
+  motivo           String
+  motivoRechazo    String?
+  montoReembolsado Decimal?                  @db.Decimal(12, 2)
+  mpRefundId       String?
+  resueltaAt       DateTime?
+  createdAt        DateTime                  @default(now())
+
+  @@index([vendedorId, estado])
+  @@index([compraId, createdAt])
+  @@index([compradorId, createdAt])
 }
