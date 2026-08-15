@@ -10,25 +10,35 @@ type BotonComprarProps = {
 };
 
 type RespuestaCompra = {
-  data?: { compraId?: string };
-  error?: { message?: string };
+  data?: {
+    compra?: { id: string; estadoPago: string };
+    initPoint?: string;
+  };
+  error?: { code?: string; message?: string };
 };
+
+const MENSAJE_SIN_STOCK =
+  "Sin stock. La publicación puede haberse vendido recién.";
+const MENSAJE_PAGO_INDISPONIBLE =
+  "El pago no está disponible en este momento. Intentá de nuevo en unos minutos.";
+const MENSAJE_ERROR_GENERICO =
+  "No se pudo concretar la compra. Intenta de nuevo.";
 
 /**
  * Botón de compra directa del detalle de publicación. Sin sesión redirige al
  * login con la ruta actual; con sesión llama a POST
- * /api/listings/[id]/comprar, maneja los errores de negocio de forma visible
- * (409 sin stock, 403, 401) y al éxito muestra una confirmación con la
- * referencia de la compra (compraId del contrato, RF-26) y refresca la página
- * para reflejar el nuevo stock.
+ * /api/listings/[id]/comprar, que crea la orden y la preferencia de pago en
+ * Mercado Pago (RF-39), y redirige al checkout usando el `initPoint` de la
+ * respuesta. Maneja los errores de negocio de forma visible (409 sin stock,
+ * 502 pago no disponible) y el 401 reenviando al login. La confirmación del
+ * pago llega por el webhook de pagos, por lo que aquí no se muestra
+ * referencia de compra.
  */
 export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [comprada, setComprada] = useState(false);
-  const [compraId, setCompraId] = useState<string | null>(null);
 
   if (!sesionIniciada) {
     return (
@@ -64,38 +74,27 @@ export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
         | null;
 
       if (!respuesta.ok) {
-        setError(
-          respuesta.status === 409
-            ? "Sin stock. La publicación puede haberse vendido recién."
-            : datos?.error?.message ??
-                "No se pudo concretar la compra. Intenta de nuevo."
-        );
+        if (respuesta.status === 409) {
+          setError(MENSAJE_SIN_STOCK);
+        } else if (respuesta.status === 502) {
+          setError(datos?.error?.message ?? MENSAJE_PAGO_INDISPONIBLE);
+        } else {
+          setError(MENSAJE_ERROR_GENERICO);
+        }
         return;
       }
 
-      setComprada(true);
-      setCompraId(datos?.data?.compraId ?? null);
-      router.refresh();
+      const initPoint = datos?.data?.initPoint;
+      if (!initPoint) {
+        setError(MENSAJE_ERROR_GENERICO);
+        return;
+      }
+      window.location.href = initPoint;
     } catch {
-      setError("No se pudo concretar la compra. Intenta de nuevo.");
+      setError(MENSAJE_ERROR_GENERICO);
     } finally {
       setCargando(false);
     }
-  }
-
-  if (comprada) {
-    return (
-      <div className="rounded-md bg-brand-50 px-4 py-3">
-        <p className="text-sm font-medium text-brand-900">
-          ¡Gracias por tu compra!
-        </p>
-        {compraId ? (
-          <p className="mt-1 text-xs text-brand-600">
-            Referencia de compra: {compraId}
-          </p>
-        ) : null}
-      </div>
-    );
   }
 
   return (
