@@ -101,6 +101,10 @@
 - **RF-50 — Ventana de devolución:** el sistema acepta solicitudes de devolución solo dentro de los 7 días posteriores al pago aprobado (`aprobadoAt`) y solo si la compra está APROBADA (pre-retiro). Fuera de ventana, post-retiro o sobre compras no APROBADAS se rechaza (410 `VENTANA_EXPIRADA` / 409). La barrera pre-retiro vigente es la ventana temporal de 7 días desde `aprobadoAt` (el MVP no modela estado de retiro; caveat W1 del verify).
 - **RF-51 — Absorción de fees en el reembolso:** en todo reembolso, el comprador recibe el 100% del monto pagado y el vendedor absorbe `marketplace_fee` (5%) y los costos del gateway (no recupera la comisión).
 
+### Reputación en tarjetas (Fase 3, Slice 4)
+
+- **RF-52 — Reputación del vendedor en tarjetas de publicación:** las tarjetas de publicación de todas las superficies con sello de verificación (búsqueda `/listados`, recientes del inicio, favoritos y publicaciones del perfil público `/vendedores/[id]`) muestran la reputación del dueño cuando `ratingCount ≥ 3` (la misma constante `MINIMO_MUESTRAS_RATING` de RF-24): estrellas pequeñas con promedio, cantidad y etiqueta accesible en español "X de 5 (n reseñas)". Con 0, 1 o 2 muestras, o si el dueño no tiene perfil, la tarjeta muestra el texto "Sin reseñas aún" (nunca un puntaje ni "0 (0 reseñas)"). El sello "Verificado" permanece intacto y la reputación no altera el orden, los filtros ni la paginación de la búsqueda (freeze RF-38, Slice 2). El detalle de publicación (`/listados/[id]`) recibe los campos de rating del select compartido del dueño pero conserva su comportamiento previo (solo reseñas de esa publicación, RF-30).
+
 ## 3. Requisitos no funcionales
 
 ### Rendimiento
