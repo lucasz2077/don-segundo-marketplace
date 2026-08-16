@@ -134,7 +134,8 @@ marketplace-campo/
 
 ### 4.3 Lógica de negocio (servicios)
 
-- Módulos por dominio: listings, search, favorites, contact, moderation, notifications.
+- Módulos por dominio: listings, search, favorites, contact, moderation, notifications, pagos, compras, ratings, verificaciones.
+- La integración con Mercado Pago (SDK `mercadopago`) vive aislada en `src/lib/pagos/` (mp, preferencias, pagos, oauth, reembolsos): es el ÚNICO lugar que importa el SDK, para poder mockear el wrapper en tests sin llamadas reales (RNF-16..RNF-20).
 - Validación (Zod), autorización por rol y reglas del dominio viven en esta capa, no en las rutas.
 - Aislar la lógica acá permite probarla con unit tests sin HTTP y migrarla a un servicio backend dedicado en el futuro.
 
@@ -226,6 +227,41 @@ Flujo de verificación de vendedores (Fase 3, Slice 2):
 ## 6.1 Autorización de admin
 
 La autorización de admin se apoya en el patrón existente de moderación (Fase 2, Slice 5): chequeo de claim de sesión (`session.user.role === "ADMIN"`) en páginas y rutas, más re-chequeo en base (`esAdministrador(userId)` en `src/lib/reportes.ts`) dentro del service. La capa de verificación reutiliza ese mismo patrón (o extrae `validarAdministrador` a un módulo compartido) para las rutas admin de `/admin/verificaciones`; nunca confía solo en el claim de la sesión.
+
+## 6.2 Flujo de pago y checkout (Fase 3, Slice 3)
+
+```
+Comprador → POST /api/listings/[id]/comprar (sesión obligatoria)
+  → iniciarCompra(): valida 404/403(propia)/400(NO_ACTIVA)/409(SIN_STOCK)
+  → tx Prisma: create Compra PENDIENTE { precioUnitario, currency, cantidad:1,
+      estadoPago:PENDIENTE, fechaVencimiento: now+30min, marketplaceFee: precio*5% }
+      (external_reference = compra.id; SIN decremento de stock ni SOLD — RF-26 mod.)
+  → crearPreferenciaPago(compra, cuentaMpVendedor) en src/lib/pagos/preferencias.ts:
+      Preference.create con token del VENDEDOR, external_reference = compra.id,
+      back_urls success/failure/pending → APP_URL/pagos/resultado, marketplace_fee 5%,
+      auto_return approved, expires + date_of_expiration = fechaVencimiento,
+      notification_url = APP_URL/api/pagos/webhook
+  → si la preferencia falla: delete compensatorio de la Compra y 502 PAGO_INDISPONIBLE
+  → { data: { compra: { id, estadoPago }, initPoint } } → redirect a init_point
+    (checkout fuera de plataforma; el server NO ve tarjetas — RF-40)
+
+MP → POST /api/pagos/webhook (pública, body { data: { id }, type: "payment" })
+  → verificarFirmaMp: si MP_WEBHOOK_SECRET configurado, exige x-signature (HMAC-SHA256)
+    → sin firma/secreto → 401/403 sin efecto (RNF-16)
+  → verificarPago(id) server-side (Payment.get con MP_ACCESS_TOKEN — nunca body crudo)
+  → si status ≠ approved → no-op; SIEMPRE 200 { data: { recibido: true } }
+  → RF-46: monto/moneda ≠ Compra → log PAGO_INCONSISTENTE, no-op
+  → aprobarPagoCompra() en $transaction (RNF-18, patrón updateMany condicionado):
+      1. updateMany Compra PENDIENTE → APROBADO (count 0 ⇒ no-op idempotente RNF-17)
+      2. updateMany Listing { ACTIVE, deletedAt null, stock > 0 } → decrement 1 + soldCount
+         ├─ count 1 → Compra { mpPaymentId, aprobadoAt, medioPago } + SOLD si stock = 0
+         └─ count 0 → carrera SIN_STOCK → refund automático + REEMBOLSADO SIN_STOCK (D4)
+  → post-commit best-effort: notifica venta paga al vendedor (nunca revierte — RF-45)
+```
+
+Devoluciones (RF-49..RF-51): comprador solicita en `/compras` (ventana 7 días desde `aprobadoAt`, solo APROBADA → 410 `VENTANA_EXPIRADA`); vendedor aprueba/rechaza en `/perfil/devoluciones`; al aprobar, `$transaction` SolicitudDevolucion APROBADA + Compra REEMBOLSADO, y post-commit `Payment.refund` del monto COMPLETO (RF-51: comprador recibe 100%, el vendedor absorbe `marketplace_fee` y costos del gateway; un fallo post-tx NO revierte, log `REEMBOLSO_FALLIDO`).
+
+OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar` → redirect a `auth.mercadopago.com.ar` con `state` CSRF de la sesión → `GET /api/pagos/oauth/callback` valida `state` y persiste `VendedorMpAccount` (tokens SOLO server-side, RNF-20). `crearPublicacion`/`actualizarPublicacion` exigen cuenta MP vigente (403 `MP_NO_VINCULADA`). El SDK `mercadopago` se importa únicamente en `src/lib/pagos/` (se mockea el wrapper en tests).
 
 ## 7. Seguridad
 
