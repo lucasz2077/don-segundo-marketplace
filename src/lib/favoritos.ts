@@ -10,12 +10,17 @@ export class PublicacionNoDisponibleError extends Error {
 }
 
 // Solo campos públicos del dueño (REQ-12/RF-19): el profile aporta el estado
-// de verificación para el sello Verificado de la tarjeta (RF-38).
+// de verificación para el sello Verificado de la tarjeta (RF-38) y el rating
+// agregado para la tarjeta (RF-52, umbral MINIMO_MUESTRAS_RATING).
 const seleccionPropietario = {
   id: true,
   name: true,
   profile: {
-    select: { sellerVerified: true },
+    select: {
+      sellerVerified: true,
+      ratingAvg: true,
+      ratingCount: true,
+    },
   },
 } as const;
 

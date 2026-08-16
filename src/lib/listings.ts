@@ -43,13 +43,20 @@ export class SinCuentaMpError extends Error {
 }
 
 // Solo campos públicos del dueño (REQ-12/RF-19): el profile aporta el
-// businessName para el bloque Vendedor del detalle (RF-24) y el estado de
-// verificación para el sello Verificado (RF-34).
+// businessName para el bloque Vendedor del detalle (RF-24), el estado de
+// verificación para el sello Verificado (RF-34) y el rating agregado para la
+// tarjeta (RF-52, umbral MINIMO_MUESTRAS_RATING en perfiles.ts).
 const seleccionPropietario = {
   id: true,
   name: true,
   profile: {
-    select: { bio: true, businessName: true, sellerVerified: true },
+    select: {
+      bio: true,
+      businessName: true,
+      sellerVerified: true,
+      ratingAvg: true,
+      ratingCount: true,
+    },
   },
 } as const;
 
