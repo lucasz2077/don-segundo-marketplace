@@ -93,9 +93,17 @@ export default async function PerfilPage() {
             </a>
           </div>
         </div>
+        <Link href="/perfil/devoluciones" className={estiloCard}>
+          <h2 className="text-lg font-semibold text-brand-900">
+            Devoluciones
+          </h2>
+          <p className="mt-1 text-sm text-brand-600">
+            Revisá y resolvé las solicitudes de devolución de tus ventas.
+          </p>
+        </Link>
         {/* La card de perfil público lleva dos acciones (editar y ver el
             perfil público), así que es un div y no un Link completo como las
-            otras tres cards: un enlace dentro de otro enlace es HTML inválido. */}
+            otras cuatro cards: un enlace dentro de otro enlace es HTML inválido. */}
         <div className={estiloCard}>
           <h2 className="text-lg font-semibold text-brand-900">
             Perfil público

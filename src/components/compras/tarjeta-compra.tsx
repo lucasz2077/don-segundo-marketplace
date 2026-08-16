@@ -8,6 +8,7 @@ import type {
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { EstrellasCalificacion } from "./estrellas-calificacion";
 import { BotonCalificar } from "./boton-calificar";
+import { BotonSolicitarDevolucion } from "./boton-solicitar-devolucion";
 
 const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
   day: "numeric",
@@ -63,6 +64,10 @@ type TarjetaCompraProps = {
   /** true si la compra está en ventana, sin rating y con pago APROBADO
    * (muestra el CTA; RF-41/D9). */
   calificable: boolean;
+  /** true si el pago está APROBADO, la compra está dentro de la ventana de
+   * devolución de 7 días y no hay solicitud PENDIENTE (muestra el CTA
+   * "Solicitar devolución"; RF-49/5.4). */
+  devolucionable: boolean;
 };
 
 /**
@@ -76,7 +81,11 @@ type TarjetaCompraProps = {
  * aprobado nunca muestran CTA ni mensaje de ventana (RF-41/D9), solo el
  * badge de estado.
  */
-export function TarjetaCompra({ compra, calificable }: TarjetaCompraProps) {
+export function TarjetaCompra({
+  compra,
+  calificable,
+  devolucionable,
+}: TarjetaCompraProps) {
   const imagen = compra.listing.images[0];
 
   return (
@@ -155,6 +164,21 @@ export function TarjetaCompra({ compra, calificable }: TarjetaCompraProps) {
             <p className="mt-3 text-sm text-brand-600 dark:text-brand-200">
               La ventana de calificación ya venció.
             </p>
+          ) : null}
+
+          {/* Devolución (RF-49/5.4): con solicitud PENDIENTE se informa el
+              estado en revisión; sin ella y dentro de la ventana de 7 días
+              se ofrece el CTA que despliega el formulario inline. Fuera de
+              la ventana no se muestra nada para no duplicar mensajes con la
+              calificación. */}
+          {compra.solicitudPendienteId ? (
+            <p className="mt-3 text-sm text-brand-600 dark:text-brand-200">
+              Solicitud de devolución en revisión.
+            </p>
+          ) : devolucionable ? (
+            <div className="mt-3">
+              <BotonSolicitarDevolucion compraId={compra.id} />
+            </div>
           ) : null}
         </div>
       </div>

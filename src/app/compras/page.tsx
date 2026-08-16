@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import {
   compraEnVentanaCalificacion,
+  compraEnVentanaDevolucion,
   obtenerMisCompras,
 } from "@/lib/compras";
 import { TarjetaCompra } from "@/components/compras/tarjeta-compra";
@@ -16,8 +17,11 @@ export const dynamic = "force-dynamic";
  * usuario con una sola consulta (sin N+1) y muestra el CTA "Calificar" solo
  * en compras con pago APROBADO (RF-41/D9), dentro de los 30 días desde la
  * aprobación del pago (D9, 6.6: la ventana se ancla a `aprobadoAt`) y sin
- * rating. El estado de pago se exhibe siempre en la tarjeta. Estados: vacío
- * con CTA a explorar publicaciones (E3).
+ * rating. El CTA "Solicitar devolución" (RF-49/5.4) aparece solo en compras
+ * APROBADAS dentro de la ventana de 7 días desde la aprobación y sin
+ * solicitud PENDIENTE; con una solicitud en curso la tarjeta informa "en
+ * revisión". El estado de pago se exhibe siempre en la tarjeta. Estados:
+ * vacío con CTA a explorar publicaciones (E3).
  */
 export default async function ComprasPage() {
   const session = await getSession();
@@ -44,6 +48,11 @@ export default async function ComprasPage() {
                   !compra.rating &&
                   compra.estadoPago === "APROBADO" &&
                   compraEnVentanaCalificacion(compra.aprobadoAt)
+                }
+                devolucionable={
+                  compra.estadoPago === "APROBADO" &&
+                  !compra.solicitudPendienteId &&
+                  compraEnVentanaDevolucion(compra.aprobadoAt)
                 }
               />
             </li>

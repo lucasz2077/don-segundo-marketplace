@@ -1,4 +1,10 @@
-import type { CompraEstadoPago, Currency, MotivoReembolso, Prisma } from "@/generated/prisma/client";
+import type {
+  CompraEstadoPago,
+  Currency,
+  MotivoReembolso,
+  Prisma,
+  SolicitudDevolucionEstado,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { VENTANA_CALIFICACION_DIAS } from "@/lib/ratings";
 import { calcularFee } from "@/lib/pagos/mp";
@@ -64,6 +70,36 @@ export type CompraConDetalle = {
     comentario: string | null;
     createdAt: Date;
   } | null;
+  /** id de la solicitud de devolución PENDIENTE (a lo sumo una por compra,
+   * RF-49/5.4): la tarjeta la usa para ocultar el CTA "Solicitar devolución"
+   * y mostrar "en revisión". null si no hay ninguna en curso. */
+  solicitudPendienteId: string | null;
+};
+
+/** Solicitud de devolución con detalle para la bandeja del vendedor
+ * (/perfil/devoluciones, RF-49..RF-51, 5.4): comprador y publicación sin
+ * N+1. `vendedorId` está denormalizado (patrón Rating), por eso una sola
+ * consulta alcanza. */
+export type SolicitudDevolucionConDetalle = {
+  id: string;
+  estado: SolicitudDevolucionEstado;
+  motivo: string;
+  motivoRechazo: string | null;
+  montoReembolsado: Prisma.Decimal | null;
+  mpRefundId: string | null;
+  resueltaAt: Date | null;
+  createdAt: Date;
+  comprador: { id: string; name: string | null };
+  compra: {
+    id: string;
+    precioUnitario: Prisma.Decimal;
+    currency: Currency;
+    listing: {
+      id: string;
+      title: string;
+      images: Array<{ url: string; alt: string | null }>;
+    };
+  };
 };
 
 /**
@@ -124,16 +160,17 @@ export function compraEnVentanaDevolucion(
  * Devuelve las compras del usuario para la página "Mis compras" (RF-29/D7):
  * una sola consulta con include (sin N+1) que trae el detalle mínimo de la
  * publicación (solo su primera imagen), el rating si la compra ya fue
- * calificada y los campos de estado de pago (RF-41). Antes de leer dispara la
- * expiración lazy de órdenes vencidas (D5). Ordenadas de más reciente a más
- * antigua.
+ * calificada, los campos de estado de pago (RF-41) y la solicitud de
+ * devolución PENDIENTE (RF-49/5.4: a lo sumo una por compra, expuesta como
+ * `solicitudPendienteId`). Antes de leer dispara la expiración lazy de
+ * órdenes vencidas (D5). Ordenadas de más reciente a más antigua.
  */
 export async function obtenerMisCompras(
   compradorId: string
 ): Promise<CompraConDetalle[]> {
   await expirarOrdenesVencidas();
 
-  return prisma.compra.findMany({
+  const compras = await prisma.compra.findMany({
     where: { compradorId },
     orderBy: { createdAt: "desc" },
     include: {
@@ -151,7 +188,66 @@ export async function obtenerMisCompras(
       rating: {
         select: { id: true, puntaje: true, comentario: true, createdAt: true },
       },
+      solicitudesDevolucion: {
+        where: { estado: "PENDIENTE" },
+        take: 1,
+        select: { id: true },
+      },
     },
+  });
+
+  return compras.map((compra) => ({
+    ...compra,
+    solicitudPendienteId: (compra.solicitudesDevolucion ?? [])[0]?.id ?? null,
+  }));
+}
+
+/**
+ * Devuelve las solicitudes de devolución del vendedor para la bandeja de
+ * /perfil/devoluciones (RF-49..RF-51, 5.4): una sola consulta (sin N+1) con
+ * el comprador y la publicación (solo su primera imagen), gracias al
+ * `vendedorId` denormalizado (patrón Rating). Orden de la bandeja: primero
+ * las PENDIENTES (las más antiguas primero, para atenderlas en orden) y
+ * después las resueltas (las más recientes primero).
+ */
+export async function obtenerSolicitudesDevolucion(
+  vendedorId: string
+): Promise<SolicitudDevolucionConDetalle[]> {
+  const solicitudes = await prisma.solicitudDevolucion.findMany({
+    where: { vendedorId },
+    include: {
+      comprador: { select: { id: true, name: true } },
+      compra: {
+        select: {
+          id: true,
+          precioUnitario: true,
+          currency: true,
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              images: {
+                orderBy: { position: "asc" },
+                take: 1,
+                select: { url: true, alt: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return solicitudes.sort((a, b) => {
+    const aPendiente = a.estado === "PENDIENTE";
+    const bPendiente = b.estado === "PENDIENTE";
+    if (aPendiente !== bPendiente) {
+      return aPendiente ? -1 : 1;
+    }
+    if (aPendiente) {
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    }
+    return b.createdAt.getTime() - a.createdAt.getTime();
   });
 }
 
