@@ -20,6 +20,28 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 /** TTL de las órdenes PENDIENTES antes de expirar (D5): 30 minutos. */
 export const VENCIMIENTO_ORDEN_MINUTOS = 30;
 
+/** Ventana de devolución de una compra: 7 días corridos desde la aprobación
+ * del pago (RF-50). */
+export const VENTANA_DEVOLUCION_DIAS = 7;
+
+/**
+ * Helper interno que generaliza la ventana de tiempo INCLUSIVA medida desde la
+ * aprobación del pago: `aprobadoAt + dias <= ahora` todavía aplica. Comparten
+ * esta única implementación `compraEnVentanaCalificacion` (30 días, RF-27/D9)
+ * y `compraEnVentanaDevolucion` (7 días, RF-50); una sola semántica evita
+ * que ambas ventanas deriven con el tiempo. `ahora` es inyectable para tests.
+ */
+function enVentanaDeAprobacion(
+  aprobadoAt: Date | null,
+  dias: number,
+  ahora: number
+): boolean {
+  if (!aprobadoAt) {
+    return false;
+  }
+  return ahora - aprobadoAt.getTime() <= dias * DIA_MS;
+}
+
 /** Compra con detalle mínimo para la UI de "Mis compras" (RF-29/RF-41). */
 export type CompraConDetalle = {
   id: string;
@@ -76,10 +98,26 @@ export function compraEnVentanaCalificacion(
   aprobadoAt: Date | null,
   ahora = Date.now()
 ): boolean {
-  if (!aprobadoAt) {
-    return false;
-  }
-  return ahora - aprobadoAt.getTime() <= VENTANA_CALIFICACION_DIAS * DIA_MS;
+  return enVentanaDeAprobacion(
+    aprobadoAt,
+    VENTANA_CALIFICACION_DIAS,
+    ahora
+  );
+}
+
+/**
+ * Devuelve true si la compra sigue dentro de la ventana de devolución de
+ * 7 días (RF-50). La ventana arranca en la APROBACIÓN del pago, igual que la
+ * de calificación (D9): se mide desde `aprobadoAt`, no desde `createdAt`. Una
+ * compra sin fecha de aprobación (no aprobada) nunca está en ventana → false.
+ * La ventana es INCLUSIVA: `aprobadoAt + 7 días >= ahora` todavía puede
+ * solicitarse la devolución. `ahora` es inyectable para tests deterministas.
+ */
+export function compraEnVentanaDevolucion(
+  aprobadoAt: Date | null,
+  ahora = Date.now()
+): boolean {
+  return enVentanaDeAprobacion(aprobadoAt, VENTANA_DEVOLUCION_DIAS, ahora);
 }
 
 /**
@@ -115,6 +153,105 @@ export async function obtenerMisCompras(
       },
     },
   });
+}
+
+/**
+ * Solicita la devolución de una compra pagada (RF-49/RF-50). El comprador crea
+ * una SolicitudDevolucion PENDIENTE (append-only: nunca se muta una solicitud
+ * anterior; el historial vive en SolicitudDevolucion, patrón
+ * SolicitudVerificacion) que el vendedor resuelve en /perfil/devoluciones.
+ * Validaciones en orden:
+ * 1. 404 CompraNoEncontradaError si la compra no existe.
+ * 2. 403 CompraDeOtroUsuarioError si la compra es de otro comprador.
+ * 3. 409 CompraNoAprobadaError si el pago no está APROBADO (RF-50: PENDIENTE/
+ *    FALLIDO/REEMBOLSADO/EXPIRADA no aplican; REEMBOLSADO ya devolvió el
+ *    dinero, no hay doble devolución).
+ * 4. 410 VentanaDevolucionExpiradaError pasados los 7 días desde `aprobadoAt`
+ *    (ventana inclusiva, misma semántica que la de calificación).
+ * 5. 409 DevolucionYaPendienteError si ya existe una solicitud PENDIENTE para
+ *    la misma compra (una a la vez).
+ * `vendedorId` se denormaliza desde `listing.ownerId` (patrón Rating). Post-
+ * commit notifica al vendedor best-effort con el payload tipado de devolución
+ * (evento "devolucion", estado PENDIENTE); un fallo de notificación nunca
+ * revierte la solicitud creada. Retorna la solicitud creada.
+ */
+export async function solicitarDevolucion({
+  compradorId,
+  compraId,
+  motivo,
+}: {
+  compradorId: string;
+  compraId: string;
+  motivo: string;
+}) {
+  const compra = await prisma.compra.findUnique({
+    where: { id: compraId },
+    select: {
+      id: true,
+      compradorId: true,
+      estadoPago: true,
+      aprobadoAt: true,
+      listing: { select: { id: true, ownerId: true, title: true } },
+      comprador: { select: { name: true } },
+    },
+  });
+
+  if (!compra) {
+    throw new CompraNoEncontradaError();
+  }
+  if (compra.compradorId !== compradorId) {
+    throw new CompraDeOtroUsuarioError();
+  }
+  // RF-50: solo compras con pago APROBADO y ventana medible. Una compra
+  // aprobada sin `aprobadoAt` es dato corrupto: tampoco es devolucionable.
+  const aprobadoAt = compra.aprobadoAt;
+  if (compra.estadoPago !== "APROBADO" || !aprobadoAt) {
+    throw new CompraNoAprobadaError();
+  }
+  if (!compraEnVentanaDevolucion(aprobadoAt)) {
+    throw new VentanaDevolucionExpiradaError();
+  }
+
+  // Una sola PENDIENTE a la vez por compra; las resueltas (APROBADA/
+  // RECHAZADA) no bloquean re-solicitar (append-only, RF-49).
+  const pendiente = await prisma.solicitudDevolucion.findFirst({
+    where: { compraId, estado: "PENDIENTE" },
+    select: { id: true },
+  });
+  if (pendiente) {
+    throw new DevolucionYaPendienteError();
+  }
+
+  const solicitud = await prisma.solicitudDevolucion.create({
+    data: {
+      compraId,
+      compradorId,
+      vendedorId: compra.listing.ownerId,
+      motivo,
+      estado: "PENDIENTE",
+    },
+    select: { id: true, estado: true, createdAt: true },
+  });
+
+  // Best-effort post-commit: nunca revierte la solicitud ya persistida.
+  try {
+    await crearNotificacion(
+      compra.listing.ownerId,
+      compra.listing.id,
+      "Solicitud de devolución",
+      `${compra.comprador.name} solicitó una devolución de "${compra.listing.title}".`,
+      "GENERAL",
+      {
+        evento: "devolucion",
+        solicitudId: solicitud.id,
+        estado: "PENDIENTE",
+      }
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
+  return solicitud;
 }
 
 /** Error de dominio: la publicación a comprar/gestionar no existe o fue eliminada. */
@@ -170,6 +307,47 @@ export class AccionEstadoInvalidaError extends Error {
   constructor(mensaje: string) {
     super(mensaje);
     this.name = "AccionEstadoInvalidaError";
+  }
+}
+
+/** Error de dominio: la compra a gestionar no existe. (404 COMPRA_NO_ENCONTRADA) */
+export class CompraNoEncontradaError extends Error {
+  constructor() {
+    super("La compra no existe");
+    this.name = "CompraNoEncontradaError";
+  }
+}
+
+/** Error de dominio: la compra pertenece a otro comprador. (403 SIN_PERMISO) */
+export class CompraDeOtroUsuarioError extends Error {
+  constructor() {
+    super("No podés solicitar una devolución de una compra que no es tuya");
+    this.name = "CompraDeOtroUsuarioError";
+  }
+}
+
+/** Error de dominio: el pago de la compra no está aprobado. (409 COMPRA_NO_APROBADA) */
+export class CompraNoAprobadaError extends Error {
+  constructor() {
+    super("Solo podés solicitar una devolución con el pago aprobado");
+    this.name = "CompraNoAprobadaError";
+  }
+}
+
+/** Error de dominio: la ventana de devolución de 7 días venció. (410 VENTANA_EXPIRADA) */
+export class VentanaDevolucionExpiradaError extends Error {
+  constructor() {
+    super("La ventana de devolución de 7 días ya venció");
+    this.name = "VentanaDevolucionExpiradaError";
+  }
+}
+
+/** Error de dominio: ya existe una solicitud de devolución PENDIENTE.
+ * (409 DEVO_YA_PENDIENTE) */
+export class DevolucionYaPendienteError extends Error {
+  constructor() {
+    super("Ya tenés una solicitud de devolución pendiente para esta compra");
+    this.name = "DevolucionYaPendienteError";
   }
 }
 
