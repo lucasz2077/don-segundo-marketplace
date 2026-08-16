@@ -8,7 +8,7 @@ import {
   PreferenciaFallidaError,
 } from "@/lib/pagos/preferencias";
 import type { PagoVerificado } from "@/lib/pagos/pagos";
-import { reembolsarCompra } from "@/lib/pagos/reembolsos";
+import { reembolsarCompra, ReembolsoFallidoError } from "@/lib/pagos/reembolsos";
 import {
   crearNotificacion,
   notificarCambioEstadoPublicacion,
@@ -254,6 +254,183 @@ export async function solicitarDevolucion({
   return solicitud;
 }
 
+/**
+ * Resuelve una solicitud de devolución como vendedor (RF-49..RF-51):
+ * aprobar o rechazar. Validaciones en orden: solicitud inexistente (404),
+ * solicitud de otro vendedor (403) y solicitud ya resuelta (409).
+ *
+ * - **rechazar**: la solicitud pasa a RECHAZADA con `motivoRechazo` obligatorio
+ *   (el route lo exige con Zod; acá hay un guard defensivo) y `resueltaAt`. La
+ *   Compra SIGUE APROBADO (el rechazo no toca el dinero, RF-51) y se notifica
+ *   al comprador best-effort (payload devolucion RECHAZADA). Re-solicitar tras
+ *   un rechazo está permitido (historial append-only).
+ * - **aprobar**: `$transaction` con transición atómica — (1) solicitud
+ *   PENDIENTE → APROBADA + `resueltaAt` (count 0 ⇒ carrera → YA_RESUELTA) y
+ *   (2) Compra → REEMBOLSADO + `reembolsadoAt` + `motivoReembolso`
+ *   DEVOLUCION_VENDEDOR. FUERA de la tx (post-commit): `reembolsarCompra`
+ *   con el `mpPaymentId` devuelve el monto COMPLETO pagado (RF-51: el
+ *   comprador recibe el 100%; el vendedor absorbe marketplace_fee y costos de
+ *   gateway), se persiste `mpRefundId` en la solicitud y se notifica al
+ *   comprador best-effort (payload devolucion APROBADA).
+ *
+ * DECISIÓN DE DISEÑO 5.2 (marcada en el reporte de apply): si el refund real
+ * en MP falla DESPUÉS de que la tx movió la compra a REEMBOLSADO, NO se
+ * revierte la tx — la compra ya vendió (stock decrementado al aprobar el pago)
+ * y un revert solo dejaría estados incoherentes. La resolución queda
+ * persistida (solicitud APROBADA + compra REEMBOLSADO) y el fallo se loguea
+ * `REEMBOLSO_FALLIDO` con el id de la solicitud para operación manual
+ * (conciliación con MP). El route mapea 502 PAGO_INDISPONIBLE SOLO cuando el
+ * refund falla sin llegar a resolver la solicitud (compra sin mpPaymentId,
+ * prevalidación ANTES de la tx: dato corrupto, la solicitud queda PENDIENTE);
+ * si la solicitud ya quedó resuelta, el route responde 200 con advertencia.
+ * Devuelve `{ solicitud, reembolsoExitoso }` (para aprobaciones con refund
+ * fallido `reembolsoExitoso` es false).
+ */
+export async function resolverDevolucion({
+  vendedorId,
+  solicitudId,
+  accion,
+  motivoRechazo,
+}: {
+  vendedorId: string;
+  solicitudId: string;
+  accion: "aprobar" | "rechazar";
+  motivoRechazo?: string | null;
+}) {
+  const solicitud = await prisma.solicitudDevolucion.findUnique({
+    where: { id: solicitudId },
+    select: {
+      id: true,
+      compraId: true,
+      compradorId: true,
+      vendedorId: true,
+      estado: true,
+      compra: {
+        select: {
+          id: true,
+          mpPaymentId: true,
+          listing: { select: { id: true, ownerId: true, title: true } },
+          comprador: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  if (!solicitud) {
+    throw new SolicitudNoEncontradaError();
+  }
+  if (solicitud.vendedorId !== vendedorId) {
+    throw new SolicitudDeOtroVendedorError();
+  }
+  if (solicitud.estado !== "PENDIENTE") {
+    throw new SolicitudYaResueltaError();
+  }
+
+  if (accion === "rechazar") {
+    // RF-49: el motivo de rechazo es obligatorio (Zod lo exige en el route;
+    // este guard es defensivo para el uso directo del servicio).
+    if (!motivoRechazo || motivoRechazo.trim() === "") {
+      throw new AccionEstadoInvalidaError("Indicá el motivo del rechazo");
+    }
+
+    const actualizada = await prisma.solicitudDevolucion.update({
+      where: { id: solicitudId },
+      data: { estado: "RECHAZADA", motivoRechazo, resueltaAt: new Date() },
+      select: { id: true, estado: true },
+    });
+
+    // Best-effort post-commit: la Compra SIGUE APROBADO (RF-51).
+    try {
+      await crearNotificacion(
+        solicitud.compradorId,
+        solicitud.compra.listing.id,
+        "Solicitud de devolución rechazada",
+        `Tu solicitud de devolución de "${solicitud.compra.listing.title}" fue rechazada. Motivo: ${motivoRechazo}`,
+        "GENERAL",
+        { evento: "devolucion", solicitudId, estado: "RECHAZADA" }
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+
+    return { solicitud: actualizada, reembolsoExitoso: true };
+  }
+
+  // aprobar
+  // Prevalidación del refund ANTES de la tx (decisión 5.2): sin mpPaymentId
+  // el reembolso es imposible (dato corrupto: toda compra APROBADO tiene pago
+  // de MP). Fallar acá deja la solicitud PENDIENTE sin tocar → el route mapea
+  // 502 PAGO_INDISPONIBLE.
+  if (!solicitud.compra.mpPaymentId) {
+    throw new ReembolsoFallidoError(
+      new Error("La compra no tiene pago en Mercado Pago para reembolsar")
+    );
+  }
+
+  const resuelta = await prisma.$transaction(async (tx) => {
+    // Transición atómica PENDIENTE → APROBADA (patrón updateMany de la casa):
+    // count 0 ⇒ otra resolución ganó la carrera ⇒ YA_RESUELTA idempotente.
+    const aprobacion = await tx.solicitudDevolucion.updateMany({
+      where: { id: solicitudId, estado: "PENDIENTE" },
+      data: { estado: "APROBADA", resueltaAt: new Date() },
+    });
+    if (aprobacion.count === 0) {
+      throw new SolicitudYaResueltaError();
+    }
+
+    // RF-51: la Compra pasa a REEMBOLSADO (el dinero vuelve al comprador).
+    await tx.compra.update({
+      where: { id: solicitud.compraId },
+      data: {
+        estadoPago: "REEMBOLSADO",
+        reembolsadoAt: new Date(),
+        motivoReembolso: "DEVOLUCION_VENDEDOR",
+      },
+    });
+
+    return { id: solicitudId, estado: "APROBADA" };
+  });
+
+  // Post-commit, best-effort: el refund real en MP nunca revierte la tx.
+  let reembolsoExitoso = true;
+  try {
+    const { mpRefundId } = await reembolsarCompra({
+      compra: {
+        id: solicitud.compraId,
+        mpPaymentId: solicitud.compra.mpPaymentId,
+      },
+    });
+    await prisma.solicitudDevolucion.update({
+      where: { id: solicitudId },
+      data: { mpRefundId: String(mpRefundId) },
+    });
+  } catch (error) {
+    // DECISIÓN 5.2: la tx ya quedó persistida; NO se revierte. Se loguea el
+    // fallo con el id de la solicitud para operación manual (conciliación).
+    reembolsoExitoso = false;
+    console.error("REEMBOLSO_FALLIDO", {
+      solicitudId,
+      compraId: solicitud.compraId,
+      error,
+    });
+  }
+
+  try {
+    await crearNotificacion(
+      solicitud.compradorId,
+      solicitud.compra.listing.id,
+      "Solicitud de devolución aprobada",
+      `Tu solicitud de devolución de "${solicitud.compra.listing.title}" fue aprobada y tu pago será reembolsado.`,
+      "GENERAL",
+      { evento: "devolucion", solicitudId, estado: "APROBADA" }
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
+  return { solicitud: resuelta, reembolsoExitoso };
+}
+
 /** Error de dominio: la publicación a comprar/gestionar no existe o fue eliminada. */
 export class PublicacionNoEncontradaError extends Error {
   constructor() {
@@ -348,6 +525,31 @@ export class DevolucionYaPendienteError extends Error {
   constructor() {
     super("Ya tenés una solicitud de devolución pendiente para esta compra");
     this.name = "DevolucionYaPendienteError";
+  }
+}
+
+/** Error de dominio: la solicitud de devolución a resolver no existe.
+ * (404 SOLICITUD_NO_ENCONTRADA) */
+export class SolicitudNoEncontradaError extends Error {
+  constructor() {
+    super("La solicitud de devolución no existe");
+    this.name = "SolicitudNoEncontradaError";
+  }
+}
+
+/** Error de dominio: la solicitud pertenece a otro vendedor. (403 SIN_PERMISO) */
+export class SolicitudDeOtroVendedorError extends Error {
+  constructor() {
+    super("No podés resolver una solicitud de devolución que no es tuya");
+    this.name = "SolicitudDeOtroVendedorError";
+  }
+}
+
+/** Error de dominio: la solicitud ya fue resuelta. (409 YA_RESUELTA) */
+export class SolicitudYaResueltaError extends Error {
+  constructor() {
+    super("Esta solicitud de devolución ya fue resuelta");
+    this.name = "SolicitudYaResueltaError";
   }
 }
 
