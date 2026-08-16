@@ -33,6 +33,22 @@ export type RatingVendedor = {
   cantidad: number;
 } | null;
 
+/**
+ * Deriva el rating del vendedor desde su Profile aplicando el umbral
+ * compartido de RF-24 (MINIMO_MUESTRAS_RATING = 3). Devuelve el agregado solo
+ * con 3 o más muestras; con 0/1/2 muestras o sin Profile devuelve null (la UI
+ * decide mostrar "Sin reseñas aún" en las tarjetas, RF-52). Una sola fuente
+ * del umbral para el perfil público y las tarjetas.
+ */
+export function derivarRatingVendedor(
+  perfil: { ratingAvg: number; ratingCount: number } | null | undefined
+): RatingVendedor {
+  if (!perfil || perfil.ratingCount < MINIMO_MUESTRAS_RATING) {
+    return null;
+  }
+  return { promedio: perfil.ratingAvg, cantidad: perfil.ratingCount };
+}
+
 export type PerfilPublicoVendedor = {
   usuario: {
     id: string;
@@ -164,13 +180,8 @@ export async function obtenerPerfilPublicoVendedor(
 
   // RF-24: el rating se expone solo con 3 o más muestras (patrón
   // MINIMO_MUESTRAS). Sin Profile o con menos reseñas → null (bloque oculto).
-  const rating: RatingVendedor =
-    usuario.profile && usuario.profile.ratingCount >= MINIMO_MUESTRAS_RATING
-      ? {
-          promedio: usuario.profile.ratingAvg,
-          cantidad: usuario.profile.ratingCount,
-        }
-      : null;
+  // Se reutiliza el helper compartido de las tarjetas (RF-52).
+  const rating: RatingVendedor = derivarRatingVendedor(usuario.profile);
 
   return {
     usuario: {

@@ -20,12 +20,42 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   actualizarMiPerfil,
   calcularTiempoRespuestaPromedio,
+  derivarRatingVendedor,
   formatearTiempoRespuesta,
   obtenerMiPerfil,
   obtenerPerfilPublicoVendedor,
 } from "@/lib/perfiles";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
+
+describe("derivarRatingVendedor (RF-52)", () => {
+  it("devuelve el rating con 3 o más muestras (RF-24)", () => {
+    expect(derivarRatingVendedor({ ratingAvg: 4.5, ratingCount: 12 })).toEqual({
+      promedio: 4.5,
+      cantidad: 12,
+    });
+  });
+
+  it("devuelve null con exactamente 2 muestras (umbral RF-24)", () => {
+    expect(derivarRatingVendedor({ ratingAvg: 5, ratingCount: 2 })).toBeNull();
+  });
+
+  it("devuelve null con 1 muestra", () => {
+    expect(derivarRatingVendedor({ ratingAvg: 4, ratingCount: 1 })).toBeNull();
+  });
+
+  it("devuelve null con 0 muestras (nunca '0 (0 reseñas)')", () => {
+    expect(derivarRatingVendedor({ ratingAvg: 0, ratingCount: 0 })).toBeNull();
+  });
+
+  it("devuelve null sin Profile (mismo tratamiento que 0 muestras, decisión 5)", () => {
+    expect(derivarRatingVendedor(null)).toBeNull();
+  });
+
+  it("devuelve null con Profile undefined (prop ausente)", () => {
+    expect(derivarRatingVendedor(undefined)).toBeNull();
+  });
+});
 
 describe("calcularTiempoRespuestaPromedio", () => {
   beforeEach(() => {
@@ -120,6 +150,8 @@ describe("obtenerPerfilPublicoVendedor", () => {
         bio: "Vendo maquinaria",
         businessName: "Agro Juan",
         sellerVerified: "VERIFIED",
+        ratingAvg: 0,
+        ratingCount: 0,
       },
     });
     mocks.queryRaw.mockResolvedValue([{ muestras: 6, promedioHoras: 9.5 }]);
