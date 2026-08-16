@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatearPrecio, type Moneda } from "@/lib/formato";
 import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
+import { EstrellasCalificacion } from "@/components/compras/estrellas-calificacion";
+import type { RatingVendedor } from "@/lib/perfiles";
 
 type TarjetaPublicacionProps = {
   publicacion: {
@@ -15,17 +17,25 @@ type TarjetaPublicacionProps = {
   };
   /** Estado de verificación del dueño; el sello solo se muestra en VERIFIED (RF-38). */
   sellerVerified?: string | null;
+  /**
+   * Rating del vendedor ya derivado (RF-52). Con 3+ muestras muestra
+   * estrellas sm (EstrellasCalificacion); null o ausente → "Sin reseñas aún"
+   * (nunca un puntaje poco representativo, RF-24).
+   */
+  rating?: RatingVendedor;
 };
 
 /**
  * Tarjeta de publicación para listados e inicio. Muestra la primera imagen,
- * título, precio formateado, condición y provincia. Renderiza el sello de
- * vendedor verificado junto al título cuando el dueño está VERIFIED (RF-38);
- * la verificación no altera el orden ni los filtros de la búsqueda.
+ * título, precio formateado, rating del vendedor (RF-52), condición y
+ * provincia. Renderiza el sello de vendedor verificado junto al título cuando
+ * el dueño está VERIFIED (RF-38); ni la verificación ni el rating alteran el
+ * orden ni los filtros de la búsqueda.
  */
 export function TarjetaPublicacion({
   publicacion,
   sellerVerified,
+  rating,
 }: TarjetaPublicacionProps) {
   const imagenPrincipal = publicacion.images[0];
   const etiquetaCondicion =
@@ -64,6 +74,17 @@ export function TarjetaPublicacion({
         <p className="mt-2 text-base font-semibold text-brand-900">
           {formatearPrecio(publicacion.price, publicacion.currency)}
         </p>
+        {rating ? (
+          <div className="mt-1">
+            <EstrellasCalificacion
+              promedio={rating.promedio}
+              cantidad={rating.cantidad}
+              tamanio="sm"
+            />
+          </div>
+        ) : (
+          <p className="mt-1 text-sm text-brand-600">Sin reseñas aún</p>
+        )}
         <p className="mt-1 text-sm text-brand-600">{publicacion.province}</p>
       </div>
     </Link>

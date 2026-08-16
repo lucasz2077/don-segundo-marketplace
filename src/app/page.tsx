@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { obtenerCategoriasRaiz } from "@/lib/categories";
 import { obtenerPublicacionesRecientes } from "@/lib/listings";
+import { derivarRatingVendedor } from "@/lib/perfiles";
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
 
 export const dynamic = "force-dynamic";
@@ -95,6 +96,7 @@ export default async function HomePage() {
                 key={publicacion.id}
                 publicacion={publicacion}
                 sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
+                rating={derivarRatingVendedor(publicacion.owner?.profile)}
               />
             ))}
           </div>

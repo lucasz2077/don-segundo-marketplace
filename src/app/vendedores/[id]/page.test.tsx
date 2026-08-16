@@ -83,7 +83,12 @@ describe("Página pública /vendedores/[id]", () => {
   it("muestra nombre, antigüedad, bio, businessName, métrica y publicaciones (REQ-2/REQ-5)", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuario,
-      profile: { bio: "Vendo maquinaria agrícola", businessName: "Agro Juan" },
+      profile: {
+        bio: "Vendo maquinaria agrícola",
+        businessName: "Agro Juan",
+        ratingAvg: 0,
+        ratingCount: 0,
+      },
     });
     mocks.queryRaw.mockResolvedValue([{ muestras: 6, promedioHoras: 9.5 }]);
     mocks.findManyListings.mockResolvedValue([publicacionActiva]);
@@ -122,7 +127,12 @@ describe("Página pública /vendedores/[id]", () => {
   it("oculta la métrica cuando hay menos de 3 conversaciones con respuesta (REQ-5)", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuario,
-      profile: { bio: "Vendo maquinaria", businessName: "Agro Juan" },
+      profile: {
+        bio: "Vendo maquinaria",
+        businessName: "Agro Juan",
+        ratingAvg: 0,
+        ratingCount: 0,
+      },
     });
     mocks.queryRaw.mockResolvedValue([{ muestras: 2, promedioHoras: 8 }]);
     mocks.findManyListings.mockResolvedValue([publicacionActiva]);
@@ -199,7 +209,7 @@ describe("Página pública /vendedores/[id]", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("muestra el bloque de rating con 3 o más muestras (RF-24)", async () => {
+  it("muestra el rating en el header y en la tarjeta con 3+ muestras (RF-24/RF-52)", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuario,
       profile: {
@@ -213,13 +223,18 @@ describe("Página pública /vendedores/[id]", () => {
 
     await renderizarPagina();
 
+    // Header: bloque de rating del perfil (RF-24) + tarjeta: estrellas sm
+    // (RF-52). Ambas comparten el aria-label "X de 5 (n reseñas)".
     expect(
-      screen.getByRole("img", { name: "4,5 de 5 (12 reseñas)" })
+      screen.getAllByRole("img", { name: "4,5 de 5 (12 reseñas)" })
+    ).toHaveLength(2);
+    const tarjetas = screen.getAllByRole("listitem");
+    expect(
+      within(tarjetas[0]).getByRole("img", { name: "4,5 de 5 (12 reseñas)" })
     ).toBeInTheDocument();
-    expect(screen.getByText("(12 reseñas)")).toBeInTheDocument();
   });
 
-  it("oculta el bloque de rating con menos de 3 muestras (RF-24)", async () => {
+  it("oculta el puntaje con menos de 3 muestras y muestra 'Sin reseñas aún' (RF-24/RF-52)", async () => {
     mocks.findUser.mockResolvedValue({
       ...usuario,
       profile: {
@@ -234,7 +249,9 @@ describe("Página pública /vendedores/[id]", () => {
     await renderizarPagina();
 
     expect(screen.queryByRole("img", { name: /de 5/ })).not.toBeInTheDocument();
-    expect(screen.queryByText(/reseñas/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ de 5/)).not.toBeInTheDocument();
+    // RF-52: la tarjeta muestra el estado vacío, nunca un puntaje (RF-24).
+    expect(screen.getByText("Sin reseñas aún")).toBeInTheDocument();
   });
 
   it("muestra el sello Verificado en el header y en la tarjeta cuando el vendedor está VERIFIED (RF-34/RF-38)", async () => {
@@ -244,6 +261,8 @@ describe("Página pública /vendedores/[id]", () => {
         bio: null,
         businessName: null,
         sellerVerified: "VERIFIED",
+        ratingAvg: 0,
+        ratingCount: 0,
       },
     });
     mocks.findManyListings.mockResolvedValue([publicacionActiva]);
@@ -266,6 +285,8 @@ describe("Página pública /vendedores/[id]", () => {
         bio: null,
         businessName: null,
         sellerVerified: "NONE",
+        ratingAvg: 0,
+        ratingCount: 0,
       },
     });
     mocks.findManyListings.mockResolvedValue([publicacionActiva]);

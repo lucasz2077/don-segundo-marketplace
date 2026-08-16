@@ -109,6 +109,7 @@ export default async function VendedorPage({ params }: VendedorPageProps) {
                 <TarjetaPublicacion
                   publicacion={publicacion}
                   sellerVerified={publicacion.sellerVerified}
+                  rating={perfil.rating}
                 />
               </li>
             ))}

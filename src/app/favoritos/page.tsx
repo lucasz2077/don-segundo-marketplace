@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { obtenerFavoritos } from "@/lib/favoritos";
+import { derivarRatingVendedor } from "@/lib/perfiles";
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
 import { BotonQuitarFavorito } from "@/components/listing/boton-quitar-favorito";
 
@@ -32,6 +33,7 @@ export default async function FavoritosPage() {
               <TarjetaPublicacion
                 publicacion={favorito.listing}
                 sellerVerified={favorito.listing.owner?.profile?.sellerVerified ?? null}
+                rating={derivarRatingVendedor(favorito.listing.owner?.profile)}
               />
               <BotonQuitarFavorito listingId={favorito.listingId} />
             </div>

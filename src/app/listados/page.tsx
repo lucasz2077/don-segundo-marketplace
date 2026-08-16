@@ -2,6 +2,7 @@ import Link from "next/link";
 import { busquedaSchema, type BusquedaInput } from "@/lib/validation/listing";
 import { obtenerPublicacionesActivas } from "@/lib/listings";
 import { obtenerCategoriasRaiz } from "@/lib/categories";
+import { derivarRatingVendedor } from "@/lib/perfiles";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
 import { FiltrosBusqueda } from "@/components/listing/filtros-busqueda";
@@ -113,6 +114,7 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
                 key={publicacion.id}
                 publicacion={publicacion}
                 sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
+                rating={derivarRatingVendedor(publicacion.owner?.profile)}
               />
             ))}
           </div>
