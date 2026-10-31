@@ -18,7 +18,7 @@ Marketplace vertical del campo argentino (maquinaria, herramientas, insumos, hac
   - `params` y `searchParams` son `Promise` y se hacen `await`.
   - `LayoutProps`/`PageProps` son tipos globales generados por `next dev`/`next build` (por eso `tsc` suelto falla si no existe `.next/types`).
   - Antes de usar una API de Next, consultar `node_modules/next/dist/docs/`.
-- **Prisma 7** con `@prisma/adapter-pg`. El client se genera en `src/generated/prisma` (gitignored) y se importa desde `@/generated/prisma/client`. Config en `prisma.config.ts` (usa `DIRECT_URL` si existe, si no `DATABASE_URL`).
+- **Prisma 7** con `@prisma/adapter-pg`. El client se genera en `src/generated/prisma` (gitignored) y se importa desde `@/generated/prisma/client`. Config en `prisma.config.ts` (usa `DIRECT_URL` si existe, si no `DATABASE_URL`). En Vercel `DATABASE_URL` va al Transaction pooler de Supabase (6543); el Session pooler (5432) agotó las conexiones y tiró el sitio. Migraciones: Session pooler vía `DIRECT_URL`. Los parámetros `sslmode` de la URL se ignoran (`src/lib/db/url-conexion.ts`): pisaban la config TLS del pool.
 - **Better Auth 1.6** (email + contraseña) con adapter Prisma; campos extra del usuario (`role`, `accountType`, `phone`, `province`, `dni`...) en `src/lib/auth.ts`.
 - **Zod 4** para validación (`z.uuid()`, `z.enum`, mensajes en español).
 - **Mercado Pago SDK 3** (Checkout Pro + OAuth de vendedores + webhooks + refunds).
