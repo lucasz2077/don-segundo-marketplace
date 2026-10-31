@@ -7,6 +7,7 @@ import {
 } from "@/lib/validation/listing";
 import {
   CategoriaInvalidaError,
+  ImagenInvalidaError,
   crearPublicacion,
   obtenerPublicacionesActivas,
   SinCuentaMpError,
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof CategoriaInvalidaError) {
       return respuestaError(400, "CATEGORIA_INVALIDA", error.message);
+    }
+    if (error instanceof ImagenInvalidaError) {
+      return respuestaError(400, "IMAGEN_INVALIDA", error.message);
     }
     console.error("Error al crear publicación:", error);
     return respuestaError(500, "ERROR_INTERNO", "No se pudo crear la publicación. Intenta de nuevo.");

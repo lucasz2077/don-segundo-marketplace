@@ -101,9 +101,9 @@ export default async function DetalleVerificacionPage({
           Se abren en una pestaña nueva para su revisión.
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-          {solicitud.dniUrl ? (
+          {solicitud.tieneDni ? (
             <a
-              href={solicitud.dniUrl}
+              href={`/api/verificaciones/${solicitud.id}/documentos/dni`}
               target="_blank"
               rel="noopener"
               className="inline-flex w-fit items-center gap-2 rounded-md text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"
@@ -115,9 +115,9 @@ export default async function DetalleVerificacionPage({
               Sin documento de identidad.
             </p>
           )}
-          {solicitud.domicilioUrl ? (
+          {solicitud.tieneDomicilio ? (
             <a
-              href={solicitud.domicilioUrl}
+              href={`/api/verificaciones/${solicitud.id}/documentos/domicilio`}
               target="_blank"
               rel="noopener"
               className="inline-flex w-fit items-center gap-2 rounded-md text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"

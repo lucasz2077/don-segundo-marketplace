@@ -100,6 +100,12 @@ function FilaPublicacion({ publicacion }: { publicacion: ListadoPublicacion }) {
                   accion="pausar"
                 />
               </>
+            ) : publicacion.status === "PAUSED" &&
+              publicacion.pausadaPorModeracion ? (
+              // RF-25: una pausa de moderación no la puede revertir el dueño.
+              <p className="text-sm text-brand-700">
+                Pausada por moderación. No podés reanudarla.
+              </p>
             ) : publicacion.status === "PAUSED" ? (
               <BotonCambioEstadoPublicacion
                 listingId={publicacion.id}

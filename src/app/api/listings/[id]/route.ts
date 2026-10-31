@@ -5,6 +5,7 @@ import { crearPublicacionSchema } from "@/lib/validation/listing";
 import {
   actualizarPublicacion,
   CategoriaInvalidaError,
+  ImagenInvalidaError,
   eliminarPublicacion,
   obtenerPublicacion,
   obtenerPublicacionPorId,
@@ -93,6 +94,9 @@ export async function PATCH(
     }
     if (error instanceof CategoriaInvalidaError) {
       return respuestaError(400, "CATEGORIA_INVALIDA", error.message);
+    }
+    if (error instanceof ImagenInvalidaError) {
+      return respuestaError(400, "IMAGEN_INVALIDA", error.message);
     }
     console.error("Error al actualizar publicación:", error);
     return respuestaError(500, "ERROR_INTERNO", "No se pudo actualizar la publicación. Intenta de nuevo.");

@@ -1,8 +1,8 @@
-import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { subirImagen } from "@/lib/cloudinary";
+import { generarIdPublicoImagen } from "@/lib/imagenes";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,7 +55,9 @@ export async function POST(request: NextRequest) {
 
   const buffer = Buffer.from(await archivo.arrayBuffer());
   try {
-    const imagen = await subirImagen(buffer, randomUUID());
+    // El public_id lleva el id del usuario para validar la titularidad al
+    // asociar la imagen a una publicación (ver src/lib/imagenes.ts).
+    const imagen = await subirImagen(buffer, generarIdPublicoImagen(session.user.id));
     return NextResponse.json(
       { data: { url: imagen.url, publicId: imagen.publicId, alt: archivo.name } },
       { status: 201 }

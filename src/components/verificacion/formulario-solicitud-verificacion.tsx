@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Boton } from "@/components/ui/boton";
 
 type DocumentoSubido = {
-  url: string;
   publicId: string;
   nombre: string;
 };
@@ -17,10 +16,11 @@ const etiquetaCampo =
 
 /**
  * Formulario de solicitud de verificación de vendedor (RF-32/RF-35). Sube los
- * documentos (identidad obligatoria, domicilio opcional) a POST /api/upload y
- * al enviar crea la solicitud con POST /api/verificaciones. Copia el patrón de
- * subida de publicar-formulario: el archivo se sube apenas se elige, se guarda
- * { url, publicId } en estado y el envío solo lleva las URLs. Al éxito la
+ * documentos (identidad obligatoria, domicilio opcional) como assets privados
+ * a POST /api/verificaciones/documentos (RNF-15) y al enviar crea la solicitud
+ * con POST /api/verificaciones. Copia el patrón de subida de
+ * publicar-formulario: el archivo se sube apenas se elige, se guarda el
+ * { publicId } en estado y el envío solo lleva esos identificadores. Al éxito la
  * página server se refresca (mostrará PENDING); ante 401 redirige a sign-in.
  */
 export function FormularioSolicitudVerificacion() {
@@ -43,9 +43,9 @@ export function FormularioSolicitudVerificacion() {
     setSubiendo(campo);
     setError(null);
     const formData = new FormData();
-    formData.append("imagen", archivo);
+    formData.append("documento", archivo);
     try {
-      const respuesta = await fetch("/api/upload", {
+      const respuesta = await fetch("/api/verificaciones/documentos", {
         method: "POST",
         body: formData,
       });
@@ -60,15 +60,10 @@ export function FormularioSolicitudVerificacion() {
         );
         return;
       }
-      const subida = cuerpo.data as {
-        url: string;
-        publicId: string;
-        alt: string | null;
-      };
+      const subida = cuerpo.data as { publicId: string; nombre: string | null };
       alSubir({
-        url: subida.url,
         publicId: subida.publicId,
-        nombre: subida.alt ?? archivo.name,
+        nombre: subida.nombre ?? archivo.name,
       });
     } catch {
       setError("No se pudo subir el documento. Intenta de nuevo.");
@@ -112,8 +107,10 @@ export function FormularioSolicitudVerificacion() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dniUrl: dniDocumento.url,
-          ...(domicilioDocumento ? { domicilioUrl: domicilioDocumento.url } : {}),
+          dniPublicId: dniDocumento.publicId,
+          ...(domicilioDocumento
+            ? { domicilioPublicId: domicilioDocumento.publicId }
+            : {}),
         }),
       });
       if (respuesta.status === 401) {
@@ -187,7 +184,7 @@ export function FormularioSolicitudVerificacion() {
         <input
           ref={ref}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           onChange={campo === "dni" ? manejarDni : manejarDomicilio}
           className="hidden"
           aria-label={

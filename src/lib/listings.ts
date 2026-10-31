@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { eliminarImagen } from "@/lib/cloudinary";
+import { imagenPerteneceAUsuario } from "@/lib/imagenes";
 import { notificarFavoritosCambioPublicacion } from "@/lib/notificaciones";
 import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
 import type { CrearPublicacionInput } from "@/lib/validation/listing";
@@ -39,6 +40,40 @@ export class SinCuentaMpError extends Error {
       "Necesitás vincular tu cuenta de Mercado Pago para publicar"
     );
     this.name = "SinCuentaMpError";
+  }
+}
+
+/**
+ * Error de dominio: alguna imagen del payload no fue subida por el usuario (ni
+ * pertenece ya a la publicación que edita). Evita asociar, y luego borrar de
+ * Cloudinary, imágenes ajenas. Las rutas lo traducen a 400 IMAGEN_INVALIDA.
+ */
+export class ImagenInvalidaError extends Error {
+  constructor() {
+    super("Alguna de las imágenes no es válida. Volvé a subirla e intentá de nuevo.");
+    this.name = "ImagenInvalidaError";
+  }
+}
+
+/**
+ * Valida que cada imagen del payload sea del usuario o, al editar, que ya esté
+ * guardada en la publicación con la misma URL (imágenes previas a esta regla).
+ */
+function validarImagenesPropias(
+  imagenes: CrearPublicacionInput["imagenes"],
+  ownerId: string,
+  imagenesActuales: Array<{ url: string; publicId: string }> = []
+) {
+  const urlPorPublicId = new Map(
+    imagenesActuales.map((imagen) => [imagen.publicId, imagen.url])
+  );
+  const todasValidas = (imagenes ?? []).every(
+    (imagen) =>
+      urlPorPublicId.get(imagen.publicId) === imagen.url ||
+      imagenPerteneceAUsuario(imagen, ownerId)
+  );
+  if (!todasValidas) {
+    throw new ImagenInvalidaError();
   }
 }
 
@@ -204,10 +239,12 @@ export async function obtenerPublicacionesRecientes(limite = 6) {
  * Devuelve las publicaciones de un usuario para el panel "Mis publicaciones",
  * excluyendo las eliminadas (status DELETED). Se ordenan por la última
  * actualización y se incluyen stock, vendidas y la primera información básica
- * para renderizar la fila sin traer relaciones pesadas.
+ * para renderizar la fila sin traer relaciones pesadas. `pausadaPorModeracion`
+ * indica si un admin la pausó desde un reporte (mismo criterio que
+ * `estaPausadaPorModeracion` en compras.ts): el dueño no puede reanudarla.
  */
 export async function obtenerPublicacionesDelUsuario(ownerId: string) {
-  return prisma.listing.findMany({
+  const publicaciones = await prisma.listing.findMany({
     where: { ownerId, status: { not: "DELETED" } },
     orderBy: { updatedAt: "desc" },
     select: {
@@ -223,15 +260,26 @@ export async function obtenerPublicacionesDelUsuario(ownerId: string) {
         orderBy: { position: "asc" as const },
         select: { url: true, alt: true },
       },
+      reports: {
+        where: { acciones: { some: { accion: "PAUSED" } } },
+        take: 1,
+        select: { id: true },
+      },
     },
   });
+
+  return publicaciones.map(({ reports, ...publicacion }) => ({
+    ...publicacion,
+    pausadaPorModeracion: reports.length > 0,
+  }));
 }
 
 /**
  * Crea una publicación con sus imágenes. Requiere una cuenta de Mercado Pago
  * vinculada y vigente del dueño (RF-47); si no existe, lanza
- * `SinCuentaMpError` (403 MP_NO_VINCULADA) sin crear nada. Valida que la
- * categoría exista; si no, lanza CategoriaInvalidaError.
+ * `SinCuentaMpError` (403 MP_NO_VINCULADA) sin crear nada. Valida que las
+ * imágenes sean del usuario (ImagenInvalidaError) y que la categoría exista
+ * (CategoriaInvalidaError).
  */
 export async function crearPublicacion(
   ownerId: string,
@@ -241,6 +289,8 @@ export async function crearPublicacion(
   if (!cuentaMp) {
     throw new SinCuentaMpError();
   }
+
+  validarImagenesPropias(datos.imagenes, ownerId);
 
   const categoria = await prisma.category.findUnique({
     where: { id: datos.categoryId },
@@ -279,8 +329,9 @@ export async function crearPublicacion(
  * Actualiza una publicación (solo su propietario). Requiere una cuenta de
  * Mercado Pago vinculada y vigente del dueño (RF-47); si no existe, lanza
  * `SinCuentaMpError` (403 MP_NO_VINCULADA). Si el payload trae imágenes, las
- * reemplaza por completo y limpia de Cloudinary las que ya no se usan. Retorna
- * null si la publicación no existe o no pertenece al dueño.
+ * reemplaza por completo y limpia de Cloudinary las que ya no se usan; las
+ * imágenes nuevas deben ser del usuario (ImagenInvalidaError). Retorna null si
+ * la publicación no existe o no pertenece al dueño.
  */
 export async function actualizarPublicacion(
   id: string,
@@ -299,6 +350,8 @@ export async function actualizarPublicacion(
   if (!publicacion) {
     return null;
   }
+
+  validarImagenesPropias(datos.imagenes, ownerId, publicacion.images);
 
   const camposBasicos = {
     title: datos.title,

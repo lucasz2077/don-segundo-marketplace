@@ -39,6 +39,7 @@ vi.mock("@/lib/notificaciones", () => ({
 import {
   actualizarPublicacion,
   crearPublicacion,
+  ImagenInvalidaError,
   obtenerPublicacionesRecientes,
   SinCuentaMpError,
 } from "@/lib/listings";
@@ -163,5 +164,84 @@ describe("RF-47 — OAuth de Mercado Pago obligatorio para publicar", () => {
       price: new Prisma.Decimal("1500000.00"),
     });
     expect(mocks.notificarFavoritosCambioPublicacion).not.toHaveBeenCalled();
+  });
+});
+
+describe("Titularidad de las imágenes de una publicación", () => {
+  const urlDe = (publicId: string) =>
+    `https://res.cloudinary.com/cuenta/image/upload/v1/${publicId}.jpg`;
+  const imagenPropia = {
+    url: urlDe("don-segundo/vendedor-1/propia"),
+    publicId: "don-segundo/vendedor-1/propia",
+  };
+  const imagenAjena = {
+    url: urlDe("don-segundo/otro-usuario/ajena"),
+    publicId: "don-segundo/otro-usuario/ajena",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
+    mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
+  });
+
+  it("crearPublicacion acepta imágenes subidas por el vendedor", async () => {
+    mocks.createListing.mockResolvedValue({ id: "listing-1" });
+
+    await crearPublicacion("vendedor-1", { ...datosPublicacion, imagenes: [imagenPropia] });
+
+    expect(mocks.createListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("crearPublicacion rechaza una imagen ajena sin crear nada", async () => {
+    await expect(
+      crearPublicacion("vendedor-1", { ...datosPublicacion, imagenes: [imagenAjena] })
+    ).rejects.toBeInstanceOf(ImagenInvalidaError);
+
+    expect(mocks.createListing).not.toHaveBeenCalled();
+  });
+
+  it("actualizarPublicacion rechaza una imagen ajena sin borrar nada de Cloudinary", async () => {
+    mocks.findFirstListing.mockResolvedValue({
+      id: "listing-1",
+      ownerId: "vendedor-1",
+      price: new Prisma.Decimal("1500000.00"),
+      images: [],
+    });
+
+    await expect(
+      actualizarPublicacion("listing-1", "vendedor-1", {
+        ...datosPublicacion,
+        imagenes: [imagenAjena],
+      })
+    ).rejects.toBeInstanceOf(ImagenInvalidaError);
+
+    expect(mocks.updateListing).not.toHaveBeenCalled();
+    expect(mocks.eliminarImagen).not.toHaveBeenCalled();
+  });
+
+  it("actualizarPublicacion conserva imágenes ya guardadas aunque sean anteriores a la regla", async () => {
+    const imagenAnterior = {
+      url: urlDe("don-segundo/sin-dueno"),
+      publicId: "don-segundo/sin-dueno",
+    };
+    mocks.findFirstListing.mockResolvedValue({
+      id: "listing-1",
+      ownerId: "vendedor-1",
+      price: new Prisma.Decimal("1500000.00"),
+      images: [imagenAnterior],
+    });
+    mocks.updateListing.mockResolvedValue({
+      id: "listing-1",
+      title: datosPublicacion.title,
+      price: new Prisma.Decimal("1500000.00"),
+    });
+
+    await actualizarPublicacion("listing-1", "vendedor-1", {
+      ...datosPublicacion,
+      imagenes: [imagenAnterior],
+    });
+
+    expect(mocks.updateListing).toHaveBeenCalledTimes(1);
   });
 });

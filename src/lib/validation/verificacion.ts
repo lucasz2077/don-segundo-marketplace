@@ -1,24 +1,32 @@
 import { z } from "zod";
 
 /**
- * Schema de creación de una solicitud de verificación (RF-32). La
- * documentación de identidad es obligatoria (`dniUrl`); la de domicilio es
- * opcional. Ambas son URLs (se esperan referencias a Cloudinary) recortadas y
- * con tope de 500 caracteres.
+ * Schema de creación de una solicitud de verificación (RF-32, RNF-15). Se
+ * envían los public_id de los documentos ya subidos como assets privados por
+ * POST /api/verificaciones/documentos (nunca URLs públicas). El de identidad
+ * es obligatorio; el de domicilio, opcional. La titularidad la valida el
+ * service.
  */
 export const crearSolicitudVerificacionSchema = z.object({
-  dniUrl: z
+  dniPublicId: z
+    .string({ message: "Subí tu documento de identidad" })
+    .trim()
+    .min(1, "Subí tu documento de identidad")
+    .max(300, "El identificador del documento de identidad no es válido"),
+  domicilioPublicId: z
     .string()
     .trim()
-    .url("La URL del documento de identidad no es válida")
-    .max(500, "La URL del documento de identidad es demasiado larga"),
-  domicilioUrl: z
-    .string()
-    .trim()
-    .url("La URL del documento de domicilio no es válida")
-    .max(500, "La URL del documento de domicilio es demasiado larga")
+    .min(1, "El identificador del documento de domicilio no es válido")
+    .max(300, "El identificador del documento de domicilio no es válido")
     .optional(),
 });
+
+/** Tipos de documento de una solicitud de verificación. */
+export const tipoDocumentoVerificacionSchema = z.enum(["dni", "domicilio"], {
+  message: "El tipo de documento no es válido",
+});
+
+export type TipoDocumentoVerificacion = z.infer<typeof tipoDocumentoVerificacionSchema>;
 
 export type CrearSolicitudVerificacionInput = z.infer<
   typeof crearSolicitudVerificacionSchema
