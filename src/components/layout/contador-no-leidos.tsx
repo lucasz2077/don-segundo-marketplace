@@ -6,16 +6,21 @@ type RespuestaNoLeidas = {
   data?: { cantidad?: number };
 };
 
+type ContadorNoLeidosProps = {
+  /** Endpoint que responde `{ data: { cantidad } }`. */
+  endpoint: "/api/conversaciones/no-leidas" | "/api/notificaciones/no-leidas";
+};
+
 /**
- * Badge con la cantidad de mensajes sin leer del usuario. Consulta la API en
- * el cliente para que el contador se actualice sin bloquear el render del
- * servidor. Solo se muestra cuando hay al menos un mensaje sin leer. Se
- * actualiza además cuando la pestaña vuelve a estar visible o recupera el
- * foco, para reflejar mensajes recibidos mientras estaba en segundo plano.
+ * Burbuja con la cantidad de mensajes o notificaciones sin leer, superpuesta
+ * a un ícono del header (el contenedor debe ser `relative`). Consulta la API
+ * en el cliente para no bloquear el render del servidor y solo se muestra con
+ * al menos un elemento sin leer. Se actualiza cuando la pestaña vuelve a estar
+ * visible o recupera el foco. Para lectores de pantalla agrega "(N sin leer)"
+ * al nombre del enlace.
  */
-export function ContadorMensajes() {
+export function ContadorNoLeidos({ endpoint }: ContadorNoLeidosProps) {
   const [cantidad, setCantidad] = useState(0);
-  const [cargado, setCargado] = useState(false);
   const enVueloRef = useRef(false);
 
   useEffect(() => {
@@ -28,7 +33,7 @@ export function ContadorMensajes() {
       }
       enVueloRef.current = true;
       try {
-        const respuesta = await fetch("/api/conversaciones/no-leidas");
+        const respuesta = await fetch(endpoint);
         if (!respuesta.ok) {
           return;
         }
@@ -37,12 +42,9 @@ export function ContadorMensajes() {
           setCantidad(datos.data?.cantidad ?? 0);
         }
       } catch {
-        // El badge es informativo; ante un error se oculta silenciosamente.
+        // La burbuja es informativa; ante un error se oculta silenciosamente.
       } finally {
         enVueloRef.current = false;
-        if (activo) {
-          setCargado(true);
-        }
       }
     }
 
@@ -61,15 +63,16 @@ export function ContadorMensajes() {
       document.removeEventListener("visibilitychange", manejarVisibilidad);
       window.removeEventListener("focus", manejarVisibilidad);
     };
-  }, []);
+  }, [endpoint]);
 
-  if (!cargado || cantidad <= 0) {
+  if (cantidad <= 0) {
     return null;
   }
 
   return (
-    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-semibold leading-none text-brand-950">
-      {cantidad > 99 ? "99+" : cantidad}
+    <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1 text-xs font-bold leading-none text-brand-950 ring-2 ring-brand-800">
+      <span aria-hidden="true">{cantidad > 99 ? "99+" : cantidad}</span>
+      <span className="sr-only">({cantidad} sin leer)</span>
     </span>
   );
 }

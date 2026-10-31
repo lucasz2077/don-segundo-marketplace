@@ -57,12 +57,25 @@ Reglas:
 | `Logo` | Logo horizontal o solo isotipo, crema o azul. |
 | `unirClases()` | Unir clases condicionales (no resuelve conflictos: `className` extiende la base). |
 
-## 4. Plan de reconstrucción estética
+## 4. Shell global (`src/components/layout/`)
+
+- **Header** (`navbar.tsx`), en azul de marca:
+  - Fila principal: logo crema, buscador central (`buscador-header.tsx`, GET a `/listados`), Publicar (acento), favoritos, mensajes y notificaciones con burbuja de no leídos (`contador-no-leidos.tsx`), y menú de cuenta (`menu-usuario.tsx`).
+  - Barra secundaria (desde `lg`): menú "Categorías" (`menu-categorias.tsx`) con raíces y subcategorías, y accesos directos.
+  - Debajo de `lg`: el buscador pasa a una segunda línea y la navegación vive en el menú lateral (`menu-movil.tsx`, `<dialog>` nativo).
+- **Footer** (`pie-pagina.tsx`): franja de garantías (pago con Mercado Pago, vendedores verificados, 7 días para devolver) y columnas de enlaces. Solo muestra garantías respaldadas por funcionalidades reales.
+- **Fuente única de enlaces:** los destinos de navegación salen de `enlaces-navegacion.ts`, para que menú, cajón y footer no diverjan.
+- **Íconos por categoría:** `src/components/categorias/icono-categoria.ts`, por slug.
+- **Categorías de navegación:** `categorias-navegacion.ts` las pide una vez por request (React `cache`). Si la base falla, la navegación se muestra sin categorías.
+- **Estados globales:** `src/app/not-found.tsx` (404 con header y footer), `src/app/error.tsx` (reintentar con `retry`) y `src/app/global-error.tsx` (falla del layout raíz).
+- **Accesibilidad:** enlace "Saltar al contenido" hacia `#contenido`.
+
+## 5. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
 | 1. Fundaciones | Tokens, tipografía (fix: el `body` forzaba Arial), modo oscuro desactivado, logo vectorizado e íconos de app, `lucide-react`, primitivas y catálogo `/sistema-de-disenio` | **Completada** |
-| 2. Shell global | Header con logo, buscador central y menú de usuario; barra de categorías; cajón mobile; footer con garantías; `not-found` y `error` globales | Pendiente |
+| 2. Shell global | Header con logo, buscador central y menú de usuario; barra de categorías; cajón mobile; footer con garantías; `not-found` y `error` globales | **Completada** |
 | 3. Descubrimiento | Home (hero con buscador, categorías con ícono, bloques de publicaciones, franja de confianza); `TarjetaPublicacion` v2; listado con sidebar de filtros, chips y paginación numerada; página de categoría con publicaciones | Pendiente |
 | 4. Conversión | Detalle con breadcrumb, galería, caja de compra fija, garantías y tarjeta de vendedor; perfil público del vendedor | Pendiente |
 | 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | Pendiente |
