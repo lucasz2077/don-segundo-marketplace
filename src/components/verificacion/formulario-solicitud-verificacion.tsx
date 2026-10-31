@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boton } from "@/components/ui/boton";
+import { clasesBoton } from "@/components/ui/boton";
 
 type DocumentoSubido = {
   publicId: string;
@@ -11,8 +12,7 @@ type DocumentoSubido = {
 
 type CampoDocumento = "dni" | "domicilio";
 
-const etiquetaCampo =
-  "mb-1 block text-sm font-medium text-brand-900 dark:text-bone";
+const etiquetaCampo = "mb-1.5 block text-sm font-medium text-tinta";
 
 /**
  * Formulario de solicitud de verificación de vendedor (RF-32/RF-35). Sube los
@@ -56,7 +56,7 @@ export function FormularioSolicitudVerificacion() {
       const cuerpo = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
         setError(
-          cuerpo?.error?.message ?? "No se pudo subir el documento. Intenta de nuevo."
+          cuerpo?.error?.message ?? "No se pudo subir el documento. Intentá de nuevo."
         );
         return;
       }
@@ -66,7 +66,7 @@ export function FormularioSolicitudVerificacion() {
         nombre: subida.nombre ?? archivo.name,
       });
     } catch {
-      setError("No se pudo subir el documento. Intenta de nuevo.");
+      setError("No se pudo subir el documento. Intentá de nuevo.");
     } finally {
       setSubiendo(null);
     }
@@ -121,14 +121,14 @@ export function FormularioSolicitudVerificacion() {
       if (!respuesta.ok) {
         setError(
           cuerpo?.error?.message ??
-            "No se pudo crear la solicitud. Intenta de nuevo."
+            "No se pudo crear la solicitud. Intentá de nuevo."
         );
         setEnviando(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("No se pudo crear la solicitud. Intenta de nuevo.");
+      setError("No se pudo crear la solicitud. Intentá de nuevo.");
       setEnviando(false);
     }
   }
@@ -142,7 +142,7 @@ export function FormularioSolicitudVerificacion() {
     if (documento) {
       return (
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm text-brand-900">
+          <span className="inline-flex max-w-full items-center gap-1.5 rounded-control border border-linea-fuerte bg-superficie-alt px-3 py-1.5 text-sm text-tinta">
             <svg
               viewBox="0 0 24 24"
               className="h-4 w-4 shrink-0"
@@ -164,7 +164,7 @@ export function FormularioSolicitudVerificacion() {
             onClick={() =>
               campo === "dni" ? setDniDocumento(null) : setDomicilioDocumento(null)
             }
-            className="rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+            className={clasesBoton({ variante: "secundario", tamanio: "sm" })}
           >
             Quitar
           </button>
@@ -177,7 +177,7 @@ export function FormularioSolicitudVerificacion() {
           type="button"
           onClick={() => ref.current?.click()}
           disabled={subiendo !== null}
-          className="mt-2 rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`mt-2 ${clasesBoton({ variante: "secundario" })}`}
         >
           {subiendo === campo ? "Subiendo..." : etiquetaSubir}
         </button>
@@ -212,7 +212,7 @@ export function FormularioSolicitudVerificacion() {
       <div>
         <span className={etiquetaCampo}>
           Documento de domicilio{" "}
-          <span className="font-normal text-brand-600 dark:text-brand-300">
+          <span className="font-normal text-brand-600">
             (opcional)
           </span>
         </span>
@@ -227,7 +227,7 @@ export function FormularioSolicitudVerificacion() {
       {error ? (
         <p
           role="alert"
-          className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger"
+          className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
         >
           {error}
         </p>

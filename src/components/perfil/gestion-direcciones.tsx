@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BotonEliminarDireccion } from "@/components/perfil/boton-eliminar-direccion";
 import { FormularioDireccion } from "@/components/perfil/formulario-direccion";
+import { clasesBoton } from "@/components/ui/boton";
 
 type DireccionClient = {
   id: string;
@@ -36,7 +37,7 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-brand-900">Direcciones</h2>
+        <h2 className="text-base font-semibold text-tinta">Tus direcciones</h2>
         {!creando ? (
           <button
             type="button"
@@ -44,7 +45,7 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
               cerrarFormularios();
               setCreando(true);
             }}
-            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+            className={clasesBoton()}
           >
             Nueva dirección
           </button>
@@ -60,7 +61,7 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
       ) : null}
 
       {direcciones.length === 0 && !creando ? (
-        <div className="rounded-lg border border-brand-100 bg-white p-8 text-center">
+        <div className="rounded-card border border-linea bg-superficie p-8 shadow-card text-center">
           <p className="text-brand-900">
             Todavía no tenés direcciones guardadas.
           </p>
@@ -81,7 +82,7 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
             ) : (
               <div
                 key={direccion.id}
-                className="flex flex-col justify-between rounded-lg border border-brand-100 bg-white p-5 shadow-sm"
+                className="flex flex-col justify-between rounded-card border border-linea bg-superficie p-5 shadow-card"
               >
                 <div>
                   {direccion.esPredeterminada ? (
@@ -114,7 +115,7 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
                       setCreando(false);
                       setEditandoId(direccion.id);
                     }}
-                    className="rounded-md border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                    className={clasesBoton({ variante: "secundario", tamanio: "sm" })}
                   >
                     Editar
                   </button>

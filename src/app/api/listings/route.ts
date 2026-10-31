@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
   const parseado = busquedaSchema.safeParse({
     q: leerFiltro(params, "q"),
     categoria: leerFiltro(params, "categoria"),
+    condicion: leerFiltro(params, "condicion"),
     provincia: leerFiltro(params, "provincia"),
     minPrecio: leerFiltro(params, "minPrecio"),
     maxPrecio: leerFiltro(params, "maxPrecio"),
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
   const resultado = await obtenerPublicacionesActivas({
     busqueda: parseado.data.q,
     categoria: parseado.data.categoria,
+    condicion: parseado.data.condicion,
     provincia: parseado.data.provincia,
     minPrecio: parseado.data.minPrecio,
     maxPrecio: parseado.data.maxPrecio,

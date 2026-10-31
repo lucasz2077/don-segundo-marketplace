@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import { Boton } from "@/components/ui/boton";
 
 type BotonEliminarPublicacionProps = {
   listingId: string;
@@ -31,7 +33,7 @@ export function BotonEliminarPublicacion({
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo eliminar la publicación. Intenta de nuevo.");
+        setError("No se pudo eliminar la publicación. Intentá de nuevo.");
         setCargando(false);
         setConfirmando(false);
         return;
@@ -39,7 +41,7 @@ export function BotonEliminarPublicacion({
       router.push("/listados");
       router.refresh();
     } catch {
-      setError("No se pudo eliminar la publicación. Intenta de nuevo.");
+      setError("No se pudo eliminar la publicación. Intentá de nuevo.");
       setCargando(false);
       setConfirmando(false);
     }
@@ -48,24 +50,26 @@ export function BotonEliminarPublicacion({
   return (
     <div>
       {error ? (
-        <p className="mb-2 text-sm text-danger">{error}</p>
+        <p role="alert" className="mb-2 text-sm text-danger">
+          {error}
+        </p>
       ) : null}
-      <button
-        type="button"
-        onClick={eliminar}
-        disabled={cargando}
-        className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-          confirmando
-            ? "border-danger bg-danger text-white hover:bg-danger/90"
-            : "border-danger/40 text-danger hover:bg-danger/10"
-        }`}
-      >
-        {cargando
-          ? "Eliminando..."
-          : confirmando
-            ? "¿Confirmar eliminación?"
-            : "Eliminar"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <Boton
+          variante={confirmando ? "peligro" : "secundario"}
+          onClick={eliminar}
+          cargando={cargando}
+          className={confirmando ? undefined : "text-danger"}
+        >
+          {cargando ? null : <Trash2 className="size-4" aria-hidden="true" />}
+          {cargando ? "Eliminando..." : confirmando ? "Sí, eliminar" : "Eliminar"}
+        </Boton>
+        {confirmando && !cargando ? (
+          <Boton variante="fantasma" onClick={() => setConfirmando(false)}>
+            Cancelar
+          </Boton>
+        ) : null}
+      </div>
     </div>
   );
 }

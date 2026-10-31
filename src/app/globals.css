@@ -1,19 +1,22 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f4f4f6;
-  --foreground: #1d2f42;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/*
+ * Modo oscuro desactivado: el sitio es solo claro. La variante `dark:` queda
+ * atada a una clase `.dark` que nunca se aplica, así las utilidades `dark:*`
+ * que todavía existen en las páginas no pisan los colores cuando el sistema
+ * operativo está en oscuro. Se eliminan a medida que se rediseña cada página.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Marca Don Segundo — azul acero + blanco/hueso + acento dorado trigo */
 @theme {
+  /* Tipografía: Geist para la interfaz, Alegreya para momentos de marca
+     (títulos destacados), en línea con el logotipo serif. La mono usa la
+     del sistema: no se descarga una fuente que no se usa en la interfaz. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-marca: var(--font-alegreya), ui-serif, Georgia, serif;
+
   /* Azul acero (marca) */
   --color-brand-50: #f5f8fb;
   --color-brand-100: #e8eff6;
@@ -31,37 +34,80 @@
   --color-bone: #f4f4f6;
   --color-bone-dark: #e7e7ec;
 
-  /* Acento dorado trigo */
+  /* Crema del logo: trazo del isotipo sobre azul */
+  --color-crema: #e6dfd4;
+
+  /* Neutros cálidos (sand): estados inactivos o archivados, p. ej. una
+     compra expirada. Derivados del crema del logo. */
+  --color-sand-50: #faf8f5;
+  --color-sand-100: #f3efe8;
+  --color-sand-200: #e6dfd4;
+  --color-sand-300: #d3c8b7;
+  --color-sand-400: #b5a68f;
+  --color-sand-500: #978670;
+  --color-sand-600: #7a6b57;
+  --color-sand-700: #5f5344;
+  --color-sand-800: #463d33;
+  --color-sand-900: #2f2922;
+  --color-sand-950: #1c1814;
+
+  /* Acento dorado trigo (700 ajustado para texto AA sobre hueso) */
   --color-accent-300: #f0c97e;
   --color-accent-400: #e8b44d;
   --color-accent-500: #d9a13b;
   --color-accent-600: #c08a2e;
-  --color-accent-700: #9d6f24;
+  --color-accent-700: #8a611f;
 
-  /* Semánticos */
-  --color-success: #2f7d4f;
+  /* Semánticos (success ajustado para AA sobre su tinte al 10%) */
+  --color-success: #287045;
   --color-danger: #c0392b;
   --color-warning: #d97706;
+  /* Texto de advertencia con contraste AA sobre fondos claros. */
+  --color-warning-fuerte: #92400e;
+
+  /*
+   * Roles semánticos: preferirlos a los tonos crudos en componentes nuevos.
+   * - fondo: lienzo de la página; superficie: tarjetas, paneles, inputs.
+   * - tinta: texto principal; tinta-suave: secundario; tinta-tenue: ayudas
+   *   y metadatos (todas con contraste AA sobre superficie y fondo).
+   * - linea: bordes y divisores; linea-fuerte: bordes de controles.
+   */
+  --color-fondo: var(--color-bone);
+  --color-superficie: #ffffff;
+  --color-superficie-alt: var(--color-brand-50);
+  --color-tinta: var(--color-brand-900);
+  --color-tinta-suave: var(--color-brand-700);
+  --color-tinta-tenue: var(--color-brand-600);
+  --color-linea: var(--color-brand-100);
+  --color-linea-fuerte: var(--color-brand-200);
+
+  /* Ancho máximo del contenido del sitio (`max-w-sitio`). */
+  --container-sitio: 75rem;
 
   /* Radios de superficie (E1) */
   --radius-card: 0.75rem;
   --radius-control: 0.5rem;
 
   /* Sombras (E1) */
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.08);
-  --shadow-card-hover: 0 4px 8px rgb(0 0 0 / 0.1), 0 2px 4px rgb(0 0 0 / 0.06);
-  --shadow-modal: 0 10px 25px rgb(0 0 0 / 0.12), 0 4px 10px rgb(0 0 0 / 0.08);
+  --shadow-card: 0 1px 2px rgb(18 29 40 / 0.06), 0 1px 3px rgb(18 29 40 / 0.08);
+  --shadow-card-hover: 0 6px 16px rgb(18 29 40 / 0.1), 0 2px 4px rgb(18 29 40 / 0.06);
+  --shadow-modal: 0 10px 25px rgb(18 29 40 / 0.12), 0 4px 10px rgb(18 29 40 / 0.08);
+  --shadow-header: 0 1px 0 rgb(18 29 40 / 0.08), 0 2px 6px rgb(18 29 40 / 0.06);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #121d28;
-    --foreground: #e8eff6;
+    color-scheme: light;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    background-color: var(--color-fondo);
+    color: var(--color-tinta);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: var(--color-accent-300);
+    color: var(--color-brand-950);
+  }
 }

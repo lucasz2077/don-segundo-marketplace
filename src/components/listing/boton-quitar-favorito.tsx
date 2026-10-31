@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Heart, LoaderCircle } from "lucide-react";
 
 type BotonQuitarFavoritoProps = {
   listingId: string;
 };
 
 /**
- * Botón para quitar una publicación de la lista de favoritos. Llama al
- * endpoint DELETE y refresca la página para que la tarjeta desaparezca.
+ * Corazón lleno superpuesto a la tarjeta de un favorito: al tocarlo quita la
+ * publicación de la lista (DELETE) y refresca la página para que la tarjeta
+ * desaparezca. Target táctil de 44px.
  */
 export function BotonQuitarFavorito({ listingId }: BotonQuitarFavoritoProps) {
   const router = useRouter();
@@ -24,28 +26,40 @@ export function BotonQuitarFavorito({ listingId }: BotonQuitarFavoritoProps) {
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo quitar el favorito. Intenta de nuevo.");
+        setError("No se pudo quitar el favorito. Intentá de nuevo.");
         setCargando(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("No se pudo quitar el favorito. Intenta de nuevo.");
+      setError("No se pudo quitar el favorito. Intentá de nuevo.");
       setCargando(false);
     }
   }
 
   return (
-    <div>
-      {error ? <p className="mb-2 text-sm text-danger">{error}</p> : null}
+    <div className="relative">
       <button
         type="button"
         onClick={quitar}
         disabled={cargando}
-        className="rounded-md border border-brand-300 px-3 py-1.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Quitar de favoritos"
+        className="flex size-11 items-center justify-center rounded-full bg-superficie/95 shadow-card hover:bg-superficie focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:cursor-not-allowed"
       >
-        {cargando ? "Quitando..." : "Quitar de favoritos"}
+        {cargando ? (
+          <LoaderCircle className="size-5 text-tinta-tenue motion-safe:animate-spin" aria-hidden="true" />
+        ) : (
+          <Heart className="size-5 fill-danger text-danger" aria-hidden="true" />
+        )}
       </button>
+      {error ? (
+        <p
+          role="alert"
+          className="absolute right-0 top-full mt-1 w-44 rounded-control bg-brand-900/90 px-2 py-1 text-xs text-white"
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

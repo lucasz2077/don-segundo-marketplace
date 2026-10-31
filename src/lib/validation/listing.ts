@@ -82,6 +82,9 @@ export const busquedaSchema = z.object({
     .max(120, "El término de búsqueda es demasiado largo")
     .optional(),
   categoria: z.uuid("La categoría no es válida").optional(),
+  condicion: z
+    .enum(["NEW", "USED"], { message: "La condición no es válida" })
+    .optional(),
   provincia: z.string().trim().max(80, "La provincia no es válida").optional(),
   minPrecio: z.coerce
     .number({ message: "El precio mínimo no es válido" })

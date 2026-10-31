@@ -10,6 +10,7 @@ import {
 } from "@/lib/etiquetas-devoluciones";
 import { AccionesDevolucion } from "@/components/devoluciones/acciones-devolucion";
 import { EstadoVacio } from "@/components/ui/estado-vacio";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
 
 export const dynamic = "force-dynamic";
 
@@ -40,31 +41,17 @@ export default async function DevolucionesPerfilPage() {
   const solicitudes = await obtenerSolicitudesDevolucion(session.user.id);
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-            Devoluciones
-          </h1>
-          <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-            Revisá las solicitudes de devolución de tus ventas y resolvelas.
-          </p>
-        </div>
-        <Link
-          href="/perfil"
-          className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline"
-        >
-          Volver al perfil
-        </Link>
-      </div>
-
-      {solicitudes.length > 0 ? (
-        <ul className="mt-6 flex flex-col gap-4">
+    <PaginaCuenta
+      titulo="Devoluciones"
+      descripcion="Revisá las solicitudes de devolución de tus ventas y resolvelas."
+    >
+{solicitudes.length > 0 ? (
+        <ul className="flex flex-col gap-3 sm:gap-4">
           {solicitudes.map((solicitud) => {
             const imagen = solicitud.compra.listing.images[0];
             return (
               <li key={solicitud.id}>
-                <article className="rounded-card border border-brand-100 bg-white p-4 shadow-sm">
+                <article className="rounded-card border border-linea bg-superficie p-4 shadow-card">
                   <div className="flex flex-col gap-4 sm:flex-row">
                     {imagen ? (
                       <Image
@@ -76,7 +63,7 @@ export default async function DevolucionesPerfilPage() {
                       />
                     ) : (
                       <div className="flex h-18 w-18 shrink-0 items-center justify-center rounded-card bg-brand-50">
-                        <span className="text-xs text-brand-600 dark:text-brand-200">
+                        <span className="text-xs text-brand-600">
                           Sin foto
                         </span>
                       </div>
@@ -84,7 +71,7 @@ export default async function DevolucionesPerfilPage() {
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-base font-medium text-brand-900 dark:text-bone">
+                        <h2 className="text-base font-medium text-brand-900">
                           {solicitud.compra.listing.title}
                         </h2>
                         <span
@@ -94,7 +81,7 @@ export default async function DevolucionesPerfilPage() {
                         </span>
                       </div>
 
-                      <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
+                      <p className="mt-1 text-sm text-brand-600">
                         {solicitud.comprador.name ?? "Comprador"} ·{" "}
                         {formatearPrecio(
                           solicitud.compra.precioUnitario,
@@ -104,13 +91,13 @@ export default async function DevolucionesPerfilPage() {
                         {formateadorFecha.format(solicitud.createdAt)}
                       </p>
 
-                      <p className="mt-2 text-sm text-brand-900 dark:text-bone">
+                      <p className="mt-2 text-sm text-brand-900">
                         {solicitud.motivo}
                       </p>
 
                       {solicitud.estado === "RECHAZADA" &&
                       solicitud.motivoRechazo ? (
-                        <p className="mt-2 rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+                        <p className="mt-2 rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
                           Motivo del rechazo: {solicitud.motivoRechazo}
                         </p>
                       ) : null}
@@ -141,6 +128,6 @@ export default async function DevolucionesPerfilPage() {
           />
         </div>
       )}
-    </main>
+    </PaginaCuenta>
   );
 }

@@ -31,7 +31,7 @@ export function BotonEliminarDireccion({
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo eliminar la dirección. Intenta de nuevo.");
+        setError("No se pudo eliminar la dirección. Intentá de nuevo.");
         setCargando(false);
         setConfirmando(false);
         return;
@@ -51,7 +51,7 @@ export function BotonEliminarDireccion({
         type="button"
         onClick={eliminar}
         disabled={cargando}
-        className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`inline-flex min-h-9 items-center rounded-control border px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
           confirmando
             ? "border-danger bg-danger text-white hover:bg-danger/90"
             : "border-danger/40 text-danger hover:bg-danger/10"

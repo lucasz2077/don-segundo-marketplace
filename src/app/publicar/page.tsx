@@ -1,10 +1,14 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { obtenerCategoriasRaiz } from "@/lib/categories";
 import { obtenerPublicacion } from "@/lib/listings";
 import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
+import { ExternalLink } from "lucide-react";
 import { PublicarFormulario } from "@/components/listing/publicar-formulario";
+import { Alerta } from "@/components/ui/alerta";
+import { clasesBoton } from "@/components/ui/boton";
+import { Contenedor } from "@/components/ui/contenedor";
+import { Migas } from "@/components/ui/migas";
 
 export const dynamic = "force-dynamic";
 
@@ -65,38 +69,56 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
   const cuentaMpVigente = await obtenerCuentaMpVigente(session.user.id);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-        {esEdicion ? "Editar publicación" : "Publicar"}
-      </h1>
-      <p className="mt-1 text-sm text-brand-600 dark:text-bone">
-        {esEdicion
-          ? "Actualizá los datos de tu publicación. Podés cambiar hasta 8 imágenes."
-          : "Completa los datos de tu publicación. Podés subir hasta 8 imágenes."}
-      </p>
-      {!cuentaMpVigente && (
-        <div
-          role="alert"
-          aria-label="Mercado Pago"
-          className="mt-6 flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-brand-900"
-        >
-          <p className="text-sm">
-            Para publicar necesitás una cuenta de Mercado Pago vinculada y
-            vigente. Tus ventas se cobran a través de ella.
-          </p>
-          <Link
-            href="/api/pagos/oauth/iniciar"
-            className="w-fit rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-          >
-            Vincular Mercado Pago
-          </Link>
+    <Contenedor as="main" className="flex-1 py-4 sm:py-6">
+      <div className="mx-auto max-w-3xl">
+        <div className="hidden sm:block">
+          <Migas
+            items={[
+              { etiqueta: "Inicio", href: "/" },
+              ...(esEdicion
+                ? [{ etiqueta: "Mis publicaciones", href: "/perfil/publicaciones" }]
+                : []),
+              { etiqueta: esEdicion ? "Editar publicación" : "Publicar" },
+            ]}
+          />
         </div>
-      )}
-      <PublicarFormulario
-        categorias={categorias}
-        listingId={listingId}
-        publicacionInicial={publicacionInicial}
-      />
-    </main>
+        <h1 className="mt-1 font-marca text-3xl font-medium text-tinta sm:mt-3 sm:text-4xl">
+          {esEdicion ? "Editar publicación" : "¿Qué querés vender?"}
+        </h1>
+        <p className="mt-1 text-sm text-tinta-tenue">
+          {esEdicion
+            ? "Actualizá los datos de tu publicación. Los cambios se ven al instante."
+            : "Completá los datos en pocos minutos. Una buena foto y un buen título venden más."}
+        </p>
+
+        {!cuentaMpVigente ? (
+          <div className="mt-5">
+            {/* `<a>` nativo: la ruta redirige a Mercado Pago y el prefetch de
+                `<Link>` choca con CORS (ver /perfil). */}
+            <Alerta
+              tono="advertencia"
+              titulo="Vinculá tu cuenta de Mercado Pago para publicar"
+              accion={
+                <a href="/api/pagos/oauth/iniciar" className={clasesBoton({ tamanio: "sm" })}>
+                  Vincular Mercado Pago
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                </a>
+              }
+            >
+              Tus ventas se cobran directo en tu cuenta de Mercado Pago, así que es requisito
+              tenerla vinculada y vigente.
+            </Alerta>
+          </div>
+        ) : null}
+
+        <div className="mt-5">
+          <PublicarFormulario
+            categorias={categorias}
+            listingId={listingId}
+            publicacionInicial={publicacionInicial}
+          />
+        </div>
+      </div>
+    </Contenedor>
   );
 }

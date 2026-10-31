@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
 import { direccionSchema } from "@/lib/validation/direccion";
+import { clasesBoton } from "@/components/ui/boton";
+import { clasesControl } from "@/components/ui/campo";
 
 type DireccionFormulario = {
   id: string;
@@ -23,10 +25,9 @@ type FormularioDireccionProps = {
   onGuardado: () => void;
 };
 
-const claseCampo =
-  "w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
+const claseCampo = `min-h-11 ${clasesControl()}`;
 
-const etiquetaCampo = "mb-1 block text-sm font-medium text-brand-700";
+const etiquetaCampo = "mb-1.5 block text-sm font-medium text-tinta";
 
 /**
  * Formulario de dirección reutilizable: crea (POST /api/direcciones) o edita
@@ -67,7 +68,7 @@ export function FormularioDireccion({
     });
 
     if (!parseado.success) {
-      setError(parseado.error.issues[0]?.message ?? "Revisa los datos de la dirección");
+      setError(parseado.error.issues[0]?.message ?? "Revisá los datos de la dirección");
       return;
     }
 
@@ -84,7 +85,7 @@ export function FormularioDireccion({
       const cuerpo = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
         setError(
-          cuerpo?.error?.message ?? "No se pudo guardar la dirección. Intenta de nuevo."
+          cuerpo?.error?.message ?? "No se pudo guardar la dirección. Intentá de nuevo."
         );
         setEnviando(false);
         return;
@@ -101,7 +102,7 @@ export function FormularioDireccion({
   return (
     <form
       onSubmit={manejarEnvio}
-      className="rounded-lg border border-brand-100 bg-white p-4"
+      className="rounded-card border border-linea bg-superficie p-4 shadow-card"
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -142,7 +143,7 @@ export function FormularioDireccion({
             className={claseCampo}
             required
           >
-            <option value="">Selecciona una provincia</option>
+            <option value="">Elegí una provincia</option>
             {PROVINCIAS_ARGENTINA.map((provinciaDisponible) => (
               <option key={provinciaDisponible} value={provinciaDisponible}>
                 {provinciaDisponible}
@@ -203,7 +204,7 @@ export function FormularioDireccion({
       </label>
 
       {error ? (
-        <p className="mt-3 rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="mt-3 rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
@@ -212,7 +213,7 @@ export function FormularioDireccion({
         <button
           type="submit"
           disabled={enviando}
-          className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className={clasesBoton()}
         >
           {enviando
             ? esEdicion
@@ -226,7 +227,7 @@ export function FormularioDireccion({
           type="button"
           onClick={onCancelar}
           disabled={enviando}
-          className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className={clasesBoton({ variante: "secundario" })}
         >
           Cancelar
         </button>

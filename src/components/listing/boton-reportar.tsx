@@ -3,7 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Flag } from "lucide-react";
 import { etiquetasMotivoReporte } from "@/lib/etiquetas-reportes";
+import { Boton } from "@/components/ui/boton";
+import { AreaTexto, Campo, Selector } from "@/components/ui/campo";
+
+const claseEnlaceDiscreto =
+  "inline-flex min-h-10 items-center gap-1.5 text-sm text-tinta-tenue underline-offset-2 hover:text-tinta hover:underline";
 
 type BotonReportarProps = {
   listingId: string;
@@ -35,18 +41,18 @@ export function BotonReportar({
 
   if (!sesionIniciada) {
     return (
-      <Link
-        href={`/sign-in?redirect=${encodeURIComponent(pathname)}`}
-        className="text-sm font-medium text-brand-700 underline transition-colors hover:text-brand-900"
-      >
-        Reportar
+      <Link href={`/sign-in?redirect=${encodeURIComponent(pathname)}`} className={claseEnlaceDiscreto}>
+        <Flag className="size-4" aria-hidden="true" />
+        Reportar publicación
       </Link>
     );
   }
 
   if (enviado) {
     return (
-      <p className="text-sm text-brand-600">Gracias, tu reporte fue enviado</p>
+      <p role="status" className="text-sm text-tinta-tenue">
+        Gracias, tu reporte fue enviado. Lo vamos a revisar.
+      </p>
     );
   }
 
@@ -76,10 +82,10 @@ export function BotonReportar({
           | null;
         if (respuesta.status === 403 || respuesta.status === 404 || respuesta.status === 400) {
           setError(
-            datos?.error?.message ?? "No se pudo enviar el reporte. Intenta de nuevo."
+            datos?.error?.message ?? "No se pudo enviar el reporte. Intentá de nuevo."
           );
         } else {
-          setError("No se pudo enviar el reporte. Intenta de nuevo.");
+          setError("No se pudo enviar el reporte. Intentá de nuevo.");
         }
         return;
       }
@@ -94,74 +100,55 @@ export function BotonReportar({
   return (
     <div>
       {!panelAbierto ? (
-        <button
-          type="button"
-          onClick={() => setPanelAbierto(true)}
-          className="text-sm font-medium text-brand-700 underline transition-colors hover:text-brand-900"
-        >
-          Reportar
+        <button type="button" onClick={() => setPanelAbierto(true)} className={claseEnlaceDiscreto}>
+          <Flag className="size-4" aria-hidden="true" />
+          Reportar publicación
         </button>
       ) : (
         <form
           onSubmit={enviarReporte}
-          className="rounded-lg border border-brand-100 bg-brand-50 p-4"
+          className="flex flex-col gap-3 rounded-card border border-linea bg-superficie-alt p-4"
         >
-          <label
-            htmlFor={`motivo-${listingId}`}
-            className="block text-sm font-medium text-brand-900"
-          >
-            Motivo del reporte
-          </label>
-          <select
-            id={`motivo-${listingId}`}
-            value={razon}
-            onChange={(evento) => setRazon(evento.target.value)}
-            disabled={cargando}
-            className="mt-2 w-full rounded-md border border-brand-300 bg-white p-2.5 text-sm text-brand-900 disabled:opacity-50"
-          >
-            <option value="">Selecciona un motivo</option>
-            {Object.entries(etiquetasMotivoReporte).map(([valor, etiqueta]) => (
-              <option key={valor} value={valor}>
-                {etiqueta}
-              </option>
-            ))}
-          </select>
-
-          <label
-            htmlFor={`detalles-${listingId}`}
-            className="mt-3 block text-sm font-medium text-brand-900"
-          >
-            Detalles (opcional)
-          </label>
-          <textarea
-            id={`detalles-${listingId}`}
-            value={detalles}
-            onChange={(evento) => setDetalles(evento.target.value)}
-            rows={3}
-            maxLength={2000}
-            disabled={cargando}
-            placeholder="Contanos qué viste y por qué lo reportás"
-            className="mt-2 w-full rounded-md border border-brand-300 bg-white p-3 text-sm text-brand-900 placeholder:text-brand-400 disabled:opacity-50"
-          />
-
-          <div className="mt-3 flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={cargando || !razon}
-              className="rounded-md bg-brand-700 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {cargando ? "Enviando..." : "Enviar reporte"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanelAbierto(false)}
+          <Campo id={`motivo-${listingId}`} etiqueta="Motivo del reporte" requerido>
+            <Selector
+              id={`motivo-${listingId}`}
+              value={razon}
+              onChange={(evento) => setRazon(evento.target.value)}
               disabled={cargando}
-              className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              required
             >
+              <option value="">Elegí un motivo</option>
+              {Object.entries(etiquetasMotivoReporte).map(([valor, etiqueta]) => (
+                <option key={valor} value={valor}>
+                  {etiqueta}
+                </option>
+              ))}
+            </Selector>
+          </Campo>
+          <Campo id={`detalles-${listingId}`} etiqueta="Detalles" opcional>
+            <AreaTexto
+              id={`detalles-${listingId}`}
+              value={detalles}
+              onChange={(evento) => setDetalles(evento.target.value)}
+              rows={3}
+              maxLength={2000}
+              disabled={cargando}
+              placeholder="Contanos qué viste y por qué lo reportás"
+            />
+          </Campo>
+          {error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Boton type="submit" cargando={cargando} disabled={!razon}>
+              {cargando ? "Enviando..." : "Enviar reporte"}
+            </Boton>
+            <Boton variante="fantasma" onClick={() => setPanelAbierto(false)} disabled={cargando}>
               Cancelar
-            </button>
+            </Boton>
           </div>
-          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         </form>
       )}
     </div>

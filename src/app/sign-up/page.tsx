@@ -5,7 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { signUpSchema } from "@/lib/validation/auth";
+import { EntradaContrasena } from "@/components/auth/entrada-contrasena";
+import { mensajeErrorAuth } from "@/components/auth/mensajes-error-auth";
+import { PanelAutenticacion } from "@/components/auth/panel-autenticacion";
+import { Alerta } from "@/components/ui/alerta";
+import { Boton } from "@/components/ui/boton";
+import { Campo, Entrada } from "@/components/ui/campo";
 
+/**
+ * Registro con nombre, email y contraseña (Better Auth). Valida con Zod antes
+ * de enviar (incluida la confirmación de contraseña) y traduce los errores
+ * del servidor.
+ */
 export default function SignUpPage() {
   const router = useRouter();
 
@@ -27,7 +38,7 @@ export default function SignUpPage() {
       confirmPassword,
     });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Entrada no válida");
+      setError(parsed.error.issues[0]?.message ?? "Revisá los datos ingresados.");
       return;
     }
 
@@ -40,7 +51,7 @@ export default function SignUpPage() {
       });
 
       if (signUpError) {
-        setError(signUpError.message ?? "No se pudo crear la cuenta");
+        setError(mensajeErrorAuth(signUpError, "No pudimos crear tu cuenta. Intentá de nuevo."));
         return;
       }
 
@@ -53,114 +64,68 @@ export default function SignUpPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-md border border-brand-200 px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
-
   return (
-    <main className="flex flex-1 items-center justify-center bg-bone px-4">
-      <div className="w-full max-w-sm rounded-lg border border-brand-100 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold text-brand-900">
-          Crea tu cuenta
-        </h1>
-        <p className="mb-6 text-sm text-brand-600">
-          Unite a Don Segundo, el marketplace del campo
-        </p>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label
-              htmlFor="name"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Nombre
-            </label>
-            <input
-              id="name"
-              type="text"
-              autoComplete="name"
-              className={inputClass}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Confirmar contraseña
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              className={inputClass}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {error ? (
-            <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Creando cuenta..." : "Crear cuenta"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-brand-600">
-          ¿Ya tienes cuenta?{" "}
-          <Link
-            href="/sign-in"
-            className="font-medium text-brand-700 underline"
-          >
-            Inicia sesión
+    <PanelAutenticacion
+      titulo="Creá tu cuenta"
+      descripcion="Es gratis. Con una sola cuenta podés comprar y vender."
+      pie={
+        <>
+          ¿Ya tenés cuenta?{" "}
+          <Link href="/sign-in" className="font-semibold text-brand-700 hover:underline">
+            Ingresá
           </Link>
-        </p>
-      </div>
-    </main>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <Campo id="name" etiqueta="Nombre y apellido">
+          <Entrada
+            id="name"
+            type="text"
+            autoComplete="name"
+            autoCapitalize="words"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </Campo>
+        <Campo id="email" etiqueta="Email">
+          <Entrada
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </Campo>
+        <Campo id="password" etiqueta="Contraseña" ayuda="Al menos 8 caracteres.">
+          <EntradaContrasena
+            id="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-describedby="password-ayuda"
+            required
+          />
+        </Campo>
+        <Campo id="confirmPassword" etiqueta="Repetí la contraseña">
+          <EntradaContrasena
+            id="confirmPassword"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </Campo>
+
+        {error ? <Alerta tono="peligro">{error}</Alerta> : null}
+
+        <Boton type="submit" variante="acento" tamanio="lg" anchoCompleto cargando={loading}>
+          {loading ? "Creando cuenta..." : "Crear cuenta"}
+        </Boton>
+      </form>
+    </PanelAutenticacion>
   );
 }

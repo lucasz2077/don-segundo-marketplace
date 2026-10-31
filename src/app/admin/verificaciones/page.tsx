@@ -7,6 +7,7 @@ import {
   clasesBadgeEstadoSolicitud,
   etiquetasEstadoSolicitud,
 } from "@/lib/etiquetas-verificacion";
+import { clasesBoton } from "@/components/ui/boton";
 import { EstadoVacio } from "@/components/ui/estado-vacio";
 
 export const dynamic = "force-dynamic";
@@ -88,8 +89,8 @@ export default async function AdminVerificacionesPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold text-brand-900">
+    <main className="mx-auto w-full max-w-sitio flex-1 px-4 py-6 sm:px-6">
+      <h1 className="text-xl font-semibold text-tinta sm:text-2xl">
         Verificaciones de vendedores
       </h1>
       <p className="mt-2 text-sm text-brand-600">
@@ -112,10 +113,10 @@ export default async function AdminVerificacionesPage({
               key={filtro.etiqueta}
               href={enlaceFiltro(filtro.estado)}
               aria-current={activo ? "page" : undefined}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
                 activo
                   ? "border-brand-700 bg-brand-700 text-white"
-                  : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                  : "border-linea-fuerte bg-superficie text-tinta-suave hover:border-brand-300"
               }`}
             >
               {filtro.etiqueta}
@@ -138,7 +139,7 @@ export default async function AdminVerificacionesPage({
               {solicitudes.map((solicitud) => (
                 <li
                   key={solicitud.id}
-                  className="rounded-lg border border-brand-100 bg-white p-4"
+                  className="rounded-card border border-linea bg-superficie p-4 shadow-card"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span
@@ -152,7 +153,7 @@ export default async function AdminVerificacionesPage({
                     {solicitud.estado === "PENDING" ? (
                       <Link
                         href={`/admin/verificaciones/${solicitud.id}`}
-                        className="ml-auto rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                        className={`ml-auto ${clasesBoton({ variante: "secundario", tamanio: "sm" })}`}
                       >
                         Revisar
                       </Link>
@@ -186,12 +187,12 @@ export default async function AdminVerificacionesPage({
             {tieneAnterior ? (
               <Link
                 href={construirUrl(estado, paginaActual - 1)}
-                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                className={clasesBoton({ variante: "secundario" })}
               >
                 Anterior
               </Link>
             ) : (
-              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
+              <span className="inline-flex min-h-11 items-center rounded-control border border-linea px-4 text-sm font-semibold text-brand-300">
                 Anterior
               </span>
             )}
@@ -201,12 +202,12 @@ export default async function AdminVerificacionesPage({
             {tieneSiguiente ? (
               <Link
                 href={construirUrl(estado, paginaActual + 1)}
-                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                className={clasesBoton({ variante: "secundario" })}
               >
                 Siguiente
               </Link>
             ) : (
-              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
+              <span className="inline-flex min-h-11 items-center rounded-control border border-linea px-4 text-sm font-semibold text-brand-300">
                 Siguiente
               </span>
             )}

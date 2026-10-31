@@ -53,7 +53,7 @@
 ### Búsqueda y descubrimiento
 
 - **RF-14 — Búsqueda por texto:** el usuario puede buscar publicaciones por palabras clave (título y descripción).
-- **RF-15 — Filtros combinables:** la búsqueda se filtra por categoría, subcategoría, ubicación (provincia, departamento), rango de precio y condición. Los filtros se combinan entre sí.
+- **RF-15 — Filtros combinables:** la búsqueda se filtra por categoría, subcategoría, ubicación (provincia, departamento), rango de precio y condición. Los filtros se combinan entre sí. Elegir una categoría raíz incluye las publicaciones de sus subcategorías. La condición se filtra con `condicion=NEW|USED` en `/listados` y `GET /api/listings`.
 - **RF-16 — Listado y paginación:** los resultados se muestran paginados u ordenados por relevancia o por fecha.
 - **RF-17 — Detalle de publicación:** la publicación muestra todas sus imágenes, datos completos, ubicación y botón de contacto con el vendedor.
 - **RF-18 — Favoritos:** un usuario logueado puede guardar y desguardar publicaciones en favoritos, y consultar su lista de favoritos.
@@ -105,7 +105,7 @@
 
 ### Reputación en tarjetas (Fase 3, Slice 4)
 
-- **RF-52 — Reputación del vendedor en tarjetas de publicación:** las tarjetas de publicación de todas las superficies con sello de verificación (búsqueda `/listados`, recientes del inicio, favoritos y publicaciones del perfil público `/vendedores/[id]`) muestran la reputación del dueño cuando `ratingCount ≥ 3` (la misma constante `MINIMO_MUESTRAS_RATING` de RF-24): estrellas pequeñas con promedio, cantidad y etiqueta accesible en español "X de 5 (n reseñas)". Con 0, 1 o 2 muestras, o si el dueño no tiene perfil, la tarjeta muestra el texto "Sin reseñas aún" (nunca un puntaje ni "0 (0 reseñas)"). El sello "Verificado" permanece intacto y la reputación no altera el orden, los filtros ni la paginación de la búsqueda (freeze RF-38, Slice 2). El detalle de publicación (`/listados/[id]`) recibe los campos de rating del select compartido del dueño pero conserva su comportamiento previo (solo reseñas de esa publicación, RF-30).
+- **RF-52 — Reputación del vendedor en tarjetas de publicación:** las tarjetas de publicación de todas las superficies con sello de verificación (búsqueda `/listados`, recientes del inicio, favoritos y publicaciones del perfil público `/vendedores/[id]`) muestran la reputación del dueño cuando `ratingCount ≥ 3` (la misma constante `MINIMO_MUESTRAS_RATING` de RF-24): versión compacta de la calificación (una estrella, promedio y cantidad, p. ej. "4,6 (12)") con etiqueta accesible en español "X de 5 (n reseñas)". Con 0, 1 o 2 muestras, o si el dueño no tiene perfil, la tarjeta muestra el texto "Sin reseñas aún" (nunca un puntaje ni "0 (0 reseñas)"). El sello "Verificado" permanece intacto y la reputación no altera el orden, los filtros ni la paginación de la búsqueda (freeze RF-38, Slice 2). El detalle de publicación (`/listados/[id]`) muestra la reputación del vendedor (mismo umbral y texto "Sin reseñas aún") en el bloque "Información del vendedor", además de las reseñas de esa publicación (RF-30).
 
 ## 3. Requisitos no funcionales
 

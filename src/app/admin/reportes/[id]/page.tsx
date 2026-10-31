@@ -72,7 +72,7 @@ export default async function DetalleReportePage({
     etiquetasEstadoPublicacion[reporte.listing.status] ?? reporte.listing.status;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-sitio flex-1 px-4 py-6 sm:px-6">
       <Link
         href="/admin/reportes"
         className="text-sm font-medium text-brand-700 underline"
@@ -80,15 +80,15 @@ export default async function DetalleReportePage({
         Volver a reportes
       </Link>
 
-      <header className="mt-4 rounded-lg border border-brand-100 bg-white p-4 sm:p-6">
+      <header className="mt-4 rounded-card border border-linea bg-superficie p-4 sm:p-6 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <span
             data-testid="estado-reporte"
-            className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
+            className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100"
           >
             {etiquetasEstadoReporte[reporte.status]}
           </span>
-          <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+          <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
             {etiquetaEstadoPublicacion}
           </span>
           <time className="text-xs text-brand-600">
@@ -123,7 +123,7 @@ export default async function DetalleReportePage({
         </dl>
 
         {reporte.details ? (
-          <p className="mt-4 whitespace-pre-line rounded-md bg-bone p-3 text-sm text-brand-900">
+          <p className="mt-4 whitespace-pre-line rounded-control bg-superficie-alt p-3 text-sm text-brand-900">
             {reporte.details}
           </p>
         ) : null}
@@ -148,7 +148,7 @@ export default async function DetalleReportePage({
         </p>
 
         {acciones.length === 0 ? (
-          <p className="mt-4 rounded-lg border border-brand-100 bg-white p-6 text-sm text-brand-600">
+          <p className="mt-4 rounded-card border border-linea bg-superficie p-6 text-sm shadow-card text-brand-600">
             Todavía no hay acciones registradas para este reporte.
           </p>
         ) : (
@@ -159,9 +159,9 @@ export default async function DetalleReportePage({
             {acciones.map((accion) => (
               <li
                 key={accion.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-brand-100 bg-white p-4 text-sm"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card border border-linea bg-superficie p-4 text-sm shadow-card"
               >
-                <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+                <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
                   {etiquetasAccionModeracion[accion.accion]}
                 </span>
                 <span className="text-brand-900">

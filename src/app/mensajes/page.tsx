@@ -1,21 +1,39 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import { ImageOff, MessageCircle } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import {
   obtenerConversacionesDeUsuario,
   type ConversacionResumen,
 } from "@/lib/conversaciones";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
+import { Tarjeta } from "@/components/ui/tarjeta";
+import { unirClases } from "@/components/ui/unir-clases";
 
 export const dynamic = "force-dynamic";
 
-const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
+const formateadorHora = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+const formateadorDia = new Intl.DateTimeFormat("es-AR", {
+  day: "2-digit",
+  month: "2-digit",
+});
+
+/** Momento corto estilo bandeja: hora si es de hoy, día/mes si no. */
+function momentoCorto(fecha: Date): string {
+  const hoy = new Date();
+  const esHoy =
+    fecha.getFullYear() === hoy.getFullYear() &&
+    fecha.getMonth() === hoy.getMonth() &&
+    fecha.getDate() === hoy.getDate();
+  return esHoy ? formateadorHora.format(fecha) : formateadorDia.format(fecha);
+}
 
 type SeccionConversacionesProps = {
   titulo: string;
@@ -32,86 +50,91 @@ function SeccionConversaciones({
   conversaciones,
 }: SeccionConversacionesProps) {
   return (
-    <section className="mt-6">
-      <h2 className="text-sm font-semibold text-brand-900">
+    <section>
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-tinta-tenue">
         {titulo} ({conversaciones.length})
       </h2>
-      <ul className="mt-3 divide-y divide-brand-100 overflow-hidden rounded-lg border border-brand-100 bg-white">
-        {conversaciones.map((conversacion) => {
-          const tieneNoLeidos = conversacion.noLeidos > 0;
-          return (
-            <li
-              key={conversacion.id}
-              className={tieneNoLeidos ? "bg-accent-500/10" : undefined}
-            >
-              {/* La fila no puede ser un único Link: el nombre del otro
-                  participante es un enlace a su perfil público (REQ-8) y un
-                  enlace dentro de otro enlace es HTML inválido. */}
-              <div className="px-4 py-3 transition-colors hover:bg-brand-50">
-                <div className="flex items-center gap-4">
-                  <Link
-                    href={`/mensajes/${conversacion.id}`}
-                    className="flex min-w-0 flex-1 items-center gap-4"
-                  >
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-brand-100">
-                      {conversacion.listingImagen ? (
-                        <Image
-                          src={conversacion.listingImagen}
-                          alt={conversacion.listingTitulo}
-                          fill
-                          sizes="48px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-xs text-brand-600">
-                          Sin imagen
-                        </div>
-                      )}
+      <Tarjeta relleno="ninguno" className="overflow-hidden">
+        <ul className="divide-y divide-linea">
+          {conversaciones.map((conversacion) => {
+            const tieneNoLeidos = conversacion.noLeidos > 0;
+            const momento = conversacion.lastMessageAt ?? conversacion.createdAt;
+            return (
+              <li
+                key={conversacion.id}
+                className={unirClases("relative", tieneNoLeidos && "bg-accent-300/10")}
+              >
+                {/* La fila entera abre el chat (enlace estirado); el nombre
+                    del otro participante es un enlace propio a su perfil
+                    (REQ-8) por encima, sin anidar enlaces. */}
+                <div className="flex gap-3 px-4 py-3 hover:bg-brand-50">
+                  <div className="relative size-12 shrink-0 overflow-hidden rounded-control bg-brand-50">
+                    {conversacion.listingImagen ? (
+                      <Image
+                        src={conversacion.listingImagen}
+                        alt=""
+                        fill
+                        sizes="48px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full items-center justify-center text-tinta-tenue">
+                        <ImageOff className="size-4" aria-hidden="true" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <Link
+                        href={`/vendedores/${conversacion.otroParticipante.id}`}
+                        className={unirClases(
+                          "relative z-10 truncate text-sm text-tinta hover:underline",
+                          tieneNoLeidos ? "font-bold" : "font-semibold",
+                        )}
+                      >
+                        {conversacion.otroParticipante.name}
+                      </Link>
+                      <time
+                        dateTime={momento.toISOString()}
+                        className={unirClases(
+                          "shrink-0 text-xs",
+                          tieneNoLeidos ? "font-semibold text-brand-700" : "text-tinta-tenue",
+                        )}
+                      >
+                        {momentoCorto(momento)}
+                      </time>
                     </div>
-
-                    <span
-                      className={
-                        tieneNoLeidos
-                          ? "truncate text-sm font-bold text-brand-900"
-                          : "truncate text-sm font-semibold text-brand-900"
-                      }
+                    <Link
+                      href={`/mensajes/${conversacion.id}`}
+                      className="block truncate text-xs text-tinta-tenue after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand-500"
                     >
                       {conversacion.listingTitulo}
-                    </span>
-                    <span className="ml-auto shrink-0 text-xs text-brand-600">
-                      {conversacion.lastMessageAt
-                        ? formateadorFecha.format(conversacion.lastMessageAt)
-                        : formateadorFecha.format(conversacion.createdAt)}
-                    </span>
-                  </Link>
-
-                  {tieneNoLeidos ? (
-                    <span className="shrink-0 rounded-full bg-accent-500 px-2 py-0.5 text-xs font-semibold text-brand-950">
-                      {conversacion.noLeidos}
-                    </span>
-                  ) : null}
+                    </Link>
+                    <div className="mt-0.5 flex items-center justify-between gap-2">
+                      <p
+                        className={unirClases(
+                          "truncate text-sm",
+                          tieneNoLeidos ? "font-medium text-tinta" : "text-tinta-suave",
+                        )}
+                      >
+                        {conversacion.ultimoMensaje
+                          ? conversacion.ultimoMensaje.body
+                          : "Sin mensajes aún"}
+                      </p>
+                      {tieneNoLeidos ? (
+                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent-500 px-1.5 text-xs font-bold text-brand-950">
+                          {conversacion.noLeidos}
+                          <span className="sr-only"> sin leer</span>
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-
-                <p className="mt-1 truncate text-sm text-brand-600">
-                  <Link
-                    href={`/vendedores/${conversacion.otroParticipante.id}`}
-                    className={
-                      tieneNoLeidos
-                        ? "font-bold text-brand-900 underline-offset-2 hover:underline"
-                        : "font-medium text-brand-900 underline-offset-2 hover:underline"
-                    }
-                  >
-                    {conversacion.otroParticipante.name}
-                  </Link>
-                  {conversacion.ultimoMensaje
-                    ? `: ${conversacion.ultimoMensaje.body}`
-                    : ": Sin mensajes aún"}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+              </li>
+            );
+          })}
+        </ul>
+      </Tarjeta>
     </section>
   );
 }
@@ -137,14 +160,9 @@ export default async function MensajesPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900">Mensajes</h1>
-      <p className="mt-1 text-sm text-brand-600">
-        Tus conversaciones con vendedores y compradores.
-      </p>
-
+    <PaginaCuenta titulo="Mensajes" descripcion="Tus conversaciones con vendedores y compradores.">
       {conversaciones.length > 0 ? (
-        <div>
+        <div className="flex flex-col gap-6">
           {comprando.length > 0 ? (
             <SeccionConversaciones titulo="Comprando" conversaciones={comprando} />
           ) : null}
@@ -153,22 +171,13 @@ export default async function MensajesPage() {
           ) : null}
         </div>
       ) : (
-        <div className="mt-10 rounded-lg border border-brand-100 bg-white p-10 text-center">
-          <h2 className="text-lg font-semibold text-brand-900">
-            Todavía no hay conversaciones
-          </h2>
-          <p className="mt-2 text-sm text-brand-600">
-            Contactate con un vendedor desde el detalle de una publicación para
-            comenzar a conversar.
-          </p>
-          <Link
-            href="/listados"
-            className="mt-6 inline-block rounded-md bg-accent-500 px-6 py-3 text-sm font-semibold text-brand-950 transition-colors hover:bg-accent-400"
-          >
-            Explorar publicaciones
-          </Link>
-        </div>
+        <EstadoVacio
+          icono={MessageCircle}
+          titulo="Todavía no hay conversaciones"
+          descripcion="Preguntale al vendedor desde el detalle de una publicación para empezar a conversar."
+          accion={<BotonEnlace href="/listados">Explorar publicaciones</BotonEnlace>}
+        />
       )}
-    </main>
+    </PaginaCuenta>
   );
 }

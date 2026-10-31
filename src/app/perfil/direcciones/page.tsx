@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { obtenerDirecciones } from "@/lib/direcciones";
 import { GestionDirecciones } from "@/components/perfil/gestion-direcciones";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
 
 export const dynamic = "force-dynamic";
 
@@ -16,15 +16,11 @@ export default async function DireccionesPage() {
   const direcciones = await obtenerDirecciones(session.user.id);
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <Link
-        href="/perfil"
-        className="text-sm font-medium text-brand-700 underline dark:text-brand-200"
-      >
-        Volver a Mi perfil
-      </Link>
-
-      <div className="mt-8">
+    <PaginaCuenta
+      titulo="Direcciones"
+      descripcion="Agregá y administrá tus direcciones de entrega."
+    >
+<div className="mt-8">
         <GestionDirecciones
           direcciones={direcciones.map((direccion) => ({
             id: direccion.id,
@@ -38,6 +34,6 @@ export default async function DireccionesPage() {
           }))}
         />
       </div>
-    </main>
+    </PaginaCuenta>
   );
 }

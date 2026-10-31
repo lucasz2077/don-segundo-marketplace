@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Alegreya, Geist } from "next/font/google";
 import { Navbar } from "@/components/layout/navbar";
+import { PieDePagina } from "@/components/layout/pie-pagina";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -8,8 +9,9 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Serif de marca para títulos destacados (token `font-marca`).
+const alegreya = Alegreya({
+  variable: "--font-alegreya",
   subsets: ["latin"],
 });
 
@@ -23,11 +25,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${alegreya.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-fondo font-sans text-tinta">
+        <a
+          href="#contenido"
+          className="sr-only rounded-control bg-superficie px-4 py-2 text-sm font-semibold text-tinta shadow-modal focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+        >
+          Saltar al contenido
+        </a>
         <Navbar />
-        {children}
+        <div id="contenido" className="flex flex-1 flex-col">
+          {children}
+        </div>
+        <PieDePagina />
       </body>
     </html>
   );
