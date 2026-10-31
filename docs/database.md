@@ -169,7 +169,7 @@ Registra cada compra de una publicación (RF-26). Desde la Fase 3, Slice 3 (pago
 | precioUnitario | decimal | Decimal(12,2), precio al momento de la compra |
 | currency | enum | ARS, USD |
 | cantidad | int | Default 1 (una publicación por compra) |
-| estadoPago | enum | `CompraEstadoPago`: PENDIENTE (default) / APROBADO / FALLIDO / REEMBOLSADO / EXPIRADA |
+| estadoPago | enum | `CompraEstadoPago`: PENDIENTE (default) / APROBADO / FALLIDO / REEMBOLSO_PENDIENTE (pago a devolver cuyo refund en MP aún no se confirmó; lo reintenta el cron) / REEMBOLSADO / EXPIRADA |
 | fechaVencimiento | datetime? | TTL de la orden PENDIENTE (30 min, D5); null en compras legacy |
 | marketplaceFee | decimal? | 5% de la plataforma, Decimal(12,2), siempre persistido en compras nuevas (D6) |
 | mpPreferenceId | string? | Id de la preferencia Checkout Pro |
@@ -295,6 +295,7 @@ enum CompraEstadoPago {
   PENDIENTE
   APROBADO
   FALLIDO
+  REEMBOLSO_PENDIENTE
   REEMBOLSADO
   EXPIRADA
 }
