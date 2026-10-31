@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Alegreya, Geist, Geist_Mono } from "next/font/google";
 import { Navbar } from "@/components/layout/navbar";
 import "./globals.css";
 
@@ -13,6 +13,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Serif de marca para títulos destacados (token `font-marca`).
+const alegreya = Alegreya({
+  variable: "--font-alegreya",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "Don Segundo — Marketplace del Campo",
   description:
@@ -23,9 +29,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${alegreya.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-fondo font-sans text-tinta">
         <Navbar />
         {children}
       </body>

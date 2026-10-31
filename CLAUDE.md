@@ -13,7 +13,7 @@ Marketplace vertical del campo argentino (maquinaria, herramientas, insumos, hac
 
 ## Stack y versiones (ojo: más nuevas que tu training data)
 
-- **Next.js 16.3** (App Router), React 19.2, TypeScript strict, Tailwind CSS 4 (tokens en `src/app/globals.css` vía `@theme`, sin `tailwind.config`).
+- **Next.js 16.3** (App Router), React 19.2, TypeScript strict, Tailwind CSS 4 (tokens en `src/app/globals.css` vía `@theme`, sin `tailwind.config`). Íconos: `lucide-react`.
   - El middleware se llama `src/proxy.ts` (export `proxy`), no `middleware.ts`.
   - `params` y `searchParams` son `Promise` y se hacen `await`.
   - `LayoutProps`/`PageProps` son tipos globales generados por `next dev`/`next build` (por eso `tsc` suelto falla si no existe `.next/types`).
@@ -57,7 +57,7 @@ src/lib/pagos/               # ÚNICO lugar que importa el SDK `mercadopago` (mp
 src/lib/validation/          # schemas Zod por dominio
 src/lib/db/prisma.ts         # singleton PrismaClient (pool max 1, pensado para serverless)
 src/lib/auth.ts, auth-client.ts, auth/session.ts   # Better Auth server, cliente y helper getSession()
-src/components/<dominio>/    # componentes por dominio; primitivas en components/ui (Boton, Tarjeta, EstadoVacio, EstadoError, Skeleton)
+src/components/<dominio>/    # componentes por dominio; primitivas en components/ui (ver docs/design-system.md)
 docs/                        # visión, requisitos, arquitectura, base de datos, roadmap
 ```
 
@@ -75,6 +75,13 @@ La lógica vive en `src/lib/*.ts` (no en `src/lib/services/`, que está vacío p
 - **Soft delete** de publicaciones: `status: "DELETED"` + `deletedAt`. Moderación con `REJECTED` también setea `deletedAt`.
 - **Páginas**: Server Components con `export const dynamic = "force-dynamic"`, sesión vía `getSession()` y `redirect("/sign-in")` si hace falta; los componentes interactivos son Client Components acotados que llaman a `/api/*` con `fetch`.
 - **Tests**: junto al archivo (`*.test.ts(x)`), con `vi.hoisted` + `vi.mock("@/lib/db/prisma", ...)`; nunca se llama a MP real (se mockea `src/lib/pagos/*`).
+
+## UI y sistema de diseño
+
+- Guía completa en `docs/design-system.md` (tokens, primitivas, plan de reconstrucción estética por fases). Catálogo en `/sistema-de-disenio` (404 en producción).
+- Usar las primitivas de `src/components/ui/` (`Boton`, `BotonEnlace`, `Campo`/`Entrada`/`Selector`/`AreaTexto`, `Insignia`, `Precio`, `Migas`, `Paginacion`, `Alerta`, `Tarjeta`, `Contenedor`, `Logo`...) en lugar de clases copiadas a mano.
+- Preferir los roles semánticos (`bg-fondo`, `bg-superficie`, `text-tinta`, `text-tinta-suave`, `text-tinta-tenue`, `border-linea`) a los tonos crudos.
+- Solo modo claro: no agregar utilidades `dark:` (no tienen efecto).
 
 ## Flujo de pagos (resumen)
 

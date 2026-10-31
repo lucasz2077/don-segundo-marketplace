@@ -124,6 +124,7 @@ marketplace-campo/
 - Server Components para listados, detalle y páginas públicas (menos JS, mejor SEO y carga).
 - Componentes interactivos (formularios, galería, favoritos) como Client Components acotados.
 - Diseño mobile-first con navegación inferior tipo app para el público rural.
+- Sistema de diseño propio (tokens en `src/app/globals.css`, primitivas en `src/components/ui/`, íconos `lucide-react`, solo modo claro): ver `docs/design-system.md`.
 - No se aplica lógica de negocio en el cliente: el cliente solo presenta y envía datos.
 
 ### 4.2 API Routes
