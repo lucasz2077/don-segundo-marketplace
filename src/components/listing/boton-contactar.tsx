@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { MessageCircle } from "lucide-react";
+import { Alerta } from "@/components/ui/alerta";
+import { Boton } from "@/components/ui/boton";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
+import { AreaTexto, Campo, describirCampo } from "@/components/ui/campo";
 
 type BotonContactarProps = {
   listingId: string;
@@ -36,28 +40,31 @@ export function BotonContactar({
 
   if (!sesionIniciada) {
     return (
-      <Link
+      <BotonEnlace
         href={`/sign-in?redirect=${encodeURIComponent(pathname)}`}
-        className="mt-4 inline-block rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+        variante="secundario"
+        tamanio="lg"
+        anchoCompleto
       >
-        Contactar
-      </Link>
+        <MessageCircle className="size-5" aria-hidden="true" />
+        Preguntar al vendedor
+      </BotonEnlace>
     );
   }
 
   if (conversacionId) {
     return (
-      <div className="mt-4 flex flex-col items-start gap-2">
-        <p className="text-sm font-medium text-brand-900">
-          Tu consulta fue enviada
-        </p>
-        <Link
-          href={`/mensajes/${conversacionId}`}
-          className="rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-        >
-          Ver conversación
-        </Link>
-      </div>
+      <Alerta
+        tono="exito"
+        titulo="Tu consulta fue enviada"
+        accion={
+          <BotonEnlace href={`/mensajes/${conversacionId}`} variante="secundario" tamanio="sm">
+            Ver conversación
+          </BotonEnlace>
+        }
+      >
+        Te avisamos cuando el vendedor responda.
+      </Alerta>
     );
   }
 
@@ -100,54 +107,57 @@ export function BotonContactar({
     }
   }
 
+  const idConsulta = `consulta-${listingId}`;
+
   return (
-    <div className="mt-4">
+    <div className="w-full">
       {!panelAbierto ? (
-        <button
-          type="button"
+        <Boton
+          variante="secundario"
+          tamanio="lg"
+          anchoCompleto
           onClick={() => setPanelAbierto(true)}
-          className="rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
         >
-          Contactar
-        </button>
+          <MessageCircle className="size-5" aria-hidden="true" />
+          Preguntar al vendedor
+        </Boton>
       ) : (
         <form
           onSubmit={enviarConsulta}
-          className="rounded-lg border border-brand-100 bg-brand-50 p-4"
+          className="rounded-card border border-linea bg-superficie-alt p-4"
         >
-          <label
-            htmlFor={`consulta-${listingId}`}
-            className="block text-sm font-medium text-brand-900"
+          <Campo
+            id={idConsulta}
+            etiqueta="Tu consulta"
+            ayuda="Preguntá por estado, entrega o formas de retiro."
+            error={error ?? undefined}
           >
-            Tu consulta
-          </label>
-          <textarea
-            id={`consulta-${listingId}`}
-            value={mensaje}
-            onChange={(evento) => setMensaje(evento.target.value)}
-            rows={4}
-            maxLength={2000}
-            disabled={loading}
-            className="mt-2 w-full rounded-md border border-brand-300 bg-white p-3 text-sm text-brand-900 placeholder:text-brand-400 disabled:opacity-50"
-          />
-          <div className="mt-3 flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={loading || !mensaje.trim()}
-              className="rounded-md bg-brand-700 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
+            <AreaTexto
+              id={idConsulta}
+              // El panel se abre a pedido del usuario: el foco va al campo.
+              autoFocus
+              value={mensaje}
+              onChange={(evento) => setMensaje(evento.target.value)}
+              rows={4}
+              maxLength={2000}
+              disabled={loading}
+              invalido={Boolean(error)}
+              aria-describedby={describirCampo(idConsulta, { ayuda: true, error })}
+              placeholder="Hola, ¿sigue disponible?"
+            />
+          </Campo>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <Boton type="submit" cargando={loading} disabled={!mensaje.trim()}>
               {loading ? "Enviando..." : "Enviar consulta"}
-            </button>
-            <button
-              type="button"
+            </Boton>
+            <Boton
+              variante="fantasma"
               onClick={() => setPanelAbierto(false)}
               disabled={loading}
-              className="rounded-md border border-brand-300 px-4 py-2.5 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
             >
               Cancelar
-            </button>
+            </Boton>
           </div>
-          {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         </form>
       )}
     </div>

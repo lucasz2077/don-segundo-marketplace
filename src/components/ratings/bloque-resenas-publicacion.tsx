@@ -1,5 +1,8 @@
 import { EstrellasCalificacion } from "@/components/compras/estrellas-calificacion";
 import { BotonEliminarResenia } from "@/components/ratings/boton-eliminar-resenia";
+import { Avatar } from "@/components/ui/avatar";
+import { Insignia } from "@/components/ui/insignia";
+import { Tarjeta } from "@/components/ui/tarjeta";
 import type { ResenaPublicacion } from "@/lib/ratings";
 
 const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
@@ -25,50 +28,44 @@ export function BloqueResenasPublicacion({
   usuarioId,
 }: BloqueResenasPublicacionProps) {
   return (
-    <section className="mt-10" aria-labelledby="resenas-titulo">
-      <div className="flex items-center gap-2">
-        <h2
-          id="resenas-titulo"
-          className="text-lg font-semibold text-brand-900 dark:text-bone"
-        >
-          Reseñas de esta publicación
-        </h2>
-        <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">
-          {resenas.length}
-        </span>
-      </div>
+    <section aria-labelledby="resenas-titulo">
+      <Tarjeta relleno="ninguno" className="p-4 sm:p-6">
+        <div className="flex items-center gap-2">
+          <h2 id="resenas-titulo" className="text-lg font-semibold text-tinta">
+            Reseñas de esta publicación
+          </h2>
+          <Insignia>{resenas.length}</Insignia>
+        </div>
 
-      <ul className="mt-4 divide-y divide-brand-100">
-        {resenas.map((resena) => (
-          <li key={resena.id} className="py-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-brand-900 dark:text-bone">
-                  {resena.autor}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <EstrellasCalificacion
-                    promedio={resena.puntaje}
-                    cantidad={1}
-                    tamanio="sm"
-                  />
-                  <p className="text-xs text-brand-600 dark:text-brand-200">
-                    {formateadorFecha.format(resena.fecha)}
-                  </p>
+        <ul className="mt-2 divide-y divide-linea">
+          {resenas.map((resena) => (
+            <li key={resena.id} className="py-4 last:pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar nombre={resena.autor} tamanio="sm" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-tinta">{resena.autor}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <EstrellasCalificacion promedio={resena.puntaje} cantidad={1} tamanio="sm" />
+                      <p className="text-xs text-tinta-tenue">
+                        {formateadorFecha.format(resena.fecha)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+                {resena.autorId === usuarioId ? (
+                  <BotonEliminarResenia reseniaId={resena.id} />
+                ) : null}
               </div>
-              {resena.autorId === usuarioId ? (
-                <BotonEliminarResenia reseniaId={resena.id} />
+              {resena.comentario ? (
+                <p className="mt-2 pl-11 text-sm leading-relaxed text-tinta-suave">
+                  {resena.comentario}
+                </p>
               ) : null}
-            </div>
-            {resena.comentario ? (
-              <p className="mt-2 text-sm leading-relaxed text-brand-900 dark:text-bone">
-                {resena.comentario}
-              </p>
-            ) : null}
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </Tarjeta>
     </section>
   );
 }

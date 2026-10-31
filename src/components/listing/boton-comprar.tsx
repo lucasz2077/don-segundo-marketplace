@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { ShoppingBag } from "lucide-react";
+import { Boton } from "@/components/ui/boton";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
+import { unirClases } from "@/components/ui/unir-clases";
 
 type BotonComprarProps = {
   listingId: string;
   sesionIniciada: boolean;
+  /** Tamaño compacto para la barra fija inferior de mobile. */
+  compacto?: boolean;
 };
 
 type RespuestaCompra = {
@@ -34,20 +39,25 @@ const MENSAJE_ERROR_GENERICO =
  * pago llega por el webhook de pagos, por lo que aquí no se muestra
  * referencia de compra.
  */
-export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
+export function BotonComprar({ listingId, sesionIniciada, compacto = false }: BotonComprarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const tamanio = compacto ? "md" : "lg";
+
   if (!sesionIniciada) {
     return (
-      <Link
+      <BotonEnlace
         href={`/sign-in?redirect=${encodeURIComponent(pathname)}`}
-        className="inline-block rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+        variante="acento"
+        tamanio={tamanio}
+        anchoCompleto
       >
-        Comprar
-      </Link>
+        <ShoppingBag className="size-5" aria-hidden="true" />
+        Comprar ahora
+      </BotonEnlace>
     );
   }
 
@@ -98,16 +108,22 @@ export function BotonComprar({ listingId, sesionIniciada }: BotonComprarProps) {
   }
 
   return (
-    <div>
-      <button
-        type="button"
+    <div className="w-full">
+      <Boton
+        variante="acento"
+        tamanio={tamanio}
+        anchoCompleto
         onClick={comprar}
-        disabled={cargando}
-        className="rounded-md bg-brand-700 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+        cargando={cargando}
       >
-        {cargando ? "Comprando..." : "Comprar"}
-      </button>
-      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        {cargando ? null : <ShoppingBag className="size-5" aria-hidden="true" />}
+        {cargando ? "Yendo a Mercado Pago..." : "Comprar ahora"}
+      </Boton>
+      {error ? (
+        <p role="alert" className={unirClases("text-sm text-danger", compacto ? "mt-1" : "mt-2")}>
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

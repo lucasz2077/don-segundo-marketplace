@@ -91,14 +91,35 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
   - Recién publicadas (2 columnas en mobile) y llamado a vender.
 - **Scroll horizontal en mobile:** `-mx-4 px-4` para llegar al borde y `scroll-px-4` si hay snap.
 
-## 6. Plan de reconstrucción estética
+## 6. Conversión
+
+- **Detalle** (`/listados/[id]`):
+  - Mobile: galería a todo el ancho, caja de compra, descripción, vendedor, reseñas y publicaciones similares (de la categoría raíz).
+  - Desde `lg`: grilla de 12 columnas con la caja de compra fija a la derecha (`sticky`).
+- **`GaleriaImagenes`:**
+  - Carrusel con `scroll-snap` nativo (sin librerías). El índice activo se deriva del scroll.
+  - Contador "1 / N" y corazón de favorito siempre visible.
+  - Flechas y miniaturas desde `sm`.
+- **`BarraCompraMovil`:** barra fija inferior con precio y "Comprar ahora" debajo de `lg`. Con `IntersectionObserver` aparece cuando la caja de compra sale por arriba y se oculta al llegar al footer.
+- **Caja de compra:**
+  - Condición y vendidos, título, `Precio` xl, alertas de estado (pausada, rechazada, vendida), stock y ubicación.
+  - Acciones: Comprar (acento) y Preguntar al vendedor (secundario, formulario inline).
+  - Garantías reales (Mercado Pago, 7 días para devolver).
+  - Para el dueño: alerta "Esta es tu publicación" con vistas, vendidos, Editar y Eliminar con confirmación.
+- **Vendedor:** avatar, sello, nombre comercial, reputación (RF-52), "Ver perfil y publicaciones" y "Reportar publicación" en tono discreto.
+- **Perfil del vendedor** (`/vendedores/[id]`):
+  - Encabezado de tienda con banda de marca, avatar superpuesto, sello y nombre comercial.
+  - Indicadores (calificación, tiempo de respuesta, en venta), bio y publicaciones en grilla de 2 columnas en mobile.
+- Los botones de acción (`BotonComprar`, `BotonContactar`, `BotonReportar`, `BotonEliminarPublicacion`, `BotonFavorito`) usan las primitivas; su lógica no cambió.
+
+## 7. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
 | 1. Fundaciones | Tokens, tipografía (fix: el `body` forzaba Arial), modo oscuro desactivado, logo vectorizado e íconos de app, `lucide-react`, primitivas y catálogo `/sistema-de-disenio` | **Completada** |
 | 2. Shell global | Header con logo, buscador central y menú de usuario; barra de categorías; cajón mobile; footer con garantías; `not-found` y `error` globales | **Completada** |
 | 3. Descubrimiento | Home (hero, categorías con ícono, recién publicadas, llamado a vender); `TarjetaPublicacion` v2; listado con filtros (sidebar / hoja inferior en mobile), chips, orden y paginación numerada; página de categoría con publicaciones | **Completada** |
-| 4. Conversión | Detalle con breadcrumb, galería, caja de compra fija, garantías y tarjeta de vendedor; perfil público del vendedor | Pendiente |
+| 4. Conversión | Detalle con breadcrumb, galería táctil, caja de compra (barra fija en mobile), garantías, vendedor, reseñas y similares; perfil público del vendedor | **Completada** |
 | 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | Pendiente |
 | 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, tablas de admin, `loading.tsx`, microcopy en voseo | Pendiente |
 | 7. QA visual | Capturas Playwright (mobile/tablet/desktop), accesibilidad (foco, contraste, headings), lint y build | Pendiente |
