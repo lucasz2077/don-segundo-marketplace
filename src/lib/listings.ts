@@ -204,10 +204,12 @@ export async function obtenerPublicacionesRecientes(limite = 6) {
  * Devuelve las publicaciones de un usuario para el panel "Mis publicaciones",
  * excluyendo las eliminadas (status DELETED). Se ordenan por la última
  * actualización y se incluyen stock, vendidas y la primera información básica
- * para renderizar la fila sin traer relaciones pesadas.
+ * para renderizar la fila sin traer relaciones pesadas. `pausadaPorModeracion`
+ * indica si un admin la pausó desde un reporte (mismo criterio que
+ * `estaPausadaPorModeracion` en compras.ts): el dueño no puede reanudarla.
  */
 export async function obtenerPublicacionesDelUsuario(ownerId: string) {
-  return prisma.listing.findMany({
+  const publicaciones = await prisma.listing.findMany({
     where: { ownerId, status: { not: "DELETED" } },
     orderBy: { updatedAt: "desc" },
     select: {
@@ -223,8 +225,18 @@ export async function obtenerPublicacionesDelUsuario(ownerId: string) {
         orderBy: { position: "asc" as const },
         select: { url: true, alt: true },
       },
+      reports: {
+        where: { acciones: { some: { accion: "PAUSED" } } },
+        take: 1,
+        select: { id: true },
+      },
     },
   });
+
+  return publicaciones.map(({ reports, ...publicacion }) => ({
+    ...publicacion,
+    pausadaPorModeracion: reports.length > 0,
+  }));
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   pausarPublicacionPropia,
   PublicacionNoEncontradaError,
   PublicacionNoPerteneceError,
+  PublicacionPausadaPorModeracionError,
   reanudarPublicacionPropia,
 } from "@/lib/compras";
 
@@ -33,7 +34,8 @@ const accionEstadoPublicacionSchema = z.object({
 /**
  * POST /api/listings/[id]/estado — pausa o reanuda una publicación propia
  * (solo su dueño). "pausar" solo desde ACTIVE; "reanudar" solo desde PAUSED.
- * 404 si no existe, 403 si no es dueño, 400 si la transición de estado no es
+ * 404 si no existe, 403 si no es dueño o si la pausa la aplicó la moderación
+ * (PAUSADA_POR_MODERACION, RF-25), 400 si la transición de estado no es
  * válida. Notifica al dueño y a los favoritos del cambio (best-effort).
  */
 export async function POST(
@@ -75,6 +77,9 @@ export async function POST(
     }
     if (error instanceof PublicacionNoPerteneceError) {
       return respuestaError(403, "SIN_PERMISO", error.message);
+    }
+    if (error instanceof PublicacionPausadaPorModeracionError) {
+      return respuestaError(403, "PAUSADA_POR_MODERACION", error.message);
     }
     if (error instanceof AccionEstadoInvalidaError) {
       return respuestaError(400, "ESTADO_INVALIDO", error.message);

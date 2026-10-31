@@ -575,6 +575,20 @@ export class PublicacionNoPerteneceError extends Error {
   }
 }
 
+/**
+ * Error de dominio: la publicación fue pausada por un administrador desde la
+ * moderación de un reporte (RF-25) y el dueño no puede reanudarla por su
+ * cuenta. (403 PAUSADA_POR_MODERACION)
+ */
+export class PublicacionPausadaPorModeracionError extends Error {
+  constructor() {
+    super(
+      "Esta publicación fue pausada por moderación y no podés reanudarla"
+    );
+    this.name = "PublicacionPausadaPorModeracionError";
+  }
+}
+
 /** Error de dominio: la transición de estado pedida no es válida. */
 export class AccionEstadoInvalidaError extends Error {
   constructor(mensaje: string) {
@@ -1082,14 +1096,33 @@ export async function pausarPublicacionPropia(ownerId: string, listingId: string
 }
 
 /**
+ * Indica si la publicación tiene una pausa aplicada por un administrador
+ * desde la moderación de un reporte (ModerationAction PAUSED, RF-25). La
+ * auditoría es la fuente de verdad: hoy no existe una acción admin para
+ * levantar la pausa, así que una pausa de moderación es definitiva.
+ */
+export async function estaPausadaPorModeracion(listingId: string): Promise<boolean> {
+  const accion = await prisma.moderationAction.findFirst({
+    where: { accion: "PAUSED", report: { listingId } },
+    select: { id: true },
+  });
+  return accion !== null;
+}
+
+/**
  * Reanuda una publicación propia pausada (solo desde PAUSED; nunca reanuda una
- * SOLD o REJECTED). Valida titularidad y estado; notifica al dueño y a los
- * favoritos. Retorna el estado resultante.
+ * SOLD o REJECTED). Valida titularidad y estado, y rechaza la reanudación si
+ * la pausa la aplicó la moderación (RF-25: el dueño no puede revertir una
+ * acción administrativa). Notifica al dueño y a los favoritos. Retorna el
+ * estado resultante.
  */
 export async function reanudarPublicacionPropia(ownerId: string, listingId: string) {
   const publicacion = await validarPublicacionPropia(ownerId, listingId);
   if (publicacion.status !== "PAUSED") {
     throw new AccionEstadoInvalidaError("Solo podés reanudar publicaciones pausadas");
+  }
+  if (await estaPausadaPorModeracion(listingId)) {
+    throw new PublicacionPausadaPorModeracionError();
   }
 
   const resultado = await prisma.listing.update({
