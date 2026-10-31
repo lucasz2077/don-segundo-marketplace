@@ -11,9 +11,12 @@ export const TAMANIO_PAGINA = 12;
 
 export type OrdenPublicaciones = "recientes" | "precio-asc" | "precio-desc";
 
+export type CondicionPublicacion = "NEW" | "USED";
+
 export type FiltrosPublicaciones = {
   busqueda?: string;
   categoria?: string;
+  condicion?: CondicionPublicacion;
   provincia?: string;
   minPrecio?: number;
   maxPrecio?: number;
@@ -102,8 +105,10 @@ const incluirDependencias = {
 } as const;
 
 /**
- * Lista las publicaciones activas con filtros combinables, búsqueda fulltext
- * (índice GIN sobre tsvector en español) y paginación simple.
+ * Lista las publicaciones activas con filtros combinables (RF-15), búsqueda
+ * fulltext (índice GIN sobre tsvector en español) y paginación simple. El
+ * filtro de categoría incluye sus subcategorías: elegir una raíz devuelve
+ * también las publicaciones de sus hijas (el árbol tiene dos niveles).
  */
 export async function obtenerPublicacionesActivas(
   filtros: FiltrosPublicaciones = {}
@@ -115,7 +120,12 @@ export async function obtenerPublicacionesActivas(
   ];
 
   if (filtros.categoria) {
-    condiciones.push(Prisma.sql`"categoryId" = ${filtros.categoria}`);
+    condiciones.push(
+      Prisma.sql`"categoryId" IN (SELECT "id" FROM "Category" WHERE "id" = ${filtros.categoria} OR "parentId" = ${filtros.categoria})`
+    );
+  }
+  if (filtros.condicion) {
+    condiciones.push(Prisma.sql`"condition"::text = ${filtros.condicion}`);
   }
   if (filtros.provincia) {
     condiciones.push(Prisma.sql`"province" = ${filtros.provincia}`);

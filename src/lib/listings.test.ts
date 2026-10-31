@@ -10,10 +10,12 @@ const mocks = vi.hoisted(() => ({
   obtenerCuentaMpVigente: vi.fn(),
   eliminarImagen: vi.fn(),
   notificarFavoritosCambioPublicacion: vi.fn(),
+  queryRaw: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
+    $queryRaw: mocks.queryRaw,
     listing: {
       findMany: mocks.findManyListings,
       create: mocks.createListing,
@@ -40,6 +42,7 @@ import {
   actualizarPublicacion,
   crearPublicacion,
   ImagenInvalidaError,
+  obtenerPublicacionesActivas,
   obtenerPublicacionesRecientes,
   SinCuentaMpError,
 } from "@/lib/listings";
@@ -243,5 +246,50 @@ describe("Titularidad de las imágenes de una publicación", () => {
     });
 
     expect(mocks.updateListing).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("obtenerPublicacionesActivas", () => {
+  const categoriaId = "6f1c2a7e-0d0b-4c55-9a51-3f0f7a2b9c10";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.queryRaw.mockImplementation((consulta: Prisma.Sql) =>
+      Promise.resolve(consulta.sql.includes("COUNT(*)") ? [{ total: BigInt(0) }] : [])
+    );
+  });
+
+  function consultaDeIds(): Prisma.Sql {
+    return mocks.queryRaw.mock.calls
+      .map(([consulta]) => consulta as Prisma.Sql)
+      .find((consulta) => !consulta.sql.includes("COUNT(*)")) as Prisma.Sql;
+  }
+
+  it("el filtro de categoría incluye las subcategorías (RF-15)", async () => {
+    await obtenerPublicacionesActivas({ categoria: categoriaId });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).toContain(
+      '"categoryId" IN (SELECT "id" FROM "Category" WHERE "id" = ? OR "parentId" = ?)'
+    );
+    expect(consulta.values).toEqual(expect.arrayContaining([categoriaId]));
+  });
+
+  it("filtra por condición nuevo/usado (RF-15)", async () => {
+    await obtenerPublicacionesActivas({ condicion: "USED" });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).toContain('"condition"::text = ?');
+    expect(consulta.values).toContain("USED");
+  });
+
+  it("sin filtros no restringe por categoría ni condición", async () => {
+    const resultado = await obtenerPublicacionesActivas();
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).not.toContain("categoryId");
+    expect(consulta.sql).not.toContain("condition");
+    expect(resultado).toMatchObject({ publicaciones: [], total: 0, totalPaginas: 1 });
+    expect(mocks.findManyListings).not.toHaveBeenCalled();
   });
 });

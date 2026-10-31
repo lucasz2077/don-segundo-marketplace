@@ -70,13 +70,34 @@ Reglas:
 - **Estados globales:** `src/app/not-found.tsx` (404 con header y footer), `src/app/error.tsx` (reintentar con `retry`) y `src/app/global-error.tsx` (falla del layout raíz).
 - **Accesibilidad:** enlace "Saltar al contenido" hacia `#contenido`.
 
-## 5. Plan de reconstrucción estética
+## 5. Descubrimiento (mobile-first)
+
+La mayoría de los usuarios entra desde el celular: cada pantalla se diseña primero para 360–430px y se expande hacia desktop.
+
+- **`TarjetaPublicacion`** (`src/components/listing/`):
+  - `disposicion="grilla"`: siempre vertical (inicio, categoría, favoritos, perfil del vendedor).
+  - `disposicion="adaptable"`: horizontal en mobile y vertical desde `sm` (resultados de búsqueda).
+  - Contenido: condición (+ "Última unidad"), título en dos líneas, `Precio`, ubicación, sello verificado y reputación compacta ("★ 4,6 (12)", RF-52).
+  - Toda la tarjeta es clickeable a través del enlace del título.
+- **Listado** (`/listados`):
+  - En mobile, barra fija con "Filtrar" (`DialogoFiltros`, hoja inferior con `<dialog>`) y "Ordenar" (`SelectorOrden`).
+  - Desde `lg`, sidebar con `PanelFiltros`. Categoría y condición son enlaces (un toque aplica); ubicación y precio van en un formulario GET.
+  - `ChipsFiltros` permite quitar filtros, y la paginación es numerada.
+  - Las URLs se arman con `urlListados()` (`url-listados.ts`).
+- **Categoría** (`/categorias/[slug]`): migas, chips de subcategorías con scroll horizontal y publicaciones de la categoría y sus hijas, con paginación.
+- **Inicio**:
+  - Hero compacto con acciones y señales de confianza.
+  - Categorías en fila con scroll y snap en mobile, grilla de 7 en desktop.
+  - Recién publicadas (2 columnas en mobile) y llamado a vender.
+- **Scroll horizontal en mobile:** `-mx-4 px-4` para llegar al borde y `scroll-px-4` si hay snap.
+
+## 6. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
 | 1. Fundaciones | Tokens, tipografía (fix: el `body` forzaba Arial), modo oscuro desactivado, logo vectorizado e íconos de app, `lucide-react`, primitivas y catálogo `/sistema-de-disenio` | **Completada** |
 | 2. Shell global | Header con logo, buscador central y menú de usuario; barra de categorías; cajón mobile; footer con garantías; `not-found` y `error` globales | **Completada** |
-| 3. Descubrimiento | Home (hero con buscador, categorías con ícono, bloques de publicaciones, franja de confianza); `TarjetaPublicacion` v2; listado con sidebar de filtros, chips y paginación numerada; página de categoría con publicaciones | Pendiente |
+| 3. Descubrimiento | Home (hero, categorías con ícono, recién publicadas, llamado a vender); `TarjetaPublicacion` v2; listado con filtros (sidebar / hoja inferior en mobile), chips, orden y paginación numerada; página de categoría con publicaciones | **Completada** |
 | 4. Conversión | Detalle con breadcrumb, galería, caja de compra fija, garantías y tarjeta de vendedor; perfil público del vendedor | Pendiente |
 | 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | Pendiente |
 | 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, tablas de admin, `loading.tsx`, microcopy en voseo | Pendiente |

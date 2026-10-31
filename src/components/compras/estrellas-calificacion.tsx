@@ -5,6 +5,11 @@ type EstrellasCalificacionProps = {
   cantidad: number;
   /** Tamaño visual de las estrellas. */
   tamanio?: "sm" | "md" | "lg";
+  /**
+   * Versión compacta para tarjetas angostas (mobile): una estrella y
+   * "4,6 (12)". El aria-label conserva el texto completo.
+   */
+  compacta?: boolean;
 };
 
 const formateadorPromedio = new Intl.NumberFormat("es-AR", {
@@ -60,11 +65,22 @@ export function EstrellasCalificacion({
   promedio,
   cantidad,
   tamanio = "md",
+  compacta = false,
 }: EstrellasCalificacionProps) {
   const textoPromedio = formateadorPromedio.format(promedio);
   const palabraResenias = cantidad === 1 ? "reseña" : "reseñas";
   const etiqueta = `${textoPromedio} de 5 (${cantidad} ${palabraResenias})`;
   const claseTamanio = tamanios[tamanio];
+
+  if (compacta) {
+    return (
+      <p role="img" aria-label={etiqueta} className="flex items-center gap-1 text-xs">
+        <Estrella fraccion={1} className="size-3.5" />
+        <span className="font-semibold text-tinta">{textoPromedio}</span>
+        <span className="text-tinta-tenue">({cantidad})</span>
+      </p>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { iconoCategoria } from "@/components/categorias/icono-categoria";
+import { IconoCategoria } from "@/components/categorias/icono-categoria";
 import { unirClases } from "@/components/ui/unir-clases";
 import type { CategoriaNavegacion } from "./tipos";
 import { useDesplegable } from "./use-desplegable";
@@ -40,7 +40,6 @@ export function MenuCategorias({ categorias }: { categorias: CategoriaNavegacion
         >
           <div className="grid grid-cols-3 gap-x-8 gap-y-6">
             {categorias.map((categoria) => {
-              const Icono = iconoCategoria(categoria.slug);
               return (
                 <div key={categoria.id}>
                   <Link
@@ -49,7 +48,7 @@ export function MenuCategorias({ categorias }: { categorias: CategoriaNavegacion
                     className="group flex items-center gap-2 text-sm font-semibold text-tinta hover:text-brand-600"
                   >
                     <span className="flex size-8 items-center justify-center rounded-control bg-brand-50 text-brand-700 group-hover:bg-brand-100">
-                      <Icono className="size-4" aria-hidden="true" />
+                      <IconoCategoria slug={categoria.slug} className="size-4" />
                     </span>
                     {categoria.name}
                     <ChevronRight

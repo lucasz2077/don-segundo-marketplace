@@ -1,3 +1,4 @@
+import { createElement } from "react";
 import {
   Beef,
   Cog,
@@ -7,6 +8,7 @@ import {
   Truck,
   Wrench,
   type LucideIcon,
+  type LucideProps,
 } from "lucide-react";
 
 /** Ícono de cada categoría raíz del seed (prisma/seed.ts), por slug. */
@@ -26,4 +28,12 @@ const ICONOS_POR_SLUG: Record<string, LucideIcon> = {
  */
 export function iconoCategoria(slug: string): LucideIcon {
   return ICONOS_POR_SLUG[slug] ?? Package;
+}
+
+/**
+ * Ícono de una categoría como componente. Se instancia con createElement para
+ * no declarar un componente durante el render (regla del React Compiler).
+ */
+export function IconoCategoria({ slug, ...props }: LucideProps & { slug: string }) {
+  return createElement(iconoCategoria(slug), { "aria-hidden": true, ...props });
 }

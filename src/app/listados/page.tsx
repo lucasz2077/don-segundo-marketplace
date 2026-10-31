@@ -1,17 +1,44 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { SearchX } from "lucide-react";
 import { busquedaSchema, type BusquedaInput } from "@/lib/validation/listing";
 import { obtenerPublicacionesActivas } from "@/lib/listings";
-import { obtenerCategoriasRaiz } from "@/lib/categories";
 import { derivarRatingVendedor } from "@/lib/perfiles";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
+import { obtenerCategoriasNavegacion } from "@/components/layout/categorias-navegacion";
+import { ChipsFiltros, nombreCategoria } from "@/components/listing/chips-filtros";
+import { DialogoFiltros } from "@/components/listing/dialogo-filtros";
+import { PanelFiltros } from "@/components/listing/panel-filtros";
+import { SelectorOrden } from "@/components/listing/selector-orden";
 import { TarjetaPublicacion } from "@/components/listing/tarjeta-publicacion";
-import { FiltrosBusqueda } from "@/components/listing/filtros-busqueda";
+import {
+  contarFiltros,
+  urlListados,
+  type FiltrosListado,
+} from "@/components/listing/url-listados";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
+import { Contenedor } from "@/components/ui/contenedor";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
+import { Migas } from "@/components/ui/migas";
+import { Paginacion } from "@/components/ui/paginacion";
+import { Tarjeta } from "@/components/ui/tarjeta";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Publicaciones — Don Segundo",
+  description:
+    "Maquinaria agrícola, herramientas, insumos, hacienda, repuestos y servicios rurales en venta en todo el país.",
+};
 
 type ListadosPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
+
+const OPCIONES_ORDEN = [
+  { valor: "recientes", etiqueta: "Más recientes" },
+  { valor: "precio-asc", etiqueta: "Menor precio" },
+  { valor: "precio-desc", etiqueta: "Mayor precio" },
+] as const;
 
 function leerTexto(valor: string | string[] | undefined): string | undefined {
   if (typeof valor !== "string") {
@@ -21,22 +48,17 @@ function leerTexto(valor: string | string[] | undefined): string | undefined {
   return limpio || undefined;
 }
 
-function construirUrl(filtros: Record<string, string | number | undefined>): string {
-  const url = new URLSearchParams();
-  for (const [clave, valor] of Object.entries(filtros)) {
-    if (valor !== undefined && String(valor) !== "") {
-      url.set(clave, String(valor));
-    }
-  }
-  const consulta = url.toString();
-  return consulta ? `/listados?${consulta}` : "/listados";
-}
-
+/**
+ * Búsqueda y listado de publicaciones activas (RF-14/RF-15), mobile-first:
+ * en mobile, barra fija con "Filtrar" (hoja inferior) y orden, chips de
+ * filtros y tarjetas horizontales; desde lg, sidebar de filtros y grilla.
+ */
 export default async function ListadosPage({ searchParams }: ListadosPageProps) {
   const params = await searchParams;
   const parseado = busquedaSchema.safeParse({
     q: leerTexto(params.q),
     categoria: leerTexto(params.categoria),
+    condicion: leerTexto(params.condicion),
     provincia: leerTexto(params.provincia),
     minPrecio: leerTexto(params.minPrecio),
     maxPrecio: leerTexto(params.maxPrecio),
@@ -44,126 +66,143 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
     pagina: leerTexto(params.pagina),
   });
 
-  const filtros: BusquedaInput = parseado.success
-    ? parseado.data
-    : { orden: "recientes" };
+  const entrada: BusquedaInput = parseado.success ? parseado.data : { orden: "recientes" };
+  const filtros: FiltrosListado = {
+    q: entrada.q || undefined,
+    categoria: entrada.categoria,
+    condicion: entrada.condicion,
+    provincia: entrada.provincia,
+    minPrecio: entrada.minPrecio,
+    maxPrecio: entrada.maxPrecio,
+    orden: entrada.orden,
+  };
 
   const [resultado, categorias] = await Promise.all([
     obtenerPublicacionesActivas({
       busqueda: filtros.q,
       categoria: filtros.categoria,
+      condicion: filtros.condicion,
       provincia: filtros.provincia,
       minPrecio: filtros.minPrecio,
       maxPrecio: filtros.maxPrecio,
       orden: filtros.orden,
-      pagina: filtros.pagina,
+      pagina: entrada.pagina,
     }),
-    obtenerCategoriasRaiz(),
+    obtenerCategoriasNavegacion(),
   ]);
 
-  const categoriasPlanas = categorias.flatMap((categoria) => [
-    { id: categoria.id, name: categoria.name, slug: categoria.slug },
-    ...categoria.children.map((hija) => ({
-      id: hija.id,
-      name: hija.name,
-      slug: hija.slug,
-    })),
-  ]);
-
-  const filtrosBase = {
-    q: filtros.q,
-    categoria: filtros.categoria,
-    provincia: filtros.provincia,
-    minPrecio: filtros.minPrecio,
-    maxPrecio: filtros.maxPrecio,
-    orden: filtros.orden,
-  };
-  const tieneAnterior = resultado.pagina > 1;
-  const tieneSiguiente = resultado.pagina < resultado.totalPaginas;
-  const urlAnterior = construirUrl({ ...filtrosBase, pagina: resultado.pagina - 1 });
-  const urlSiguiente = construirUrl({ ...filtrosBase, pagina: resultado.pagina + 1 });
+  const categoriaActual = nombreCategoria(categorias, filtros.categoria);
+  const titulo = filtros.q
+    ? `Resultados para “${filtros.q}”`
+    : (categoriaActual ?? "Todas las publicaciones");
+  const textoTotal = `${resultado.total.toLocaleString("es-AR")} ${
+    resultado.total === 1 ? "resultado" : "resultados"
+  }`;
+  const opcionesOrden = OPCIONES_ORDEN.map((opcion) => ({
+    ...opcion,
+    href: urlListados(filtros, { orden: opcion.valor }),
+  }));
+  const panel = (idPanel: string) => (
+    <PanelFiltros
+      filtros={filtros}
+      categorias={categorias}
+      provincias={PROVINCIAS_ARGENTINA}
+      idPanel={idPanel}
+    />
+  );
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-        Publicaciones
-      </h1>
-      <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-        Explorá y buscá entre las publicaciones activas del campo argentino.
-      </p>
-
-      <div className="mt-6">
-        <FiltrosBusqueda
-          busquedaActual={filtros.q ?? ""}
-          categoriaActual={filtros.categoria ?? ""}
-          provinciaActual={filtros.provincia ?? ""}
-          ordenActual={filtros.orden}
-          categorias={categoriasPlanas}
-          provincias={PROVINCIAS_ARGENTINA}
+    <Contenedor as="main" className="flex-1 py-4 sm:py-6">
+      <div className="hidden sm:block">
+        <Migas
+          items={[
+            { etiqueta: "Inicio", href: "/" },
+            ...(categoriaActual
+              ? [{ etiqueta: "Publicaciones", href: "/listados" }, { etiqueta: categoriaActual }]
+              : [{ etiqueta: "Publicaciones" }]),
+          ]}
         />
       </div>
 
-      {resultado.publicaciones.length > 0 ? (
-        <>
-          <p className="mt-6 text-sm text-brand-600 dark:text-brand-200">
-            {resultado.total} {resultado.total === 1 ? "publicación" : "publicaciones"}
-          </p>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {resultado.publicaciones.map((publicacion) => (
-              <TarjetaPublicacion
-                key={publicacion.id}
-                publicacion={publicacion}
-                sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
-                rating={derivarRatingVendedor(publicacion.owner?.profile)}
+      <div className="mt-1 flex items-baseline justify-between gap-4 sm:mt-3">
+        <h1 className="min-w-0 truncate text-xl font-semibold text-tinta sm:text-2xl">{titulo}</h1>
+        <p className="shrink-0 text-sm text-tinta-tenue lg:hidden">{textoTotal}</p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-4">
+        <aside aria-label="Filtros" className="hidden lg:block">
+          <Tarjeta relleno="sm" className="sticky top-4">
+            <p className="mb-4 text-sm text-tinta-tenue">{textoTotal}</p>
+            {panel("sidebar")}
+          </Tarjeta>
+        </aside>
+
+        <div className="min-w-0 lg:col-span-3">
+          {/* Barra de herramientas: fija arriba en mobile para filtrar y
+              ordenar sin volver al principio de la lista. */}
+          <div className="sticky top-0 z-30 -mx-4 flex items-center gap-2 border-b border-linea bg-fondo/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:justify-end lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+            <div className="flex flex-1 lg:hidden">
+              <DialogoFiltros cantidadFiltros={contarFiltros(filtros)}>
+                {panel("dialogo")}
+              </DialogoFiltros>
+            </div>
+            <div className="flex-1 sm:flex-none">
+              <SelectorOrden
+                id="orden-listado"
+                opciones={opcionesOrden}
+                valorActual={filtros.orden ?? "recientes"}
               />
-            ))}
+            </div>
           </div>
-          <nav className="mt-8 flex items-center justify-between">
-            {tieneAnterior ? (
-              <Link
-                href={urlAnterior}
-                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-              >
-                Anterior
-              </Link>
-            ) : (
-              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
-                Anterior
-              </span>
-            )}
-            <span className="text-sm text-brand-600 dark:text-brand-200">
-              Página {resultado.pagina} de {resultado.totalPaginas}
-            </span>
-            {tieneSiguiente ? (
-              <Link
-                href={urlSiguiente}
-                className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-              >
-                Siguiente
-              </Link>
-            ) : (
-              <span className="rounded-md border border-brand-100 px-4 py-2 text-sm font-medium text-brand-400">
-                Siguiente
-              </span>
-            )}
-          </nav>
-        </>
-      ) : (
-        <div className="mt-10 rounded-lg border border-brand-100 bg-white p-10 text-center">
-          <h2 className="text-lg font-semibold text-brand-900">
-            No encontramos publicaciones
-          </h2>
-          <p className="mt-2 text-sm text-brand-600">
-            Probá con otros filtros o sé el primero en publicar en tu zona.
-          </p>
-          <Link
-            href="/publicar"
-            className="mt-6 inline-block rounded-md bg-accent-500 px-6 py-3 text-sm font-semibold text-brand-950 transition-colors hover:bg-accent-400"
-          >
-            Publicar
-          </Link>
+
+          <div className="mt-3">
+            <ChipsFiltros filtros={filtros} categorias={categorias} />
+          </div>
+
+          {resultado.publicaciones.length > 0 ? (
+            <>
+              <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
+                {resultado.publicaciones.map((publicacion, indice) => (
+                  <li key={publicacion.id} className="grid">
+                    <TarjetaPublicacion
+                      publicacion={publicacion}
+                      sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
+                      rating={derivarRatingVendedor(publicacion.owner?.profile)}
+                      disposicion="adaptable"
+                      prioridad={indice < 2}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8">
+                <Paginacion
+                  paginaActual={resultado.pagina}
+                  totalPaginas={resultado.totalPaginas}
+                  hrefPagina={(pagina) => urlListados(filtros, { pagina })}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="mt-6">
+              <EstadoVacio
+                icono={SearchX}
+                titulo="No encontramos publicaciones"
+                descripcion="Probá con otras palabras o sacá algunos filtros. También podés ser el primero en publicar en tu zona."
+                accion={
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <BotonEnlace href="/listados" variante="secundario">
+                      Ver todas las publicaciones
+                    </BotonEnlace>
+                    <BotonEnlace href="/publicar" variante="acento">
+                      Publicar
+                    </BotonEnlace>
+                  </div>
+                }
+              />
+            </div>
+          )}
         </div>
-      )}
-    </main>
+      </div>
+    </Contenedor>
   );
 }

@@ -92,6 +92,8 @@ export function MenuMovil({ usuario, categorias }: MenuMovilProps) {
             <Logo tono="crema" tamanio="sm" />
             <button
               type="button"
+              // Foco inicial en "Cerrar" al abrir: evita resaltar el primer enlace.
+              autoFocus
               onClick={cerrar}
               className="flex size-11 items-center justify-center rounded-control text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
             >
