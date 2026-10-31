@@ -150,6 +150,7 @@ marketplace-campo/
 - Subida de imágenes firmada desde el cliente (presets de carga) para no exponer credenciales.
 - Transformaciones bajo demanda para servir WebP/AVIF y tamaños según contexto (thumbnail, galería, hero).
 - Eliminación de assets huérfanos al borrar o reemplazar imágenes de una publicación.
+- Titularidad: `POST /api/upload` sube cada imagen con public_id `<userId>/<uuid>` (carpeta `don-segundo`). Al crear o editar una publicación, el servidor solo acepta imágenes cuyo public_id lleve el id del usuario y cuya URL sea de Cloudinary y apunte a ese public_id (o imágenes que ya estaban guardadas en esa publicación); si no, responde 400 `IMAGEN_INVALIDA` (`src/lib/imagenes.ts`). Así nadie puede asociar, y después borrar, imágenes ajenas.
 
 ### 4.6 Chat con polling eficiente
 
