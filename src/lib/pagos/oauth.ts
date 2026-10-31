@@ -138,6 +138,87 @@ export async function obtenerEstadoVinculacionMp(
   return cuenta.revocadaAt ? "REVOCADA" : "VINCULADA";
 }
 
+/**
+ * Margen de renovación (RF-48): un token de vendedor que vence dentro de este
+ * plazo se renueva antes de usarlo. MP emite tokens de 180 días; el cron de
+ * pagos renueva con `DIAS_RENOVACION_CRON` a los vendedores sin actividad.
+ */
+export const DIAS_RENOVACION_AL_USAR = 7;
+export const DIAS_RENOVACION_CRON = 30;
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/** True si el token vence dentro de `dias` (o ya venció). Sin fecha: no vence. */
+export function tokenVencePronto(
+  cuenta: Pick<VendedorMpAccount, "accessTokenExpiresAt">,
+  dias: number,
+  ahora = Date.now()
+): boolean {
+  if (!cuenta.accessTokenExpiresAt) return false;
+  return cuenta.accessTokenExpiresAt.getTime() - ahora <= dias * DIA_MS;
+}
+
+/**
+ * Access token vigente del vendedor para operar en su nombre (preferencias,
+ * consulta de pagos y reembolsos, RF-47/RF-48). Si vence pronto lo renueva
+ * antes; si la renovación falla de forma transitoria usa el token actual
+ * mientras no haya vencido. Devuelve null si no hay cuenta vigente.
+ */
+export async function obtenerTokenVendedor(userId: string): Promise<string | null> {
+  const cuenta = await obtenerCuentaMpVigente(userId);
+  if (!cuenta) return null;
+
+  if (!tokenVencePronto(cuenta, DIAS_RENOVACION_AL_USAR)) {
+    return cuenta.accessToken;
+  }
+  try {
+    const { accessToken } = await renovarTokenVendedor(cuenta);
+    return accessToken;
+  } catch (error) {
+    console.error("RENOVACION_TOKEN_MP_FALLIDA", userId, error);
+    return tokenVencePronto(cuenta, 0) ? null : cuenta.accessToken;
+  }
+}
+
+/**
+ * Renueva los tokens de vendedor que vencen dentro de `DIAS_RENOVACION_CRON`
+ * (cron de pagos, RF-48): así un vendedor sin ventas no pierde la vinculación
+ * a los 180 días. Un fallo en una cuenta no corta el lote.
+ */
+export async function renovarTokensPorVencer(ahora = new Date()): Promise<{
+  renovadas: number;
+  fallidas: number;
+}> {
+  const limite = new Date(ahora.getTime() + DIAS_RENOVACION_CRON * DIA_MS);
+  const cuentas = await prisma.vendedorMpAccount.findMany({
+    where: { revocadaAt: null, accessTokenExpiresAt: { lte: limite } },
+  });
+
+  let renovadas = 0;
+  for (const cuenta of cuentas) {
+    try {
+      await renovarTokenVendedor(cuenta);
+      renovadas++;
+    } catch (error) {
+      console.error("RENOVACION_TOKEN_MP_FALLIDA", cuenta.userId, error);
+    }
+  }
+  return { renovadas, fallidas: cuentas.length - renovadas };
+}
+
+/**
+ * True si MP rechazó el refresh por credenciales inválidas (400/401:
+ * refresh_token vencido o revocado). Un error de red o 5xx es transitorio y
+ * no debe anular la vinculación del vendedor.
+ */
+function esRechazoDeCredenciales(error: unknown): boolean {
+  const status =
+    typeof error === "object" && error !== null && "status" in error
+      ? (error as { status?: unknown }).status
+      : undefined;
+  return status === 400 || status === 401;
+}
+
 /** Error domínio de renovación de token (RF-48). */
 export class RenovacionTokenError extends Error {
   constructor(causa?: unknown) {
@@ -147,11 +228,11 @@ export class RenovacionTokenError extends Error {
 }
 
 /**
- * Renueva el access token de un vendedor vía OAuth.refresh (RFC 48): si MP
- * lo rechaza (token denegado/vencido sin refresh posible), la cuenta se
+ * Renueva el access token de un vendedor vía OAuth.refresh (RF-48): si MP
+ * rechaza las credenciales (400/401: refresh vencido o revocado), la cuenta se
  * REVOCA (revocadaAt), los tokens se anulan y se notifica al vendedor que
- * debe re-vincular. Devuelve el access token renovado para reintentar la
- * operación original UNA vez.
+ * debe re-vincular. Un fallo transitorio (red, 5xx) lanza sin revocar.
+ * Devuelve el access token renovado.
  */
 export async function renovarTokenVendedor(
   vendedorMp: VendedorMpAccount
@@ -196,7 +277,9 @@ export async function renovarTokenVendedor(
     return { accessToken: respuesta.access_token };
   } catch (error) {
     if (error instanceof RenovacionTokenError) throw error;
-    await revocarCuenta(vendedorMp, error);
+    if (esRechazoDeCredenciales(error)) {
+      await revocarCuenta(vendedorMp, error);
+    }
     throw new RenovacionTokenError(error);
   }
 }

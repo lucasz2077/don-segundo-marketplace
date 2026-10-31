@@ -57,6 +57,7 @@ import {
   completarVinculacionMp,
   obtenerAutorizacionMpUrl,
   obtenerCuentaMpVigente,
+  obtenerTokenVendedor,
   renovarTokenVendedor,
   stateOAuth,
 } from "@/lib/pagos/oauth";
@@ -246,8 +247,10 @@ describe("renovarTokenVendedor", () => {
     expect(resultado).toEqual({ accessToken: "APP_USR-RENOVADO" });
   });
 
-  it("revoca la cuenta y anula tokens si el refresh falla (RF-48) y notifica al vendedor", async () => {
-    mocks.oauthRefresh.mockRejectedValue(new Error("invalid_grant"));
+  it("revoca la cuenta y anula tokens si MP rechaza el refresh (RF-48) y notifica al vendedor", async () => {
+    mocks.oauthRefresh.mockRejectedValue(
+      Object.assign(new Error("invalid_grant"), { status: 400 })
+    );
     mocks.updateCuenta.mockResolvedValue({ id: "mp-1" });
 
     await expect(renovarTokenVendedor(vendedorMp)).rejects.toThrow(
@@ -273,11 +276,69 @@ describe("renovarTokenVendedor", () => {
     );
   });
 
+  it("no revoca la cuenta ante un fallo transitorio de MP (red o 5xx)", async () => {
+    mocks.oauthRefresh.mockRejectedValue(
+      Object.assign(new Error("Service Unavailable"), { status: 503 })
+    );
+
+    await expect(renovarTokenVendedor(vendedorMp)).rejects.toThrow(
+      "No se pudo renovar el token del vendedor"
+    );
+    expect(mocks.updateCuenta).not.toHaveBeenCalled();
+    expect(mocks.crearNotificacion).not.toHaveBeenCalled();
+  });
+
   it("no intenta renovar si la cuenta ya está revocada", async () => {
     await expect(
       renovarTokenVendedor({ ...vendedorMp, revocadaAt: new Date("2026-08-15T09:00:00Z") })
     ).rejects.toThrow("No se pudo renovar el token del vendedor");
     expect(mocks.oauthRefresh).not.toHaveBeenCalled();
     expect(mocks.crearNotificacion).not.toHaveBeenCalled();
+  });
+});
+describe("obtenerTokenVendedor (RF-48)", () => {
+  const ahora = new Date("2026-08-15T10:00:00Z");
+  const enDias = (dias: number) => new Date(ahora.getTime() + dias * 24 * 60 * 60 * 1000);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("MP_CLIENT_ID", "1234567890");
+    vi.stubEnv("MP_CLIENT_SECRET", "SECRETO-APP");
+    vi.useFakeTimers();
+    vi.setSystemTime(ahora);
+  });
+
+  it("devuelve null si el vendedor no tiene cuenta vigente", async () => {
+    mocks.findFirstCuenta.mockResolvedValue(null);
+    await expect(obtenerTokenVendedor("vendedor-1")).resolves.toBeNull();
+  });
+
+  it("usa el token actual si no vence pronto, sin renovar", async () => {
+    mocks.findFirstCuenta.mockResolvedValue({ ...vendedorMp, accessTokenExpiresAt: enDias(60) });
+
+    await expect(obtenerTokenVendedor("vendedor-1")).resolves.toBe("APP_USR-VIEJO");
+    expect(mocks.oauthRefresh).not.toHaveBeenCalled();
+  });
+
+  it("renueva el token si vence dentro de los próximos días", async () => {
+    mocks.findFirstCuenta.mockResolvedValue({ ...vendedorMp, accessTokenExpiresAt: enDias(3) });
+    mocks.oauthRefresh.mockResolvedValue({ access_token: "APP_USR-RENOVADO", expires_in: 15552000 });
+    mocks.updateCuenta.mockResolvedValue({ id: "mp-1" });
+
+    await expect(obtenerTokenVendedor("vendedor-1")).resolves.toBe("APP_USR-RENOVADO");
+  });
+
+  it("ante un fallo transitorio usa el token actual mientras no haya vencido", async () => {
+    mocks.findFirstCuenta.mockResolvedValue({ ...vendedorMp, accessTokenExpiresAt: enDias(3) });
+    mocks.oauthRefresh.mockRejectedValue(Object.assign(new Error("timeout"), { status: 503 }));
+
+    await expect(obtenerTokenVendedor("vendedor-1")).resolves.toBe("APP_USR-VIEJO");
+  });
+
+  it("devuelve null si el token ya venció y no se pudo renovar", async () => {
+    mocks.findFirstCuenta.mockResolvedValue({ ...vendedorMp, accessTokenExpiresAt: enDias(-1) });
+    mocks.oauthRefresh.mockRejectedValue(Object.assign(new Error("timeout"), { status: 503 }));
+
+    await expect(obtenerTokenVendedor("vendedor-1")).resolves.toBeNull();
   });
 });
