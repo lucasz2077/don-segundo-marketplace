@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center bg-bone px-4">
-      <div className="w-full max-w-md rounded-card border border-linea bg-superficie p-8 shadow-card shadow-sm">
+      <div className="w-full max-w-md rounded-card border border-linea bg-superficie p-8 shadow-card">
         <h1 className="text-xl font-semibold text-tinta sm:text-2xl">Panel</h1>
         <p className="mt-2 text-sm text-brand-600">
           Bienvenido/a,{" "}

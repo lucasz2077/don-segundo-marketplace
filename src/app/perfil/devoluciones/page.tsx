@@ -51,7 +51,7 @@ export default async function DevolucionesPerfilPage() {
             const imagen = solicitud.compra.listing.images[0];
             return (
               <li key={solicitud.id}>
-                <article className="rounded-card border border-brand-100 bg-white p-4 shadow-sm">
+                <article className="rounded-card border border-linea bg-superficie p-4 shadow-card">
                   <div className="flex flex-col gap-4 sm:flex-row">
                     {imagen ? (
                       <Image
@@ -97,7 +97,7 @@ export default async function DevolucionesPerfilPage() {
 
                       {solicitud.estado === "RECHAZADA" &&
                       solicitud.motivoRechazo ? (
-                        <p className="mt-2 rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+                        <p className="mt-2 rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
                           Motivo del rechazo: {solicitud.motivoRechazo}
                         </p>
                       ) : null}

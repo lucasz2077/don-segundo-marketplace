@@ -132,6 +132,8 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-4">
         <aside aria-label="Filtros" className="hidden lg:block">
           <Tarjeta relleno="sm" className="sticky top-4">
+            {/* h2 oculto: los grupos del panel son h3 (h1 → h2 → h3). */}
+            <h2 className="sr-only">Filtros</h2>
             <p className="mb-4 text-sm text-tinta-tenue">{textoTotal}</p>
             {panel("sidebar")}
           </Tarjeta>
@@ -161,6 +163,8 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
 
           {resultado.publicaciones.length > 0 ? (
             <>
+              {/* Mantiene la jerarquía h1 → h2 → h3 (títulos de tarjeta). */}
+              <h2 className="sr-only">Resultados</h2>
               <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {resultado.publicaciones.map((publicacion, indice) => (
                   <li key={publicacion.id} className="grid">
@@ -169,7 +173,7 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
                       sellerVerified={publicacion.owner?.profile?.sellerVerified ?? null}
                       rating={derivarRatingVendedor(publicacion.owner?.profile)}
                       disposicion="adaptable"
-                      prioridad={indice < 2}
+                      prioridad={indice < 3}
                     />
                   </li>
                 ))}

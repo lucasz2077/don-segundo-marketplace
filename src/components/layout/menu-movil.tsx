@@ -19,7 +19,7 @@ import type { CategoriaNavegacion } from "./tipos";
 import { useCerrarSesion } from "./use-cerrar-sesion";
 
 const claseEnlace =
-  "flex min-h-11 items-center gap-3 rounded-control px-3 text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none";
+  "flex min-h-11 items-center gap-3 rounded-control px-3 text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500";
 
 function Seccion({ titulo, enlaces }: { titulo: string; enlaces: EnlaceNavegacion[] }) {
   return (

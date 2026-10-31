@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Alegreya, Geist, Geist_Mono } from "next/font/google";
+import { Alegreya, Geist } from "next/font/google";
 import { Navbar } from "@/components/layout/navbar";
 import { PieDePagina } from "@/components/layout/pie-pagina";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -30,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} ${alegreya.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${alegreya.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-fondo font-sans text-tinta">
         <a

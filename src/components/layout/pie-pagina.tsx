@@ -44,10 +44,13 @@ function ColumnaEnlaces({
   return (
     <div>
       <h2 className="text-sm font-semibold text-white">{titulo}</h2>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-2">
         {enlaces.map(({ href, etiqueta }) => (
           <li key={href}>
-            <Link href={href} className="text-sm text-brand-200 hover:text-white hover:underline">
+            <Link
+              href={href}
+              className="inline-flex min-h-9 items-center text-sm text-brand-200 hover:text-white hover:underline"
+            >
               {etiqueta}
             </Link>
           </li>

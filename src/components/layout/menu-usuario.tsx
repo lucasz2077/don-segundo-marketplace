@@ -41,7 +41,7 @@ function GrupoEnlaces({
             <Link
               href={href}
               onClick={alElegir}
-              className="flex items-center gap-3 px-4 py-2 text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none"
+              className="flex items-center gap-3 px-4 py-2 text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
             >
               <Icono className="size-4 text-tinta-tenue" aria-hidden="true" />
               {etiqueta}
@@ -108,7 +108,7 @@ export function MenuUsuario({ usuario }: { usuario: UsuarioHeader }) {
                 type="button"
                 onClick={cerrarSesion}
                 disabled={cerrando}
-                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none disabled:opacity-50"
+                className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-tinta hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 disabled:opacity-50"
               >
                 <LogOut className="size-4 text-tinta-tenue" aria-hidden="true" />
                 {cerrando ? "Cerrando sesión..." : "Cerrar sesión"}

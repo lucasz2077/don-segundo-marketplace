@@ -82,7 +82,9 @@ export function GaleriaImagenes({
         <div
           ref={refCarril}
           onScroll={manejarScroll}
-          className="flex aspect-4/3 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
+          // Enfocable: con el foco, las flechas del teclado recorren las fotos.
+          tabIndex={0}
+          className="flex aspect-4/3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]"
           aria-roledescription="carrusel"
           aria-label={`Fotos de ${titulo}`}
         >

@@ -149,7 +149,32 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
   - Sin jerga técnica a la vista del usuario.
   - Los mensajes de error de las rutas API (`src/app/api`) siguen pendientes de unificar.
 
-## 9. Plan de reconstrucción estética
+## 9. QA y accesibilidad (WCAG 2.1 AA)
+
+Verificación realizada al cerrar la reconstrucción:
+- axe-core sobre 23 rutas (anónimo y con sesión, 390 y 1280 px).
+- Recorrido con Tab, objetivos táctiles, reflow a 320 px y Lighthouse mobile.
+
+Resultado:
+- Lighthouse Accesibilidad 100 en inicio, listado, detalle e ingreso.
+- axe sin violaciones.
+- Sin scroll horizontal a 320 px.
+
+Reglas que surgieron de la auditoría:
+- **Contraste:** `success` (#287045) y `accent-700` (#8a611f) quedaron ajustados para texto AA sobre sus tintes y sobre `fondo`. Texto chico nunca en `accent-500` ni `brand-400/500`.
+- **Foco:**
+  - Todo elemento interactivo muestra un anillo `ring-2 ring-brand-500`. Cambiar solo el fondo no alcanza.
+  - En links estirados (`after:absolute after:inset-0`) el anillo va en el `::after` con `ring-inset`, porque `overflow-hidden` recorta el anillo exterior.
+- **Áreas táctiles:** ≥ 44 px en controles y ≥ 36 px en links de listas (footer, "Ver todas", migas). Los links dentro de párrafos quedan exentos.
+- **Títulos:** h1 → h2 → h3 sin saltos. Si la sección no tiene título visible, va un h2 `sr-only` ("Resultados", "Filtros").
+- **Regiones con scroll** (carrusel de fotos): `tabIndex={0}` y foco visible, para recorrerlas con las flechas del teclado.
+- **Redirecciones:** `?redirect=` del ingreso solo acepta rutas internas.
+
+Rendimiento (Lighthouse mobile, Slow 4G simulado, entorno local):
+- Rendimiento 84–95, CLS 0 y TBT 90–190 ms.
+- El LCP (2,9–4,1 s) lo define el título o la primera foto. Se precargan solo las fuentes usadas (Geist y Alegreya); la mono es la del sistema.
+
+## 10. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
@@ -159,7 +184,7 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
 | 4. Conversión | Detalle con breadcrumb, galería táctil, caja de compra (barra fija en mobile), garantías, vendedor, reseñas y similares; perfil público del vendedor | **Completada** |
 | 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | **Completada** |
 | 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, admin, `loading.tsx`, microcopy en voseo y chat agrupado por día | **Completada** |
-| 7. QA visual | Capturas Playwright (mobile/tablet/desktop), accesibilidad (foco, contraste, headings), lint y build | Pendiente |
+| 7. QA visual | Capturas Playwright (mobile/tablet/desktop), accesibilidad (foco, contraste, headings), Lighthouse, lint y build | **Completada** |
 
 Pendientes detectados fuera del alcance visual (requieren autorización de backend, ver `src/AGENTS.md` §12):
 

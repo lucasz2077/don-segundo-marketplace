@@ -106,7 +106,7 @@ function SeccionConversaciones({
                     </div>
                     <Link
                       href={`/mensajes/${conversacion.id}`}
-                      className="block truncate text-xs text-tinta-tenue after:absolute after:inset-0"
+                      className="block truncate text-xs text-tinta-tenue after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand-500"
                     >
                       {conversacion.listingTitulo}
                     </Link>

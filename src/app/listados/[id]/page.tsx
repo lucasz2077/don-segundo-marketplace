@@ -168,7 +168,7 @@ export default async function DetallePublicacionPage({
                 </h1>
                 <Link
                   href={`/categorias/${publicacion.category.slug}`}
-                  className="mt-1 inline-flex items-center gap-0.5 text-sm text-brand-600 hover:underline sm:hidden"
+                  className="mt-1 inline-flex min-h-9 items-center gap-0.5 text-sm text-brand-600 hover:underline sm:hidden"
                 >
                   {publicacion.category.name}
                   <ChevronRight className="size-4" aria-hidden="true" />
@@ -340,7 +340,7 @@ export default async function DetallePublicacionPage({
               </h2>
               <Link
                 href={`/categorias/${publicacion.category.slug}`}
-                className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-brand-600 hover:text-brand-800"
+                className="flex min-h-10 shrink-0 items-center gap-0.5 text-sm font-medium text-brand-600 hover:text-brand-800"
               >
                 Ver más
                 <ChevronRight className="size-4" aria-hidden="true" />

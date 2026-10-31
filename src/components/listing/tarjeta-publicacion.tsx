@@ -61,7 +61,7 @@ export function TarjetaPublicacion({
   return (
     <article
       className={unirClases(
-        "group relative flex overflow-hidden rounded-card border border-linea bg-superficie shadow-card motion-safe:transition-shadow hover:shadow-card-hover has-focus-visible:ring-2 has-focus-visible:ring-brand-500",
+        "group relative flex overflow-hidden rounded-card border border-linea bg-superficie shadow-card motion-safe:transition-shadow hover:shadow-card-hover",
         adaptable ? "flex-row sm:flex-col" : "flex-col",
       )}
     >
@@ -100,7 +100,7 @@ export function TarjetaPublicacion({
         <h3 className="line-clamp-2 text-sm leading-snug text-tinta">
           <Link
             href={`/listados/${publicacion.id}`}
-            className="after:absolute after:inset-0 focus-visible:outline-none"
+            className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand-500"
           >
             {publicacion.title}
           </Link>

@@ -28,7 +28,7 @@ export function Migas({ items }: MigasProps) {
               {item.href && !esUltima ? (
                 <Link
                   href={item.href}
-                  className="max-w-48 truncate text-brand-600 hover:text-brand-800 hover:underline"
+                  className="inline-block max-w-48 truncate py-1.5 text-brand-600 hover:text-brand-800 hover:underline"
                 >
                   {item.etiqueta}
                 </Link>

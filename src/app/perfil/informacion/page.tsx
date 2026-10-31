@@ -49,7 +49,7 @@ export default async function InformacionPage() {
               <p className="mb-1 block text-sm font-medium text-brand-700">
                 Correo electrónico
               </p>
-              <p className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-900">
+              <p className="flex min-h-11 items-center rounded-control border border-linea bg-superficie-alt px-3 text-sm text-tinta">
                 {usuario.email}
               </p>
               <p className="mt-1 text-xs text-brand-600">
@@ -58,7 +58,7 @@ export default async function InformacionPage() {
             </div>
             <div>
               <p className="mb-1 block text-sm font-medium text-brand-700">Rol</p>
-              <p className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-900">
+              <p className="flex min-h-11 items-center rounded-control border border-linea bg-superficie-alt px-3 text-sm text-tinta">
                 {etiquetaRol}
               </p>
             </div>

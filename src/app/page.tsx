@@ -33,7 +33,7 @@ function EncabezadoSeccion({
       <h2 className="text-lg font-semibold text-tinta sm:text-xl">{titulo}</h2>
       <Link
         href={href}
-        className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-brand-600 hover:text-brand-800"
+        className="flex min-h-10 shrink-0 items-center gap-0.5 text-sm font-medium text-brand-600 hover:text-brand-800"
       >
         {etiquetaEnlace}
         <ChevronRight className="size-4" aria-hidden="true" />

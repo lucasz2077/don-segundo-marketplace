@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { obtenerMiPerfil } from "@/lib/perfiles";
 import { FormularioPerfilPublico } from "@/components/perfil/formulario-perfil-publico";
 import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
+import { clasesBoton } from "@/components/ui/boton";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function PerfilPublicoPage() {
           </p>
           <Link
             href={`/vendedores/${session.user.id}`}
-            className="mt-4 inline-block rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+            className={`mt-4 ${clasesBoton({ variante: "secundario" })}`}
           >
             Ver mi perfil
           </Link>

@@ -89,7 +89,7 @@ export default async function PerfilPage() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none sm:px-5"
+                      className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 sm:px-5"
                     >
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                         <Icono className="size-5" aria-hidden="true" />

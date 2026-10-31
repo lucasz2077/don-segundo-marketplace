@@ -11,9 +11,10 @@
 /* Marca Don Segundo — azul acero + blanco/hueso + acento dorado trigo */
 @theme {
   /* Tipografía: Geist para la interfaz, Alegreya para momentos de marca
-     (títulos destacados), en línea con el logotipo serif. */
+     (títulos destacados), en línea con el logotipo serif. La mono usa la
+     del sistema: no se descarga una fuente que no se usa en la interfaz. */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-marca: var(--font-alegreya), ui-serif, Georgia, serif;
 
   /* Azul acero (marca) */
@@ -50,15 +51,15 @@
   --color-sand-900: #2f2922;
   --color-sand-950: #1c1814;
 
-  /* Acento dorado trigo */
+  /* Acento dorado trigo (700 ajustado para texto AA sobre hueso) */
   --color-accent-300: #f0c97e;
   --color-accent-400: #e8b44d;
   --color-accent-500: #d9a13b;
   --color-accent-600: #c08a2e;
-  --color-accent-700: #9d6f24;
+  --color-accent-700: #8a611f;
 
-  /* Semánticos */
-  --color-success: #2f7d4f;
+  /* Semánticos (success ajustado para AA sobre su tinte al 10%) */
+  --color-success: #287045;
   --color-danger: #c0392b;
   --color-warning: #d97706;
   /* Texto de advertencia con contraste AA sobre fondos claros. */
