@@ -30,6 +30,7 @@ function firmaMpValida({
 const mocks = vi.hoisted(() => ({
   paymentGet: vi.fn(),
   configCreado: vi.fn(),
+  paymentCliente: vi.fn(),
 }));
 
 vi.mock("mercadopago", () => ({
@@ -41,7 +42,9 @@ vi.mock("mercadopago", () => ({
     }
   },
   Payment: class {
-    constructor() {}
+    constructor(cliente: unknown) {
+      mocks.paymentCliente(cliente);
+    }
     get(args: unknown) {
       return mocks.paymentGet(args);
     }
@@ -50,6 +53,7 @@ vi.mock("mercadopago", () => ({
 
 vi.mock("@/lib/pagos/mp", () => ({
   clienteMpApp: () => ({ accessToken: "APP_USR-APP" }),
+  clienteMpVendedor: (cuenta: { accessToken: string }) => ({ accessToken: cuenta.accessToken }),
 }));
 
 import { verificarFirmaMp, verificarPago } from "@/lib/pagos/pagos";
@@ -176,6 +180,7 @@ describe("verificarPago", () => {
 
     const pago = await verificarPago("12345678");
 
+    expect(mocks.paymentCliente).toHaveBeenCalledWith({ accessToken: "APP_USR-APP" });
     expect(mocks.paymentGet).toHaveBeenCalledWith({ id: "12345678" });
     expect(pago).toEqual({
       id: 12345678,
@@ -185,6 +190,21 @@ describe("verificarPago", () => {
       currencyId: "ARS",
       paymentMethodId: "visa",
     });
+  });
+
+  it("consulta con el token del VENDEDOR cuando se indica (dueño del pago)", async () => {
+    mocks.paymentGet.mockResolvedValue({
+      id: 12345678,
+      status: "approved",
+      external_reference: "compra-1",
+      transaction_amount: 1500.5,
+      currency_id: "ARS",
+      payment_method_id: "visa",
+    });
+
+    await verificarPago("12345678", "APP_USR-VENDEDOR");
+
+    expect(mocks.paymentCliente).toHaveBeenCalledWith({ accessToken: "APP_USR-VENDEDOR" });
   });
 
   it("convierte transaction_amount a Prisma.Decimal exacto sin float", async () => {

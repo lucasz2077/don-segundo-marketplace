@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
-import { aprobarPagoCompra } from "@/lib/compras";
-import { verificarFirmaMp, verificarPago } from "@/lib/pagos/pagos";
+import { procesarNotificacionPago } from "@/lib/compras";
+import { verificarFirmaMp } from "@/lib/pagos/pagos";
 import { webhookPagoSchema } from "@/lib/validation/pagos";
 
 /**
- * Webhook de notificaciones de pago de Mercado Pago (RF-46, RNF-16..18).
+ * Webhook de notificaciones de pago de Mercado Pago (RF-43..RF-46, RNF-16..18).
  *
  * Reglas:
  * - Ruta PÚBLICA (MP no manda sesión): la confianza viene de la firma
- *   `x-signature`, no de autenticación.
+ *   `x-signature` y de re-consultar el pago en MP, no de autenticación.
  * - Con MP_WEBHOOK_SECRET configurado (producción), se valida la firma
  *   HMAC-SHA256 (ts/v1) vía `verificarFirmaMp` (RNF-16). Sin secret
  *   configurado (dev) se procesa igual, pero nunca se loguea el secret.
- * - Solo se procesan pagos `approved` con `external_reference` (RF-46).
- * - SIEMPRE respondemos 200: si MP recibe 5xx reintenta y eso rompe la
- *   idempotencia de `aprobarPagoCompra`. Los errores internos se loguean
- *   y quedan visibles en el observability del servidor.
+ * - `?compra=<id>` (lo agrega la preferencia) indica con qué token consultar
+ *   el pago; `procesarNotificacionPago` lo re-verifica contra MP.
+ * - Si el procesamiento falla (MP o la base no responden) se responde 500
+ *   para que MP reintente: la aprobación es idempotente (RNF-17), así que un
+ *   reintento nunca duplica efectos. Lo ya procesado o ajeno responde 200.
  */
 export async function POST(req: Request) {
   const secret = process.env.MP_WEBHOOK_SECRET ?? "";
@@ -56,27 +58,17 @@ export async function POST(req: Request) {
     }
   }
 
-  let pago;
-  try {
-    pago = await verificarPago(data.id);
-  } catch (error) {
-    // Error llamando a la API de MP: no es culpa del caller. Mismo
-    // criterio que abajo: 200 y log para que el reintento no duplique.
-    console.error("PAGO_VERIFICACION_FALLIDA", data.id, error);
-    return NextResponse.json({ data: { recibido: true } });
-  }
+  const compraParam = new URL(req.url).searchParams.get("compra");
+  const compraId = z.uuid().safeParse(compraParam).success ? compraParam : null;
 
-  // Solo los pagos aprobados cierran la compra (RF-46). Los demás (pending,
-  // rejected, cancelled...) se ignoran; MP nos volverá a avisar si cambia.
-  if (pago && pago.status === "approved") {
-    try {
-      await aprobarPagoCompra({
-        externalReference: pago.externalReference,
-        pago,
-      });
-    } catch (error) {
-      console.error("APROBAR_PAGO_FALLIDA", pago.externalReference, error);
-    }
+  try {
+    await procesarNotificacionPago({ mpPaymentId: data.id, compraId });
+  } catch (error) {
+    console.error("PAGO_PROCESAMIENTO_FALLIDO", data.id, compraId, error);
+    return NextResponse.json(
+      { error: { code: "ERROR_INTERNO", message: "No se pudo procesar el pago" } },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ data: { recibido: true } });

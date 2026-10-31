@@ -8,6 +8,7 @@ import {
   SolicitudDeOtroVendedorError,
   SolicitudNoEncontradaError,
   SolicitudYaResueltaError,
+  VendedorSinCuentaMpError,
 } from "@/lib/compras";
 import { ReembolsoFallidoError } from "@/lib/pagos/reembolsos";
 
@@ -32,12 +33,11 @@ function respuestaError(
  * (400 CUERPO_INVALIDO si no lo es) y el body es `resolverDevolucionSchema`
  * (`accion` aprobar|rechazar, `motivoRechazo` ≤500 obligatorio al rechazar;
  * 422 VALIDACION si no valida). Errores de dominio tipados: 404
- * SOLICITUD_NO_ENCONTRADA, 403 SIN_PERMISO, 409 YA_RESUELTA, 502
- * PAGO_INDISPONIBLE cuando el refund falla sin que la solicitud llegue a
- * resolverse (compra sin pago en MP; decisión 5.2). Si el refund falla
- * DESPUÉS de resolver la solicitud (tx ya persistida: APROBADA + compra
- * REEMBOLSADO), se responde 200 con una advertencia y el fallo queda logueado
- * (`REEMBOLSO_FALLIDO`) para operación manual. Éxito: 200 { data }.
+ * SOLICITUD_NO_ENCONTRADA, 403 SIN_PERMISO, 409 YA_RESUELTA, 409
+ * MP_NO_VINCULADA si el vendedor no tiene cuenta de MP vigente y 502
+ * PAGO_INDISPONIBLE si el reembolso en MP falla: en ese caso la solicitud
+ * sigue PENDIENTE y el vendedor puede reintentar sin duplicar el refund.
+ * Éxito: 200 { data: { solicitud } }.
  */
 export async function POST(
   _request: NextRequest,
@@ -83,19 +83,6 @@ export async function POST(
       motivoRechazo: parseado.data.motivoRechazo,
     });
 
-    // Decisión 5.2: el refund real en MP falló post-commit (la solicitud ya
-    // quedó resuelta). Se responde 200 con advertencia; el fallo ya fue
-    // logueado como REEMBOLSO_FALLIDO para conciliación manual.
-    if (!resultado.reembolsoExitoso) {
-      return NextResponse.json({
-        data: {
-          solicitud: resultado.solicitud,
-          advertencia:
-            "La solicitud quedó aprobada pero el reembolso en Mercado Pago falló; se registró para revisión.",
-        },
-      });
-    }
-
     return NextResponse.json({ data: { solicitud: resultado.solicitud } });
   } catch (error) {
     if (error instanceof SolicitudNoEncontradaError) {
@@ -107,8 +94,15 @@ export async function POST(
     if (error instanceof SolicitudYaResueltaError) {
       return respuestaError(409, "YA_RESUELTA", error.message);
     }
+    if (error instanceof VendedorSinCuentaMpError) {
+      return respuestaError(409, "MP_NO_VINCULADA", error.message);
+    }
     if (error instanceof ReembolsoFallidoError) {
-      return respuestaError(502, "PAGO_INDISPONIBLE", error.message);
+      return respuestaError(
+        502,
+        "PAGO_INDISPONIBLE",
+        "No se pudo hacer el reembolso en Mercado Pago. La solicitud sigue pendiente: probá de nuevo en unos minutos."
+      );
     }
     console.error("Error al resolver la devolución:", error);
     return respuestaError(

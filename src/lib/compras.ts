@@ -8,12 +8,12 @@ import type {
 import { prisma } from "@/lib/db/prisma";
 import { VENTANA_CALIFICACION_DIAS } from "@/lib/ratings";
 import { calcularFee } from "@/lib/pagos/mp";
-import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
+import { obtenerTokenVendedor } from "@/lib/pagos/oauth";
 import {
   crearPreferenciaPago,
   PreferenciaFallidaError,
 } from "@/lib/pagos/preferencias";
-import type { PagoVerificado } from "@/lib/pagos/pagos";
+import { verificarPago, type PagoVerificado } from "@/lib/pagos/pagos";
 import { reembolsarCompra, ReembolsoFallidoError } from "@/lib/pagos/reembolsos";
 import {
   crearNotificacion,
@@ -357,30 +357,18 @@ export async function solicitarDevolucion({
  *
  * - **rechazar**: la solicitud pasa a RECHAZADA con `motivoRechazo` obligatorio
  *   (el route lo exige con Zod; acá hay un guard defensivo) y `resueltaAt`. La
- *   Compra SIGUE APROBADO (el rechazo no toca el dinero, RF-51) y se notifica
- *   al comprador best-effort (payload devolucion RECHAZADA). Re-solicitar tras
- *   un rechazo está permitido (historial append-only).
- * - **aprobar**: `$transaction` con transición atómica — (1) solicitud
- *   PENDIENTE → APROBADA + `resueltaAt` (count 0 ⇒ carrera → YA_RESUELTA) y
- *   (2) Compra → REEMBOLSADO + `reembolsadoAt` + `motivoReembolso`
- *   DEVOLUCION_VENDEDOR. FUERA de la tx (post-commit): `reembolsarCompra`
- *   con el `mpPaymentId` devuelve el monto COMPLETO pagado (RF-51: el
- *   comprador recibe el 100%; el vendedor absorbe marketplace_fee y costos de
- *   gateway), se persiste `mpRefundId` en la solicitud y se notifica al
- *   comprador best-effort (payload devolucion APROBADA).
- *
- * DECISIÓN DE DISEÑO 5.2 (marcada en el reporte de apply): si el refund real
- * en MP falla DESPUÉS de que la tx movió la compra a REEMBOLSADO, NO se
- * revierte la tx — la compra ya vendió (stock decrementado al aprobar el pago)
- * y un revert solo dejaría estados incoherentes. La resolución queda
- * persistida (solicitud APROBADA + compra REEMBOLSADO) y el fallo se loguea
- * `REEMBOLSO_FALLIDO` con el id de la solicitud para operación manual
- * (conciliación con MP). El route mapea 502 PAGO_INDISPONIBLE SOLO cuando el
- * refund falla sin llegar a resolver la solicitud (compra sin mpPaymentId,
- * prevalidación ANTES de la tx: dato corrupto, la solicitud queda PENDIENTE);
- * si la solicitud ya quedó resuelta, el route responde 200 con advertencia.
- * Devuelve `{ solicitud, reembolsoExitoso }` (para aprobaciones con refund
- * fallido `reembolsoExitoso` es false).
+ *   Compra SIGUE APROBADO (el rechazo no toca el dinero) y se notifica al
+ *   comprador best-effort. Re-solicitar tras un rechazo está permitido.
+ * - **aprobar**: el estado refleja SIEMPRE lo que pasó en Mercado Pago:
+ *   (1) se toma la solicitud con una transición atómica PENDIENTE → APROBADA
+ *   (count 0 ⇒ YA_RESUELTA); (2) se reembolsa el 100% con el token del
+ *   vendedor y una clave de idempotencia por solicitud (RF-51: MP descuenta la
+ *   devolución en proporción al vendedor y a la comisión de la plataforma);
+ *   (3) si el refund falla, la solicitud vuelve a PENDIENTE y se lanza
+ *   `ReembolsoFallidoError` (502): el vendedor reintenta sin duplicar el
+ *   refund; (4) si sale bien, la Compra pasa a REEMBOLSADO y la solicitud
+ *   guarda `mpRefundId` y el monto. Sin cuenta de MP vigente del vendedor se
+ *   lanza `VendedorSinCuentaMpError` sin tocar nada.
  */
 export async function resolverDevolucion({
   vendedorId,
@@ -405,6 +393,7 @@ export async function resolverDevolucion({
         select: {
           id: true,
           mpPaymentId: true,
+          precioUnitario: true,
           listing: { select: { id: true, ownerId: true, title: true } },
           comprador: { select: { name: true } },
         },
@@ -449,32 +438,65 @@ export async function resolverDevolucion({
       // La notificación es complementaria: se ignora el error silenciosamente.
     }
 
-    return { solicitud: actualizada, reembolsoExitoso: true };
+    return { solicitud: actualizada };
   }
 
   // aprobar
-  // Prevalidación del refund ANTES de la tx (decisión 5.2): sin mpPaymentId
-  // el reembolso es imposible (dato corrupto: toda compra APROBADO tiene pago
-  // de MP). Fallar acá deja la solicitud PENDIENTE sin tocar → el route mapea
-  // 502 PAGO_INDISPONIBLE.
-  if (!solicitud.compra.mpPaymentId) {
+  // Sin mpPaymentId el reembolso es imposible (dato corrupto: toda compra
+  // APROBADO tiene pago de MP): se falla sin tocar la solicitud.
+  const mpPaymentId = solicitud.compra.mpPaymentId;
+  if (!mpPaymentId) {
     throw new ReembolsoFallidoError(
       new Error("La compra no tiene pago en Mercado Pago para reembolsar")
     );
   }
 
-  const resuelta = await prisma.$transaction(async (tx) => {
-    // Transición atómica PENDIENTE → APROBADA (patrón updateMany de la casa):
-    // count 0 ⇒ otra resolución ganó la carrera ⇒ YA_RESUELTA idempotente.
-    const aprobacion = await tx.solicitudDevolucion.updateMany({
-      where: { id: solicitudId, estado: "PENDIENTE" },
-      data: { estado: "APROBADA", resueltaAt: new Date() },
-    });
-    if (aprobacion.count === 0) {
-      throw new SolicitudYaResueltaError();
-    }
+  // El pago es del vendedor (collector): el refund se hace con su token.
+  const accessTokenVendedor = await obtenerTokenVendedor(vendedorId);
+  if (!accessTokenVendedor) {
+    throw new VendedorSinCuentaMpError();
+  }
 
-    // RF-51: la Compra pasa a REEMBOLSADO (el dinero vuelve al comprador).
+  // (1) Toma atómica: count 0 ⇒ otra resolución ganó la carrera.
+  const toma = await prisma.solicitudDevolucion.updateMany({
+    where: { id: solicitudId, estado: "PENDIENTE" },
+    data: { estado: "APROBADA", resueltaAt: new Date() },
+  });
+  if (toma.count === 0) {
+    throw new SolicitudYaResueltaError();
+  }
+
+  // (2) Refund en MP con clave estable: reintentar no duplica el reembolso.
+  let mpRefundId: string;
+  try {
+    const resultado = await reembolsarCompra({
+      compra: { id: solicitud.compraId, mpPaymentId },
+      accessTokenVendedor,
+      idempotencia: `devolucion-${solicitudId}`,
+    });
+    mpRefundId = String(resultado.mpRefundId);
+  } catch (error) {
+    // (3) El dinero no se movió: la solicitud vuelve a PENDIENTE.
+    console.error("REEMBOLSO_FALLIDO", {
+      solicitudId,
+      compraId: solicitud.compraId,
+      error,
+    });
+    await prisma.solicitudDevolucion.updateMany({
+      where: { id: solicitudId, estado: "APROBADA", mpRefundId: null },
+      data: { estado: "PENDIENTE", resueltaAt: null },
+    });
+    throw error instanceof ReembolsoFallidoError
+      ? error
+      : new ReembolsoFallidoError(error);
+  }
+
+  // (4) Refund confirmado: la compra queda REEMBOLSADO.
+  await prisma.$transaction(async (tx) => {
+    await tx.solicitudDevolucion.update({
+      where: { id: solicitudId },
+      data: { mpRefundId, montoReembolsado: solicitud.compra.precioUnitario },
+    });
     await tx.compra.update({
       where: { id: solicitud.compraId },
       data: {
@@ -483,40 +505,14 @@ export async function resolverDevolucion({
         motivoReembolso: "DEVOLUCION_VENDEDOR",
       },
     });
-
-    return { id: solicitudId, estado: "APROBADA" };
   });
-
-  // Post-commit, best-effort: el refund real en MP nunca revierte la tx.
-  let reembolsoExitoso = true;
-  try {
-    const { mpRefundId } = await reembolsarCompra({
-      compra: {
-        id: solicitud.compraId,
-        mpPaymentId: solicitud.compra.mpPaymentId,
-      },
-    });
-    await prisma.solicitudDevolucion.update({
-      where: { id: solicitudId },
-      data: { mpRefundId: String(mpRefundId) },
-    });
-  } catch (error) {
-    // DECISIÓN 5.2: la tx ya quedó persistida; NO se revierte. Se loguea el
-    // fallo con el id de la solicitud para operación manual (conciliación).
-    reembolsoExitoso = false;
-    console.error("REEMBOLSO_FALLIDO", {
-      solicitudId,
-      compraId: solicitud.compraId,
-      error,
-    });
-  }
 
   try {
     await crearNotificacion(
       solicitud.compradorId,
       solicitud.compra.listing.id,
       "Solicitud de devolución aprobada",
-      `Tu solicitud de devolución de "${solicitud.compra.listing.title}" fue aprobada y tu pago será reembolsado.`,
+      `Tu solicitud de devolución de "${solicitud.compra.listing.title}" fue aprobada y el pago fue reembolsado.`,
       "GENERAL",
       { evento: "devolucion", solicitudId, estado: "APROBADA" }
     );
@@ -524,7 +520,20 @@ export async function resolverDevolucion({
     // La notificación es complementaria: se ignora el error silenciosamente.
   }
 
-  return { solicitud: resuelta, reembolsoExitoso };
+  return { solicitud: { id: solicitudId, estado: "APROBADA" as const } };
+}
+
+/**
+ * Error de dominio: el vendedor no tiene una cuenta de Mercado Pago vigente
+ * para operar el reembolso (RF-48). (409 MP_NO_VINCULADA)
+ */
+export class VendedorSinCuentaMpError extends Error {
+  constructor() {
+    super(
+      "Volvé a vincular tu cuenta de Mercado Pago desde tu perfil para poder hacer el reembolso"
+    );
+    this.name = "VendedorSinCuentaMpError";
+  }
 }
 
 /** Error de dominio: la publicación a comprar/gestionar no existe o fue eliminada. */
@@ -727,10 +736,11 @@ export async function iniciarCompra({
     select: { id: true, estadoPago: true },
   });
 
-  // Cuenta de MP del vendedor: collector del pago (RF-47/RF-48). Sin cuenta
-  // vigente no se puede cobrar: se compensa la orden y se responde 502.
-  const vendedorMp = await obtenerCuentaMpVigente(publicacion.ownerId);
-  if (!vendedorMp) {
+  // Token del vendedor: collector del pago (RF-47/RF-48), renovado si vence
+  // pronto. Sin cuenta vigente no se puede cobrar: se compensa la orden y se
+  // responde 502.
+  const accessTokenVendedor = await obtenerTokenVendedor(publicacion.ownerId);
+  if (!accessTokenVendedor) {
     await prisma.compra
       .delete({ where: { id: compra.id } })
       .catch(() => undefined);
@@ -749,8 +759,9 @@ export async function iniciarCompra({
         cantidad: 1,
         fechaVencimiento,
         marketplaceFee,
+        titulo: publicacion.title,
       },
-      vendedorMp: { accessToken: vendedorMp.accessToken },
+      vendedorMp: { accessToken: accessTokenVendedor },
     });
     return {
       compra: { id: compra.id, estadoPago: compra.estadoPago },
@@ -777,8 +788,10 @@ export async function iniciarCompra({
  *        ya procesada ⇒ no-op idempotente; EXPIRADA se procesa igual porque
  *        un pago real nunca se pierde, D5);
  *    (b) updateMany Listing { ACTIVE, deletedAt null, stock > 0 } →
- *        stock −1 / soldCount +1; count 0 ⇒ carrera SIN_STOCK → reembolso
- *        automático D4; count 1 ⇒ stock 0 → SOLD en la misma tx.
+ *        stock −1 / soldCount +1; count 0 ⇒ carrera SIN_STOCK: la Compra
+ *        pasa a REEMBOLSO_PENDIENTE en la misma tx y se reembolsa post-commit
+ *        (D4; si el refund falla, el cron lo reintenta); count 1 ⇒ stock 0 →
+ *        SOLD en la misma tx.
  * Notificaciones best-effort POST-commit (un fallo nunca revierte la tx):
  * venta paga al vendedor (`pago_aprobado`), y si SOLD, estado vendida +
  * favoritos. Devuelve un resumen del resultado de la transacción.
@@ -852,6 +865,12 @@ export async function aprobarPagoCompra({
       },
     });
     if (decremento.count === 0) {
+      // D4: el pago real hay que devolverlo. El estado lo deja asentado en la
+      // misma tx para que ningún fallo posterior lo deje como venta aprobada.
+      await tx.compra.update({
+        where: { id: compra.id },
+        data: { estadoPago: "REEMBOLSO_PENDIENTE", motivoReembolso: "SIN_STOCK" },
+      });
       return { aprobada: true, sinStock: true, pasoASold: false };
     }
 
@@ -873,7 +892,7 @@ export async function aprobarPagoCompra({
 
   // Post-commit, best-effort: nunca revierte la aprobación ya persistida.
   if (resultado.aprobada && resultado.sinStock) {
-    await reembolsarPorSinStock({ compra, pago });
+    await reembolsarCompraPendiente(compra.id);
   } else if (resultado.aprobada) {
     await notificarVentaPagada({ compra, pasoASold: resultado.pasoASold });
   }
@@ -886,47 +905,141 @@ export async function aprobarPagoCompra({
 }
 
 /**
- * D4: la carrera por la última unidad se resuelve con reembolso AUTOMÁTICO —
- * el pago ya está `approved` en MP, el dinero hay que devolverlo sí o sí. Se
- * ejecuta post-commit: Payment.refund del monto completo + Compra
- * REEMBOLSADO + motivoReembolso SIN_STOCK + notificación al comprador. Si el
- * refund falla se loguea para conciliación manual (la tx ya quedó persistida).
+ * Reembolsa una Compra en REEMBOLSO_PENDIENTE (D4: pago aprobado sin stock).
+ * Usa el token del vendedor (dueño del pago) y una clave de idempotencia por
+ * compra, así que reintentarlo nunca duplica el refund. Si sale bien, la
+ * Compra pasa a REEMBOLSADO (transición condicionada) y se notifica al
+ * comprador; si falla, queda pendiente para el próximo reintento del cron.
+ * Devuelve true si la compra quedó reembolsada. Nunca lanza.
  */
-async function reembolsarPorSinStock({
-  compra,
-  pago,
-}: {
-  compra: {
-    id: string;
-    compradorId: string;
-    listingId: string;
-  };
-  pago: PagoVerificado;
-}) {
+export async function reembolsarCompraPendiente(compraId: string): Promise<boolean> {
   try {
-    const { mpRefundId } = await reembolsarCompra({
-      compra: { id: compra.id, mpPaymentId: String(pago.id) },
-    });
-
-    await prisma.compra.update({
-      where: { id: compra.id },
-      data: {
-        estadoPago: "REEMBOLSADO",
-        motivoReembolso: "SIN_STOCK",
-        reembolsadoAt: new Date(),
+    const compra = await prisma.compra.findUnique({
+      where: { id: compraId },
+      select: {
+        id: true,
+        compradorId: true,
+        listingId: true,
+        estadoPago: true,
+        mpPaymentId: true,
+        listing: { select: { ownerId: true, title: true } },
       },
     });
+    if (!compra || compra.estadoPago !== "REEMBOLSO_PENDIENTE") {
+      return false;
+    }
 
-    await crearNotificacion(
-      compra.compradorId,
-      compra.listingId,
-      "Compra reembolsada",
-      `Tu pago fue reembolsado porque la publicación se agotó antes de confirmarse (reembolso ${mpRefundId}).`,
-      "GENERAL",
-      null
-    );
+    const accessTokenVendedor = await obtenerTokenVendedor(compra.listing.ownerId);
+    if (!accessTokenVendedor) {
+      console.error("REFUND_SIN_STOCK_SIN_CUENTA_MP", { compraId });
+      return false;
+    }
+
+    await reembolsarCompra({
+      compra: { id: compra.id, mpPaymentId: compra.mpPaymentId },
+      accessTokenVendedor,
+      idempotencia: `sin-stock-${compra.id}`,
+    });
+
+    const actualizacion = await prisma.compra.updateMany({
+      where: { id: compra.id, estadoPago: "REEMBOLSO_PENDIENTE" },
+      data: { estadoPago: "REEMBOLSADO", reembolsadoAt: new Date() },
+    });
+    if (actualizacion.count === 0) {
+      return false;
+    }
+
+    try {
+      await crearNotificacion(
+        compra.compradorId,
+        compra.listingId,
+        "Compra reembolsada",
+        `Te devolvimos el pago de "${compra.listing.title}" porque se agotó antes de confirmarse tu compra.`,
+        "GENERAL",
+        null
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+    return true;
   } catch (error) {
-    console.error("REFUND_SIN_STOCK_FALLIDO", { compraId: compra.id, error });
+    console.error("REFUND_SIN_STOCK_FALLIDO", { compraId, error });
+    return false;
+  }
+}
+
+/** Máximo de reembolsos pendientes que procesa cada corrida del cron. */
+const LOTE_REEMBOLSOS_PENDIENTES = 20;
+
+/**
+ * Reintenta los reembolsos pendientes (cron de pagos). Devuelve cuántas
+ * compras quedaron reembolsadas y cuántas siguen pendientes en este lote.
+ */
+export async function reintentarReembolsosPendientes(): Promise<{
+  reembolsadas: number;
+  pendientes: number;
+}> {
+  const compras = await prisma.compra.findMany({
+    where: { estadoPago: "REEMBOLSO_PENDIENTE" },
+    orderBy: { aprobadoAt: "asc" },
+    take: LOTE_REEMBOLSOS_PENDIENTES,
+    select: { id: true },
+  });
+
+  let reembolsadas = 0;
+  for (const { id } of compras) {
+    if (await reembolsarCompraPendiente(id)) reembolsadas++;
+  }
+  return { reembolsadas, pendientes: compras.length - reembolsadas };
+}
+
+/**
+ * Procesa una notificación de pago de Mercado Pago (RF-43..RF-46, RNF-16).
+ * Si la notificación trae la compra (`notification_url?compra=<id>`), el pago
+ * se consulta con el token del vendedor de esa compra (el pago es suyo) y se
+ * exige que el `external_reference` que devuelve MP coincida: el id de la URL
+ * solo elige el token, nunca se confía en él. Sin compra (preferencias
+ * anteriores) se consulta con el token de la app. Solo un pago `approved`
+ * dispara `aprobarPagoCompra`, que es idempotente: si esta función lanza, el
+ * webhook responde 5xx y MP reintenta sin riesgo de efectos duplicados.
+ */
+export async function procesarNotificacionPago({
+  mpPaymentId,
+  compraId,
+}: {
+  mpPaymentId: string;
+  compraId?: string | null;
+}): Promise<void> {
+  let accessTokenVendedor: string | undefined;
+  if (compraId) {
+    const compra = await prisma.compra.findUnique({
+      where: { id: compraId },
+      select: { listing: { select: { ownerId: true } } },
+    });
+    if (!compra) {
+      console.error("PAGO_COMPRA_INEXISTENTE", { mpPaymentId, compraId });
+      return;
+    }
+    accessTokenVendedor =
+      (await obtenerTokenVendedor(compra.listing.ownerId)) ?? undefined;
+  }
+
+  const pago = await verificarPago(mpPaymentId, accessTokenVendedor);
+  if (!pago) return;
+
+  if (compraId && pago.externalReference !== compraId) {
+    console.error("PAGO_REFERENCIA_INCONSISTENTE", {
+      mpPaymentId,
+      compraId,
+      externalReference: pago.externalReference,
+    });
+    return;
+  }
+
+  // Solo los pagos aprobados cierran la compra (RF-46). Los demás (pending,
+  // rejected, cancelled...) se ignoran; MP vuelve a avisar si cambian.
+  if (pago.status === "approved") {
+    await aprobarPagoCompra({ externalReference: pago.externalReference, pago });
   }
 }
 

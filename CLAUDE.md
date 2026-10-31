@@ -41,7 +41,7 @@ npx vitest run src/lib/compras.test.ts   # un archivo puntual
 
 **Advertencia de tests:** hoy no existe `vitest.config.ts` (tsconfig lo excluye pero nunca se commiteó) ni script `test` en `package.json`. Sin esa config falla el alias `@/` y no hay entorno jsdom, así que la mayoría de los tests no corre. El CI (`.github/workflows/ci.yml`) solo corre `prisma validate`, lint y build: no corre tests ni typecheck aparte.
 
-Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`; opcional `DIRECT_URL`).
+Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`).
 
 ## Estructura
 
@@ -78,4 +78,4 @@ La lógica vive en `src/lib/*.ts` (no en `src/lib/services/`, que está vacío p
 
 ## Flujo de pagos (resumen)
 
-`POST /api/listings/[id]/comprar` crea `Compra` PENDIENTE (TTL 30 min) y una preferencia con el token del **vendedor** → redirect a `init_point` → MP llama `POST /api/pagos/webhook` → se verifica firma (`MP_WEBHOOK_SECRET`) y el pago con `Payment.get` → `aprobarPagoCompra` decrementa stock y marca APROBADO en una transacción; si no hay stock, reembolso automático. Devoluciones: comprador solicita (7 días desde `aprobadoAt`), vendedor resuelve en `/perfil/devoluciones`. Publicar exige cuenta MP vinculada (OAuth, `VendedorMpAccount`). Detalle en `docs/architecture.md` §6.2.
+`POST /api/listings/[id]/comprar` crea `Compra` PENDIENTE (TTL 30 min) y una preferencia con el token del **vendedor** → redirect a `init_point` → MP llama `POST /api/pagos/webhook?compra=<id>` → se verifica firma (`MP_WEBHOOK_SECRET`) y el pago con `Payment.get` usando el token del **vendedor** (dueño del pago) → `aprobarPagoCompra` decrementa stock y marca APROBADO en una transacción; si no hay stock, la compra pasa a `REEMBOLSO_PENDIENTE` y se reembolsa (el cron diario `/api/cron/pagos` reintenta). Todo lo que se hace en nombre del vendedor usa `obtenerTokenVendedor` (renueva el token si vence pronto); los reembolsos llevan clave de idempotencia y el estado solo cambia con el refund confirmado. Devoluciones: comprador solicita (7 días desde `aprobadoAt`), vendedor resuelve en `/perfil/devoluciones`. Publicar exige cuenta MP vinculada (OAuth, `VendedorMpAccount`). Detalle en `docs/architecture.md` §6.2.

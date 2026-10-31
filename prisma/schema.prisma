@@ -36,6 +36,9 @@ enum CompraEstadoPago {
   PENDIENTE
   APROBADO
   FALLIDO
+  /// Pago aprobado que hay que devolver (p. ej. sin stock) y cuyo reembolso en
+  /// Mercado Pago todavía no se confirmó; el cron de pagos lo reintenta.
+  REEMBOLSO_PENDIENTE
   REEMBOLSADO
   EXPIRADA
 }

@@ -22,17 +22,12 @@ vi.mock("mercadopago", () => ({
   },
 }));
 
-vi.mock("@/lib/pagos/mp", async (importActual) => {
-  const real = await importActual<typeof import("@/lib/pagos/mp")>();
-  return {
-    // aCentavos es una función pura sin SDK: se usa la implementación real.
-    aCentavos: real.aCentavos,
-    clienteMpVendedor: (vendedorMp: { accessToken: string }) => {
-      mocks.configCreado(vendedorMp.accessToken);
-      return { accessToken: vendedorMp.accessToken };
-    },
-  };
-});
+vi.mock("@/lib/pagos/mp", () => ({
+  clienteMpVendedor: (vendedorMp: { accessToken: string }) => {
+    mocks.configCreado(vendedorMp.accessToken);
+    return { accessToken: vendedorMp.accessToken };
+  },
+}));
 
 import {
   crearPreferenciaPago,
@@ -69,6 +64,7 @@ const compra = {
   reembolsadoAt: null,
   motivoReembolso: null,
   createdAt: new Date("2026-08-15T12:00:00Z"),
+  titulo: "Tractor John Deere 5090E",
 };
 
 describe("crearPreferenciaPago", () => {
@@ -101,9 +97,9 @@ describe("crearPreferenciaPago", () => {
         items: [
           {
             id: "lista-1",
-            title: "compra-1",
+            title: "Tractor John Deere 5090E", // el comprador ve la publicación
             quantity: 1,
-            unit_price: 150050, // aCentavos(1500.50): entero de centavos, sin float
+            unit_price: 1500.5, // Checkout Pro espera la moneda (ARS), no centavos (A5)
             currency_id: "ARS",
           },
         ],
@@ -113,11 +109,11 @@ describe("crearPreferenciaPago", () => {
           failure: "https://campo.example.com/pagos/resultado?compra=compra-1&estado=failure",
           pending: "https://campo.example.com/pagos/resultado?compra=compra-1&estado=pending",
         },
-        marketplace_fee: 7503, // aCentavos(75.03)
+        marketplace_fee: 75.03,
         auto_return: "approved",
         expires: true,
         date_of_expiration: new Date("2026-08-15T12:30:00Z").toISOString(),
-        notification_url: "https://campo.example.com/api/pagos/webhook",
+        notification_url: "https://campo.example.com/api/pagos/webhook?compra=compra-1",
       },
     });
   });

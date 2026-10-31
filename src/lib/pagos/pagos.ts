@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Payment } from "mercadopago";
 import { Prisma } from "@/generated/prisma/client";
-import { clienteMpApp } from "@/lib/pagos/mp";
+import { clienteMpApp, clienteMpVendedor } from "@/lib/pagos/mp";
 
 /** Pago verificado server-side contra la API de MP (RNF-16). */
 export type PagoVerificado = {
@@ -14,15 +14,21 @@ export type PagoVerificado = {
 };
 
 /**
- * Confirma un pago en Mercado Pago (Payment.get) con el token de la APP —
- * nunca se confía en el body del webhook (solo aporta `data.id`, RNF-16).
- * Devuelve null si el pago no tiene `external_reference` (no relacionado con
- * una compra de la plataforma); lanza si MP falla.
+ * Confirma un pago en Mercado Pago (Payment.get) — nunca se confía en el body
+ * del webhook (solo aporta `data.id`, RNF-16). El pago pertenece al VENDEDOR
+ * (collector de la preferencia), así que se consulta con su token; sin token
+ * se usa el de la APP (notificaciones sin compra asociada). Devuelve null si
+ * el pago no tiene `external_reference` (no relacionado con una compra de la
+ * plataforma); lanza si MP falla.
  */
 export async function verificarPago(
-  mpPaymentId: string | number
+  mpPaymentId: string | number,
+  accessTokenVendedor?: string
 ): Promise<PagoVerificado | null> {
-  const payment = new Payment(clienteMpApp());
+  const cliente = accessTokenVendedor
+    ? clienteMpVendedor({ accessToken: accessTokenVendedor })
+    : clienteMpApp();
+  const payment = new Payment(cliente);
   const pago = await payment.get({ id: mpPaymentId });
 
   if (!pago.external_reference) return null;

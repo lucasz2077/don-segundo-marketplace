@@ -18,7 +18,12 @@ export type CompraParaPreferencia = Pick<
 > & {
   // D6: el fee se persiste SIEMPRE en Compra (precio de negocio), nunca null.
   marketplaceFee: Prisma.Decimal;
+  /** Título de la publicación: es lo que el comprador ve en el checkout de MP. */
+  titulo: string;
 };
+
+/** Largo máximo del título de un ítem en Checkout Pro. */
+const MAX_TITULO_ITEM = 256;
 
 /** URL base de back_urls/notification_url (RF-39/D7). */
 function appUrl(): string {
@@ -53,7 +58,7 @@ export async function crearPreferenciaPago({
         items: [
           {
             id: compra.listingId,
-            title: compra.id,
+            title: compra.titulo.slice(0, MAX_TITULO_ITEM),
             quantity: compra.cantidad,
             unit_price: compra.precioUnitario.toNumber(),
             currency_id: compra.currency,
@@ -69,7 +74,10 @@ export async function crearPreferenciaPago({
         auto_return: autoReturn,
         expires: true,
         date_of_expiration: compra.fechaVencimiento?.toISOString(),
-        notification_url: `${base}/api/pagos/webhook`,
+        // `compra` permite al webhook consultar el pago con el token del
+        // vendedor (dueño del pago); el id se re-verifica contra el
+        // external_reference que devuelve MP, nunca se confía en él solo.
+        notification_url: `${base}/api/pagos/webhook?compra=${compra.id}`,
       },
     });
 

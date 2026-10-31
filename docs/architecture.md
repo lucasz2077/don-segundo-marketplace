@@ -250,7 +250,8 @@ Comprador → POST /api/listings/[id]/comprar (sesión obligatoria)
       Preference.create con token del VENDEDOR, external_reference = compra.id,
       back_urls success/failure/pending → APP_URL/pagos/resultado, marketplace_fee 5%,
       auto_return approved, expires + date_of_expiration = fechaVencimiento,
-      notification_url = APP_URL/api/pagos/webhook
+      items[0].title = título de la publicación,
+      notification_url = APP_URL/api/pagos/webhook?compra=<compra.id>
   → si la preferencia falla: delete compensatorio de la Compra y 502 PAGO_INDISPONIBLE
   → { data: { compra: { id, estadoPago }, initPoint } } → redirect a init_point
     (checkout fuera de plataforma; el server NO ve tarjetas — RF-40)
@@ -258,20 +259,28 @@ Comprador → POST /api/listings/[id]/comprar (sesión obligatoria)
 MP → POST /api/pagos/webhook (pública, body { data: { id }, type: "payment" })
   → verificarFirmaMp: si MP_WEBHOOK_SECRET configurado, exige x-signature (HMAC-SHA256)
     → sin firma/secreto → 401/403 sin efecto (RNF-16)
-  → verificarPago(id) server-side (Payment.get con MP_ACCESS_TOKEN — nunca body crudo)
-  → si status ≠ approved → no-op; SIEMPRE 200 { data: { recibido: true } }
+  → procesarNotificacionPago(id, compra) en src/lib/compras.ts:
+      con ?compra: Payment.get con el token del VENDEDOR de esa compra (el pago es suyo)
+        y external_reference debe ser esa compra (si no → log, no-op)
+      sin ?compra (preferencias viejas): Payment.get con MP_ACCESS_TOKEN — nunca body crudo
+  → si status ≠ approved → no-op, 200 { data: { recibido: true } }
+  → si MP o la base fallan → 500 para que MP reintente (idempotente, RNF-17)
   → RF-46: monto/moneda ≠ Compra → log PAGO_INCONSISTENTE, no-op
   → aprobarPagoCompra() en $transaction (RNF-18, patrón updateMany condicionado):
       1. updateMany Compra PENDIENTE → APROBADO (count 0 ⇒ no-op idempotente RNF-17)
       2. updateMany Listing { ACTIVE, deletedAt null, stock > 0 } → decrement 1 + soldCount
          ├─ count 1 → Compra { mpPaymentId, aprobadoAt, medioPago } + SOLD si stock = 0
-         └─ count 0 → carrera SIN_STOCK → refund automático + REEMBOLSADO SIN_STOCK (D4)
+         └─ count 0 → carrera SIN_STOCK → Compra REEMBOLSO_PENDIENTE SIN_STOCK en la tx;
+            post-commit refund (token del vendedor, idempotencia sin-stock-<compra>) →
+            REEMBOLSADO; si falla, el cron diario lo reintenta (D4)
   → post-commit best-effort: notifica venta paga al vendedor (nunca revierte — RF-45)
 ```
 
-Devoluciones (RF-49..RF-51): comprador solicita en `/compras` (ventana 7 días desde `aprobadoAt`, solo APROBADA → 410 `VENTANA_EXPIRADA`); vendedor aprueba/rechaza en `/perfil/devoluciones`; al aprobar, `$transaction` SolicitudDevolucion APROBADA + Compra REEMBOLSADO, y post-commit `Payment.refund` del monto COMPLETO (RF-51: comprador recibe 100%, el vendedor absorbe `marketplace_fee` y costos del gateway; un fallo post-tx NO revierte, log `REEMBOLSO_FALLIDO`).
+Devoluciones (RF-49..RF-51): comprador solicita en `/compras` (ventana 7 días desde `aprobadoAt`, solo APROBADA → 410 `VENTANA_EXPIRADA`); vendedor aprueba/rechaza en `/perfil/devoluciones`; al aprobar: toma atómica PENDIENTE → APROBADA, refund TOTAL con el token del vendedor e idempotencia `devolucion-<solicitud>`, y recién con el refund confirmado `$transaction` Compra REEMBOLSADO + `mpRefundId`/`montoReembolsado`. Si el refund falla la solicitud vuelve a PENDIENTE (502, log `REEMBOLSO_FALLIDO`) y el vendedor reintenta sin duplicar. RF-51: el comprador recibe el 100% y MP descuenta en proporción al vendedor y al `marketplace_fee` de Don Segundo.
 
-OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar` → redirect a `auth.mercadopago.com.ar` con `state` CSRF de la sesión → `GET /api/pagos/oauth/callback` valida `state` y persiste `VendedorMpAccount` (tokens SOLO server-side, RNF-20). `crearPublicacion`/`actualizarPublicacion` exigen cuenta MP vigente (403 `MP_NO_VINCULADA`). El SDK `mercadopago` se importa únicamente en `src/lib/pagos/` (se mockea el wrapper en tests).
+Cron diario de pagos (`vercel.json` → `GET /api/cron/pagos`, `Authorization: Bearer $CRON_SECRET`): renueva los tokens de vendedor que vencen en menos de 30 días, reintenta los reembolsos `REEMBOLSO_PENDIENTE` y expira las órdenes PENDIENTES vencidas. Cada tarea es independiente.
+
+OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar` → redirect a `auth.mercadopago.com.ar` con `state` CSRF de la sesión → `GET /api/pagos/oauth/callback` valida `state` y persiste `VendedorMpAccount` (tokens SOLO server-side, RNF-20). `crearPublicacion`/`actualizarPublicacion` exigen cuenta MP vigente (403 `MP_NO_VINCULADA`). Para operar en nombre del vendedor (preferencia, consulta de pago, reembolso) se usa `obtenerTokenVendedor`, que renueva el token si vence en menos de 7 días. El SDK `mercadopago` se importa únicamente en `src/lib/pagos/` (se mockea el wrapper en tests).
 
 ## 7. Seguridad
 
