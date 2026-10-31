@@ -18,17 +18,26 @@ export function generarIdPublicoImagen(userId: string): string {
 }
 
 /**
- * Devuelve true si la imagen fue subida por el usuario: el segmento anterior
- * al nombre del archivo en el `publicId` es su id (Cloudinary puede anteponer
- * la carpeta de la marca), y la URL es de Cloudinary por https y apunta a ese
- * mismo `publicId` (y a la cuenta configurada, si se conoce).
+ * Devuelve true si el `publicId` fue generado para el usuario: el segmento
+ * anterior al nombre del archivo es su id (Cloudinary puede anteponer la
+ * carpeta). Sirve tanto para imágenes de publicaciones como para documentos
+ * de verificación.
+ */
+export function idPublicoEsDeUsuario(publicId: string, userId: string): boolean {
+  const segmentos = publicId.split("/");
+  return segmentos.length >= 2 && segmentos[segmentos.length - 2] === userId;
+}
+
+/**
+ * Devuelve true si la imagen fue subida por el usuario (`idPublicoEsDeUsuario`)
+ * y la URL es de Cloudinary por https y apunta a ese mismo `publicId` (y a la
+ * cuenta configurada, si se conoce).
  */
 export function imagenPerteneceAUsuario(
   imagen: { url: string; publicId: string },
   userId: string
 ): boolean {
-  const segmentos = imagen.publicId.split("/");
-  if (segmentos.length < 2 || segmentos[segmentos.length - 2] !== userId) {
+  if (!idPublicoEsDeUsuario(imagen.publicId, userId)) {
     return false;
   }
 

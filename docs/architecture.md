@@ -210,8 +210,12 @@ Flujo de verificación de vendedores (Fase 3, Slice 2):
 
 ```
 1. El vendedor (accountType SELLER/BOTH) solicita verificación desde su
-   perfil: adjunta su documentación (identidad obligatoria, domicilio
-   opcional) vía POST /api/verificaciones.
+   perfil: sube cada documento (identidad obligatoria, domicilio opcional)
+   a POST /api/verificaciones/documentos, que lo guarda en Cloudinary como
+   asset PRIVADO (type "authenticated", carpeta don-segundo-verificaciones,
+   public_id <userId>/<uuid>) y devuelve solo el public_id; después envía
+   esos public_id a POST /api/verificaciones (el service valida que sean
+   suyos, 400 DOCUMENTO_INVALIDO).
 2. El servicio valida que no exista una solicitud PENDING activa y crea
    una SolicitudVerificacion nueva; setea Profile.sellerVerified = PENDING.
 3. El admin ve la solicitud en /admin/verificaciones con su documentación
@@ -222,7 +226,12 @@ Flujo de verificación de vendedores (Fase 3, Slice 2):
    aparece en el perfil público y en el detalle de las publicaciones.
    Al rechazar: Profile.sellerVerified = REJECTED y el vendedor puede
    re-solicitar (RF-35). En ambos casos se notifica al vendedor.
-6. Los documentos nunca se exponen fuera del panel admin (RNF-15).
+6. Los documentos nunca se exponen fuera del panel admin (RNF-15): el panel
+   enlaza a GET /api/verificaciones/[id]/documentos/[dni|domicilio], que exige
+   admin (claim + DB), descarga el asset con URL firmada server-side y lo
+   devuelve como JPG con Cache-Control no-store; la URL de Cloudinary nunca
+   llega al navegador. Las solicitudes legadas con URL pública redirigen a
+   ella hasta correr prisma/scripts/privatizar-documentos-verificacion.ts.
 ```
 
 ## 6.1 Autorización de admin

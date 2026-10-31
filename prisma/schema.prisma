@@ -415,8 +415,13 @@ model SolicitudVerificacion {
   id           String                       @id @default(uuid())
   vendedorId   String
   vendedor     User                         @relation("VerificacionesVendedor", fields: [vendedorId], references: [id], onDelete: Cascade)
+  // Legado: URLs públicas de Cloudinary de solicitudes anteriores a RNF-15
+  // estricto. Las nuevas guardan solo el public_id de un asset privado
+  // (type "authenticated") y el admin lo ve vía /api/verificaciones/[id]/documentos/[tipo].
   dniUrl       String?
   domicilioUrl String?
+  dniPublicId       String?
+  domicilioPublicId String?
   estado       SolicitudVerificacionEstado  @default(PENDING)
   motivoRechazo String?
   adminId      String?

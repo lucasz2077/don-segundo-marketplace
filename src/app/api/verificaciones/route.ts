@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { crearSolicitudVerificacionSchema } from "@/lib/validation/verificacion";
 import {
+  DocumentoInvalidoError,
   NoEsVendedorError,
   SolicitudYaPendienteError,
   solicitarVerificacion,
@@ -24,8 +25,10 @@ function respuestaError(
 
 /**
  * POST /api/verificaciones — solicita la verificación del vendedor logueado
- * (RF-32). Requiere sesión, valida el cuerpo con Zod (dniUrl obligatoria,
- * domicilioUrl opcional) y mapea los errores de dominio tipados. El listado
+ * (RF-32). Requiere sesión, valida el cuerpo con Zod (dniPublicId obligatorio,
+ * domicilioPublicId opcional: public_id de documentos privados subidos por
+ * POST /api/verificaciones/documentos, RNF-15) y mapea los errores de dominio
+ * tipados. El listado
  * admin y el estado propio viven en rutas separadas (admin/ y mias/).
  * Éxito: 200 { data: { id, estado } }.
  */
@@ -59,8 +62,8 @@ export async function POST(request: NextRequest) {
   try {
     const solicitud = await solicitarVerificacion({
       vendedorId: session.user.id,
-      dniUrl: parseado.data.dniUrl,
-      domicilioUrl: parseado.data.domicilioUrl,
+      dniPublicId: parseado.data.dniPublicId,
+      domicilioPublicId: parseado.data.domicilioPublicId,
     });
     return NextResponse.json({ data: solicitud });
   } catch (error) {
@@ -69,6 +72,9 @@ export async function POST(request: NextRequest) {
     }
     if (error instanceof NoEsVendedorError) {
       return respuestaError(403, "NO_ES_VENDEDOR", error.message);
+    }
+    if (error instanceof DocumentoInvalidoError) {
+      return respuestaError(400, "DOCUMENTO_INVALIDO", error.message);
     }
     console.error("Error al solicitar la verificación:", error);
     return respuestaError(
