@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 const mocks = vi.hoisted(() => ({
   refundTotal: vi.fn(),
   configCreado: vi.fn(),
+  refundCliente: vi.fn(),
 }));
 
 vi.mock("mercadopago", () => ({
@@ -15,7 +16,9 @@ vi.mock("mercadopago", () => ({
     }
   },
   PaymentRefund: class {
-    constructor() {}
+    constructor(cliente: unknown) {
+      mocks.refundCliente(cliente);
+    }
     total(args: unknown) {
       return mocks.refundTotal(args);
     }
@@ -23,8 +26,7 @@ vi.mock("mercadopago", () => ({
 }));
 
 vi.mock("@/lib/pagos/mp", () => ({
-  clienteMpApp: () => ({ accessToken: "APP_USR-APP" }),
-  aCentavos: (precio: Prisma.Decimal) => precio.mul(100).toNumber(),
+  clienteMpVendedor: (cuenta: { accessToken: string }) => ({ accessToken: cuenta.accessToken }),
 }));
 
 import {
@@ -48,25 +50,45 @@ describe("reembolsarCompra", () => {
   it("reembolsa el monto COMPLETO pagado por el importe de la compra (RF-51)", async () => {
     mocks.refundTotal.mockResolvedValue({ id: 555, payment_id: 98765432, amount: 1500.5 });
 
-    const resultado = await reembolsarCompra({ compra: compraAprobada });
+    const resultado = await reembolsarCompra({
+      compra: compraAprobada,
+      accessTokenVendedor: "APP_USR-VENDEDOR",
+      idempotencia: "devolucion-sol-1",
+    });
 
-    // RF-51/D4: refund total de la operación; el vendedor absorbe el fee.
-    // Al usar total() no se pasa monto: MP devuelve el 100% de lo pagado.
-    expect(mocks.refundTotal).toHaveBeenCalledWith({ payment_id: "98765432" });
+    // RF-51/D4: refund total de la operación. Al usar total() no se pasa
+    // monto: MP devuelve el 100% de lo pagado, descontándolo en proporción al
+    // vendedor y al marketplace_fee de la plataforma. Se ejecuta con el token
+    // del vendedor (dueño del pago) y una clave de idempotencia estable.
+    expect(mocks.refundCliente).toHaveBeenCalledWith({ accessToken: "APP_USR-VENDEDOR" });
+    expect(mocks.refundTotal).toHaveBeenCalledWith({
+      payment_id: "98765432",
+      requestOptions: { idempotencyKey: "devolucion-sol-1" },
+    });
     expect(resultado).toEqual({ mpRefundId: 555 });
   });
 
   it("lanza ReembolsoFallidoError cuando MP rechaza el refund", async () => {
     mocks.refundTotal.mockRejectedValue(new Error("refund no permitido"));
 
-    await expect(reembolsarCompra({ compra: compraAprobada })).rejects.toThrow(
+    await expect(
+      reembolsarCompra({
+        compra: compraAprobada,
+        accessTokenVendedor: "APP_USR-VENDEDOR",
+        idempotencia: "devolucion-sol-1",
+      })
+    ).rejects.toThrow(
       ReembolsoFallidoError
     );
   });
 
   it("lanza ReembolsoFallidoError si la compra no tiene mpPaymentId", async () => {
     await expect(
-      reembolsarCompra({ compra: { ...compraAprobada, mpPaymentId: null } })
+      reembolsarCompra({
+        compra: { ...compraAprobada, mpPaymentId: null },
+        accessTokenVendedor: "APP_USR-VENDEDOR",
+        idempotencia: "devolucion-sol-1",
+      })
     ).rejects.toThrow(ReembolsoFallidoError);
     expect(mocks.refundTotal).not.toHaveBeenCalled();
   });

@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
  * PÚBLICA: es el destino al que MP redirige al comprador tras el pago, así que
  * no exige sesión. Lee el estado REAL de la Compra desde la DB
  * (RNF-16: nunca confía en el `estado` de la query string) y muestra un
- * resumen del resultado: APROBADO/REEMBOLSADO con ticket, PENDIENTE que se
- * confirma por webhook, o FALLIDO con botón a reintentar.
+ * resumen del resultado: APROBADO/REEMBOLSADO con ticket, REEMBOLSO_PENDIENTE
+ * (pago a devolver porque se agotó), PENDIENTE que se confirma por webhook, o
+ * FALLIDO con botón a reintentar.
  */
 export default async function ResultadoPagoPage({
   searchParams,
@@ -94,6 +95,25 @@ export default async function ResultadoPagoPage({
         <Panel
           titulo="Compra reembolsada"
           descripcion={`Tu compra de "${compra.listing.title}" fue reembolsada${compra.motivoReembolso === "SIN_STOCK" ? " porque la publicación se agotó antes de confirmarse" : " por el vendedor"}. El crédito vuelve al medio de pago original.`}
+          cta={
+            <Link
+              href="/compras"
+              className="inline-flex min-h-11 items-center justify-center rounded-control bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            >
+              Ver mis compras
+            </Link>
+          }
+        />
+      </main>
+    );
+  }
+
+  if (estado === "REEMBOLSO_PENDIENTE") {
+    return (
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
+        <Panel
+          titulo="Te vamos a devolver el pago"
+          descripcion={`"${compra.listing.title}" se agotó antes de que se confirmara tu pago. Ya estamos gestionando la devolución con Mercado Pago: el crédito vuelve al medio de pago original.`}
           cta={
             <Link
               href="/compras"

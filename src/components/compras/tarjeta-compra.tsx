@@ -23,6 +23,7 @@ const CLASES_ESTADO_PAGO: Record<CompraEstadoPago, string> = {
   PENDIENTE: "bg-amber-100 text-amber-800",
   APROBADO: "bg-success/15 text-success",
   FALLIDO: "bg-danger/15 text-danger",
+  REEMBOLSO_PENDIENTE: "bg-amber-100 text-amber-800",
   REEMBOLSADO: "bg-brand-50 text-brand-700",
   EXPIRADA: "bg-sand-200 text-sand-700",
 };
@@ -32,6 +33,7 @@ const TEXTO_ESTADO_PAGO: Record<CompraEstadoPago, string> = {
   PENDIENTE: "Pago pendiente",
   APROBADO: "Pago aprobado",
   FALLIDO: "Pago fallido",
+  REEMBOLSO_PENDIENTE: "Reembolso en curso",
   REEMBOLSADO: "Reembolsada",
   EXPIRADA: "Expirada",
 };
@@ -133,7 +135,9 @@ export function TarjetaCompra({
                 Medio de pago: {etiquetaMedioPago(compra.medioPago)}
               </span>
             ) : null}
-            {compra.estadoPago === "REEMBOLSADO" && compra.motivoReembolso ? (
+            {(compra.estadoPago === "REEMBOLSADO" ||
+              compra.estadoPago === "REEMBOLSO_PENDIENTE") &&
+            compra.motivoReembolso ? (
               <span className="text-sm text-brand-600 dark:text-brand-200">
                 {TEXTO_MOTIVO_REEMBOLSO[compra.motivoReembolso]}
               </span>
