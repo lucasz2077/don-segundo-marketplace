@@ -27,11 +27,11 @@ El proyecto se despliega en Vercel. Las migraciones de base de datos se
 aplican con Prisma (no conviene correrlas desde el build).
 
 1. Configurar las variables de entorno en el panel de Vercel (ver `.env.example`):
-   - `DATABASE_URL`: string de conexión a Supabase apuntando a la base de producción, con `sslmode=require`.
+   - `DATABASE_URL`: string de conexión del **Transaction pooler** de Supabase (puerto 6543; en Supabase: Connect → Direct → Transaction pooler). Sin `sslmode`: el TLS lo configura el código. No usar el Session pooler (5432) en Vercel: agota las conexiones y el sitio se cae.
    - `NEXT_PUBLIC_APP_URL`: el dominio público del sitio, p. ej. `https://tudominio.com`.
    - `BETTER_AUTH_SECRET`: secreto aleatorio de 32+ caracteres, estable entre deploys.
    - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`: credenciales de producción.
-2. Aplicar las migraciones a la base de producción antes o como parte del deploy:
+2. Aplicar las migraciones a la base de producción antes o como parte del deploy. Se corren desde una máquina local con `DIRECT_URL` (o `DATABASE_URL`) apuntando al **Session pooler** (puerto 5432), porque las migraciones no funcionan por el Transaction pooler:
    ```bash
    npx prisma migrate deploy
    ```
