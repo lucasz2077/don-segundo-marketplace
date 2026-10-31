@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, CheckCheck, Send } from "lucide-react";
+import { clasesControl } from "@/components/ui/campo";
+import { unirClases } from "@/components/ui/unir-clases";
 
 const INTERVALO_POLLING_MS = 4000;
 const MARGEN_AUTOSCROLL_PX = 80;
@@ -317,12 +320,14 @@ export function ChatConversacion({
   }
 
   return (
-    <div className="mt-6 rounded-lg border border-brand-100 bg-white">
+    <div className="flex flex-col overflow-hidden rounded-card border border-linea bg-superficie shadow-card">
+      {/* Alto relativo al viewport (valor arbitrario): el chat ocupa la
+          pantalla del teléfono y deja el composer siempre a la vista. */}
       <div
         ref={contenedorRef}
         role="log"
         aria-live="polite"
-        className="max-h-96 space-y-4 overflow-y-auto p-4"
+        className="h-[60dvh] min-h-72 space-y-3 overflow-y-auto bg-fondo/60 p-3 sm:p-4"
       >
         {mensajes.length > 0 ? (
           mensajes.map((mensaje) => {
@@ -330,46 +335,37 @@ export function ChatConversacion({
             const leido =
               esPropio &&
               (mensaje.readAt !== null || idsLeidos.has(mensaje.id));
+            const IconoEstado = leido ? CheckCheck : Check;
             return (
               <div
                 key={mensaje.id}
                 className={esPropio ? "flex justify-end" : "flex justify-start"}
               >
                 <div
-                  className={
+                  className={unirClases(
+                    "max-w-[85%] rounded-2xl px-3.5 py-2 shadow-xs sm:max-w-[75%]",
                     esPropio
-                      ? "max-w-[75%] rounded-lg bg-brand-700 px-4 py-2 text-white"
-                      : "max-w-[75%] rounded-lg bg-brand-100 px-4 py-2 text-brand-900"
-                  }
+                      ? "rounded-br-md bg-brand-700 text-white"
+                      : "rounded-bl-md border border-linea bg-superficie text-tinta",
+                    mensaje.enviando && "opacity-70",
+                  )}
                 >
-                  <p className="whitespace-pre-line text-sm">{mensaje.body}</p>
-                  <div
-                    className={
-                      esPropio
-                        ? "mt-1 flex items-center justify-end gap-1"
-                        : "mt-1 text-right"
-                    }
-                  >
+                  <p className="whitespace-pre-line text-sm leading-relaxed">{mensaje.body}</p>
+                  <div className="mt-0.5 flex items-center justify-end gap-1">
                     <span
-                      className={
-                        esPropio
-                          ? "text-[10px] text-brand-100"
-                          : "text-[10px] text-brand-600"
-                      }
+                      className={unirClases(
+                        "text-xs",
+                        esPropio ? "text-brand-100" : "text-tinta-tenue",
+                      )}
                     >
                       {formateadorFecha.format(new Date(mensaje.createdAt))}
                     </span>
                     {esPropio ? (
-                      <span
-                        aria-label={leido ? "Leído" : "Enviado"}
-                        title={leido ? "Leído" : "Enviado"}
-                        className={
-                          leido
-                            ? "text-[10px] font-semibold leading-none text-accent-300"
-                            : "text-[10px] font-semibold leading-none text-brand-100"
-                        }
-                      >
-                        {leido ? "✓✓" : "✓"}
+                      <span role="img" aria-label={leido ? "Leído" : "Enviado"} title={leido ? "Leído" : "Enviado"}>
+                        <IconoEstado
+                          className={unirClases("size-3.5", leido ? "text-accent-300" : "text-brand-100")}
+                          aria-hidden="true"
+                        />
                       </span>
                     ) : null}
                   </div>
@@ -378,18 +374,18 @@ export function ChatConversacion({
             );
           })
         ) : (
-          <p className="py-6 text-center text-sm text-brand-600">
+          <p className="py-10 text-center text-sm text-tinta-tenue">
             Enviá un mensaje para comenzar la conversación.
           </p>
         )}
       </div>
 
       {mensajesNuevos > 0 ? (
-        <div className="flex justify-center px-4 pb-2">
+        <div className="flex justify-center border-t border-linea bg-superficie px-4 py-2">
           <button
             type="button"
             onClick={bajarAlFinal}
-            className="rounded-full border border-brand-200 bg-bone px-3 py-1 text-xs font-medium text-brand-700 shadow-sm transition-colors hover:bg-brand-50"
+            className="rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
           >
             {mensajesNuevos}{" "}
             {mensajesNuevos === 1 ? "mensaje nuevo" : "mensajes nuevos"}
@@ -397,34 +393,34 @@ export function ChatConversacion({
         </div>
       ) : null}
 
-      <form
-        onSubmit={enviarMensaje}
-        className="border-t border-brand-100 p-4"
-      >
-        <label
-          htmlFor={`mensaje-${conversacionId}`}
-          className="block text-sm font-medium text-brand-900"
-        >
+      <form onSubmit={enviarMensaje} className="border-t border-linea bg-superficie p-3 sm:p-4">
+        <label htmlFor={`mensaje-${conversacionId}`} className="sr-only">
           Nuevo mensaje
         </label>
-        <textarea
-          id={`mensaje-${conversacionId}`}
-          value={mensaje}
-          onChange={(evento) => setMensaje(evento.target.value)}
-          rows={3}
-          maxLength={2000}
-          className="mt-2 w-full rounded-md border border-brand-300 bg-white p-3 text-sm text-brand-900 placeholder:text-brand-400"
-        />
-        <div className="mt-3 flex items-center gap-3">
+        <div className="flex items-end gap-2">
+          <textarea
+            id={`mensaje-${conversacionId}`}
+            value={mensaje}
+            onChange={(evento) => setMensaje(evento.target.value)}
+            rows={2}
+            maxLength={2000}
+            placeholder="Escribí un mensaje..."
+            className={unirClases("min-h-11 resize-none", clasesControl(Boolean(error)))}
+          />
           <button
             type="submit"
             disabled={enviando || !mensaje.trim()}
-            className="rounded-md bg-brand-700 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {enviando ? "Enviando..." : "Enviar"}
+            <Send className="size-5" aria-hidden="true" />
+            <span className="sr-only">{enviando ? "Enviando..." : "Enviar"}</span>
           </button>
         </div>
-        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="mt-2 text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
       </form>
     </div>
   );

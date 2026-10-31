@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  Bell,
+  BellOff,
+  Heart,
+  MessageCircle,
+  Package,
+  Tag,
+  type LucideIcon,
+} from "lucide-react";
+import type { NotificationTipo } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth/session";
 import {
   marcarNotificacionesLeidas,
@@ -8,7 +18,22 @@ import {
   type NotificacionPayload,
 } from "@/lib/notificaciones";
 
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
+import { Paginacion } from "@/components/ui/paginacion";
+import { Tarjeta } from "@/components/ui/tarjeta";
+import { unirClases } from "@/components/ui/unir-clases";
+
 export const dynamic = "force-dynamic";
+
+/** Ícono de cada tipo de notificación (RF de notificaciones, Slice 3). */
+const ICONO_POR_TIPO: Record<NotificationTipo, LucideIcon> = {
+  GENERAL: Bell,
+  MENSAJE_NUEVO: MessageCircle,
+  FAVORITO_CAMBIO_PRECIO: Tag,
+  FAVORITO_CAMBIO_ESTADO: Heart,
+  ESTADO_PUBLICACION: Package,
+};
 
 const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
   day: "2-digit",
@@ -52,7 +77,7 @@ function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
     return (
       <Link
         href={`/mensajes/${payloadMensaje.conversationId}`}
-        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
       >
         Ver conversación
       </Link>
@@ -66,7 +91,7 @@ function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
     return (
       <Link
         href={`/listados/${listingId}`}
-        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
       >
         Ver publicación
       </Link>
@@ -78,7 +103,7 @@ function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
     return (
       <Link
         href={`/listados/${notificacion.listingId}`}
-        className="mt-2 inline-block text-sm font-medium text-brand-700 underline hover:text-brand-900"
+        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
       >
         Ver publicación
       </Link>
@@ -108,85 +133,69 @@ export default async function NotificacionesPage({
   await marcarNotificacionesLeidas(session.user.id);
 
   const { notificaciones, totalPaginas, pagina: paginaActual } = resultado;
-  const tieneAnterior = paginaActual > 1;
-  const tieneSiguiente = paginaActual < totalPaginas;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900">Notificaciones</h1>
-      <p className="mt-1 text-sm text-brand-600">
-        Mensajes nuevos y cambios en tus publicaciones y favoritos.
-      </p>
-
+    <PaginaCuenta
+      titulo="Notificaciones"
+      descripcion="Mensajes nuevos y cambios en tus publicaciones y favoritos."
+    >
       {notificaciones.length > 0 ? (
         <>
-          <ul className="mt-6 flex flex-col gap-3">
-            {notificaciones.map((notificacion) => (
-              <li
-                key={notificacion.id}
-                className="rounded-lg border border-brand-100 bg-white p-4"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-brand-900">
-                    {notificacion.title}
-                  </h2>
-                  <time
-                    className="shrink-0 text-xs text-brand-600"
-                    dateTime={notificacion.createdAt.toISOString()}
+          <Tarjeta relleno="ninguno" className="overflow-hidden">
+            <ul className="divide-y divide-linea">
+              {notificaciones.map((notificacion) => {
+                const Icono = ICONO_POR_TIPO[notificacion.tipo] ?? Bell;
+                // Se marcan como leídas al renderizar: readAt nulo indica que
+                // era nueva al abrir la página.
+                const nueva = notificacion.readAt === null;
+                return (
+                  <li
+                    key={notificacion.id}
+                    className={unirClases("flex gap-3 px-4 py-4 sm:px-5", nueva && "bg-accent-300/10")}
                   >
-                    {formateadorFecha.format(notificacion.createdAt)}
-                  </time>
-                </div>
-                <p className="mt-1 text-sm text-brand-600">
-                  {notificacion.body}
-                </p>
-                <EnlaceNotificacion notificacion={notificacion} />
-              </li>
-            ))}
-          </ul>
-
-          {totalPaginas > 1 ? (
-            <nav
-              className="mt-8 flex items-center justify-between"
-              aria-label="Paginación de notificaciones"
-            >
-              {tieneAnterior ? (
-                <Link
-                  href={`/notificaciones?pagina=${paginaActual - 1}`}
-                  className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-                >
-                  Anterior
-                </Link>
-              ) : (
-                <span />
-              )}
-              <span className="text-sm text-brand-600">
-                Página {paginaActual} de {totalPaginas}
-              </span>
-              {tieneSiguiente ? (
-                <Link
-                  href={`/notificaciones?pagina=${paginaActual + 1}`}
-                  className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-                >
-                  Siguiente
-                </Link>
-              ) : (
-                <span />
-              )}
-            </nav>
-          ) : null}
+                    <span className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                      <Icono className="size-5" aria-hidden="true" />
+                      {nueva ? (
+                        <span className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-accent-500 ring-2 ring-superficie">
+                          <span className="sr-only">Nueva</span>
+                        </span>
+                      ) : null}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h2 className="text-sm font-semibold text-tinta">{notificacion.title}</h2>
+                        <time
+                          className="shrink-0 text-xs text-tinta-tenue"
+                          dateTime={notificacion.createdAt.toISOString()}
+                        >
+                          {formateadorFecha.format(notificacion.createdAt)}
+                        </time>
+                      </div>
+                      <p className="mt-0.5 text-sm text-tinta-suave">{notificacion.body}</p>
+                      <EnlaceNotificacion notificacion={notificacion} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Tarjeta>
+          <div className="mt-6">
+            <Paginacion
+              paginaActual={paginaActual}
+              totalPaginas={totalPaginas}
+              hrefPagina={(numero) =>
+                numero === 1 ? "/notificaciones" : `/notificaciones?pagina=${numero}`
+              }
+            />
+          </div>
         </>
       ) : (
-        <div className="mt-10 rounded-lg border border-brand-100 bg-white p-10 text-center">
-          <h2 className="text-lg font-semibold text-brand-900">
-            Todavía no hay notificaciones
-          </h2>
-          <p className="mt-2 text-sm text-brand-600">
-            Cuando recibas un mensaje, cambie el precio de un favorito o
-            cambie el estado de una publicación, vas a recibir el aviso acá.
-          </p>
-        </div>
+        <EstadoVacio
+          icono={BellOff}
+          titulo="Todavía no hay notificaciones"
+          descripcion="Cuando recibas un mensaje, cambie el precio de un favorito o cambie el estado de una publicación, te avisamos acá."
+        />
       )}
-    </main>
+    </PaginaCuenta>
   );
 }

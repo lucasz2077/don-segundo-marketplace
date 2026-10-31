@@ -8,6 +8,10 @@ import {
   type ImagenPublicacionInput,
 } from "@/lib/validation/listing";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
+import { Check, ImagePlus, X } from "lucide-react";
+import { Boton } from "@/components/ui/boton";
+import { AreaTexto, Campo, Entrada, Selector } from "@/components/ui/campo";
+import { unirClases } from "@/components/ui/unir-clases";
 
 type CategoriaFormulario = {
   id: string;
@@ -45,16 +49,30 @@ type ImagenLocal = ImagenPublicacionInput & { preview: string };
 
 const MAX_IMAGENES = 8;
 
-const claseCampo =
-  "w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
-
-const etiquetaCampo =
-  "mb-1 block text-sm font-medium text-brand-900 dark:text-bone";
+function Seccion({
+  titulo,
+  descripcion,
+  children,
+}: {
+  titulo: string;
+  descripcion?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-card border border-linea bg-superficie p-4 shadow-card sm:p-6">
+      <h2 className="text-base font-semibold text-tinta">{titulo}</h2>
+      {descripcion ? <p className="mt-0.5 text-sm text-tinta-tenue">{descripcion}</p> : null}
+      <div className="mt-4 flex flex-col gap-4">{children}</div>
+    </section>
+  );
+}
 
 /**
  * Formulario de publicación/edición: en modo creación envía el payload a
  * POST /api/listings; en modo edición (listingId presente) a
  * PATCH /api/listings/[id]. Sube las imágenes a /api/upload y valida con Zod.
+ * Organizado en secciones (fotos, qué vendés, precio y stock, ubicación,
+ * descripción) con el botón de envío fijo abajo en mobile.
  */
 export function PublicarFormulario({
   categorias,
@@ -214,201 +232,53 @@ export function PublicarFormulario({
   }
 
   return (
-    <form onSubmit={manejarEnvio} className="mt-8 flex flex-col gap-6">
-      <div>
-        <label htmlFor="titulo" className={etiquetaCampo}>
-          Título
-        </label>
-        <input
-          id="titulo"
-          type="text"
-          value={titulo}
-          onChange={(evento) => setTitulo(evento.target.value)}
-          maxLength={120}
-          className={claseCampo}
-          required
-        />
-      </div>
-
-      <div>
-        <label htmlFor="descripcion" className={etiquetaCampo}>
-          Descripción
-        </label>
-        <textarea
-          id="descripcion"
-          value={descripcion}
-          onChange={(evento) => setDescripcion(evento.target.value)}
-          rows={6}
-          maxLength={5000}
-          className={claseCampo}
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="precio" className={etiquetaCampo}>
-            Precio
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="precio"
-              type="number"
-              inputMode="decimal"
-              min="0.01"
-              step="0.01"
-              value={precio}
-              onChange={(evento) => setPrecio(evento.target.value)}
-              className={claseCampo}
-              required
-            />
-            <select
-              aria-label="Moneda"
-              value={moneda}
-              onChange={(evento) => setMoneda(evento.target.value as "ARS" | "USD")}
-              className={`${claseCampo} w-24`}
-            >
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label htmlFor="condicion" className={etiquetaCampo}>
-            Condición
-          </label>
-          <select
-            id="condicion"
-            value={condicion}
-            onChange={(evento) => setCondicion(evento.target.value as "NEW" | "USED")}
-            className={claseCampo}
-          >
-            <option value="USED">Usado</option>
-            <option value="NEW">Nuevo</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="sm:max-w-xs">
-        <label htmlFor="stock" className={etiquetaCampo}>
-          Cantidad (stock)
-        </label>
-        <input
-          id="stock"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={9999}
-          step={1}
-          value={stock}
-          onChange={(evento) => setStock(evento.target.value)}
-          className={claseCampo}
-          required
-        />
-        <p className="mt-1 text-xs text-brand-600">
-          Cuántas unidades tenés disponibles para vender.
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor="categoria" className={etiquetaCampo}>
-          Categoría
-        </label>
-        <select
-          id="categoria"
-          value={categoriaId}
-          onChange={(evento) => setCategoriaId(evento.target.value)}
-          className={claseCampo}
-          required
-        >
-          <option value="">Selecciona una categoría</option>
-          {categorias.map((categoria) => (
-            <optgroup key={categoria.id} label={categoria.name}>
-              <option value={categoria.id}>{categoria.name}</option>
-              {categoria.children.map((hija) => (
-                <option key={hija.id} value={hija.id}>
-                  {hija.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="provincia" className={etiquetaCampo}>
-            Provincia
-          </label>
-          <select
-            id="provincia"
-            value={provincia}
-            onChange={(evento) => setProvincia(evento.target.value)}
-            className={claseCampo}
-            required
-          >
-            <option value="">Selecciona una provincia</option>
-            {PROVINCIAS_ARGENTINA.map((provinciaDisponible) => (
-              <option key={provinciaDisponible} value={provinciaDisponible}>
-                {provinciaDisponible}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="ciudad" className={etiquetaCampo}>
-            Ciudad{" "}
-            <span className="font-normal text-brand-600 dark:text-brand-300">
-              (opcional)
-            </span>
-          </label>
-          <input
-            id="ciudad"
-            type="text"
-            value={ciudad}
-            onChange={(evento) => setCiudad(evento.target.value)}
-            maxLength={100}
-            className={claseCampo}
-          />
-        </div>
-      </div>
-
-      <div>
-        <span className={etiquetaCampo}>Imágenes</span>
-        <div className="mt-1 grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <form onSubmit={manejarEnvio} className="flex flex-col gap-4 sm:gap-6">
+      <Seccion
+        titulo="Fotos"
+        descripcion={`Hasta ${MAX_IMAGENES} fotos. La primera es la portada: mostrá el producto completo y con buena luz.`}
+      >
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3">
           {imagenes.map((imagen, indice) => (
             <div
               key={imagen.publicId}
-              className="relative aspect-[4/3] overflow-hidden rounded-md border border-brand-100"
+              className="relative aspect-square overflow-hidden rounded-control border border-linea bg-brand-50"
             >
               <Image
                 src={imagen.preview}
                 alt={imagen.alt ?? `Imagen ${indice + 1}`}
                 fill
-                sizes="(max-width: 640px) 50vw, 200px"
+                sizes="(max-width: 640px) 33vw, 160px"
                 className="object-cover"
               />
+              {indice === 0 ? (
+                <span className="absolute bottom-1 left-1 rounded-full bg-brand-950/75 px-2 py-0.5 text-xs font-medium text-white">
+                  Portada
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => quitarImagen(imagen.publicId)}
                 aria-label={`Quitar imagen ${indice + 1}`}
-                className="absolute right-1 top-1 rounded bg-brand-900/80 px-2 py-0.5 text-xs font-medium text-white transition-colors hover:bg-danger"
+                className="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-brand-950/75 text-white hover:bg-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               >
-                Quitar
+                <X className="size-4" aria-hidden="true" />
               </button>
             </div>
           ))}
+          {imagenes.length < MAX_IMAGENES ? (
+            <button
+              type="button"
+              onClick={() => inputArchivos.current?.click()}
+              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-control border-2 border-dashed border-brand-300 bg-brand-50/50 text-brand-700 hover:border-brand-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              <ImagePlus className="size-6" aria-hidden="true" />
+              <span className="text-xs font-semibold">Agregar fotos</span>
+            </button>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => inputArchivos.current?.click()}
-          disabled={imagenes.length >= MAX_IMAGENES}
-          className="mt-3 rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-600 dark:text-bone dark:hover:bg-white/10"
-        >
-          {imagenes.length >= MAX_IMAGENES
-            ? `Máximo ${MAX_IMAGENES} imágenes`
-            : "Subir imágenes"}
-        </button>
+        <p className="text-xs text-tinta-tenue">
+          {imagenes.length} de {MAX_IMAGENES} fotos
+        </p>
         <input
           ref={inputArchivos}
           type="file"
@@ -418,27 +288,196 @@ export function PublicarFormulario({
           className="hidden"
           aria-label="Archivos de imagen"
         />
-      </div>
+      </Seccion>
+
+      <Seccion titulo="Qué vendés">
+        <Campo
+          id="titulo"
+          etiqueta="Título"
+          requerido
+          ayuda={`Marca, modelo y lo más importante. ${titulo.length}/120`}
+        >
+          <Entrada
+            id="titulo"
+            type="text"
+            value={titulo}
+            onChange={(evento) => setTitulo(evento.target.value)}
+            maxLength={120}
+            placeholder="Ej.: Tractor John Deere 5090E 4x4 con pala"
+            aria-describedby="titulo-ayuda"
+            required
+          />
+        </Campo>
+        <Campo id="categoria" etiqueta="Categoría" requerido>
+          <Selector
+            id="categoria"
+            value={categoriaId}
+            onChange={(evento) => setCategoriaId(evento.target.value)}
+            required
+          >
+            <option value="">Elegí una categoría</option>
+            {categorias.map((categoria) => (
+              <optgroup key={categoria.id} label={categoria.name}>
+                <option value={categoria.id}>{categoria.name}</option>
+                {categoria.children.map((hija) => (
+                  <option key={hija.id} value={hija.id}>
+                    {hija.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </Selector>
+        </Campo>
+        <fieldset>
+          <legend className="mb-1.5 text-sm font-medium text-tinta">Condición</legend>
+          <div className="grid grid-cols-2 gap-2 sm:max-w-sm">
+            {(
+              [
+                ["USED", "Usado"],
+                ["NEW", "Nuevo"],
+              ] as const
+            ).map(([valor, etiqueta]) => (
+              <label
+                key={valor}
+                className={unirClases(
+                  "flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-control border text-sm font-medium has-focus-visible:ring-2 has-focus-visible:ring-brand-500",
+                  condicion === valor
+                    ? "border-brand-700 bg-brand-700 text-white"
+                    : "border-linea-fuerte bg-superficie text-tinta-suave hover:border-brand-300",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="condicion"
+                  value={valor}
+                  checked={condicion === valor}
+                  onChange={() => setCondicion(valor)}
+                  className="sr-only"
+                />
+                {condicion === valor ? <Check className="size-4" aria-hidden="true" /> : null}
+                {etiqueta}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </Seccion>
+
+      <Seccion titulo="Precio y stock">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Campo id="precio" etiqueta="Precio" requerido>
+            <div className="flex gap-2">
+              <Selector
+                aria-label="Moneda"
+                value={moneda}
+                onChange={(evento) => setMoneda(evento.target.value as "ARS" | "USD")}
+                className="w-28 shrink-0"
+              >
+                <option value="ARS">$ ARS</option>
+                <option value="USD">US$ USD</option>
+              </Selector>
+              <Entrada
+                id="precio"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                value={precio}
+                onChange={(evento) => setPrecio(evento.target.value)}
+                placeholder="0"
+                required
+              />
+            </div>
+          </Campo>
+          <Campo
+            id="stock"
+            etiqueta="Unidades disponibles"
+            requerido
+            ayuda="Cuántas unidades tenés para vender."
+          >
+            <Entrada
+              id="stock"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={9999}
+              step={1}
+              value={stock}
+              onChange={(evento) => setStock(evento.target.value)}
+              aria-describedby="stock-ayuda"
+              required
+            />
+          </Campo>
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Ubicación" descripcion="Dónde está el producto, para que los compradores calculen el retiro o el flete.">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Campo id="provincia" etiqueta="Provincia" requerido>
+            <Selector
+              id="provincia"
+              value={provincia}
+              onChange={(evento) => setProvincia(evento.target.value)}
+              required
+            >
+              <option value="">Elegí una provincia</option>
+              {PROVINCIAS_ARGENTINA.map((provinciaDisponible) => (
+                <option key={provinciaDisponible} value={provinciaDisponible}>
+                  {provinciaDisponible}
+                </option>
+              ))}
+            </Selector>
+          </Campo>
+          <Campo id="ciudad" etiqueta="Ciudad o localidad" opcional>
+            <Entrada
+              id="ciudad"
+              type="text"
+              value={ciudad}
+              onChange={(evento) => setCiudad(evento.target.value)}
+              maxLength={100}
+              placeholder="Ej.: Pergamino"
+            />
+          </Campo>
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Descripción" descripcion="Estado, año, horas de uso, accesorios y condiciones de entrega.">
+        <Campo id="descripcion" etiqueta="Descripción" requerido ayuda={`${descripcion.length}/5000`}>
+          <AreaTexto
+            id="descripcion"
+            value={descripcion}
+            onChange={(evento) => setDescripcion(evento.target.value)}
+            rows={7}
+            maxLength={5000}
+            aria-describedby="descripcion-ayuda"
+            required
+          />
+        </Campo>
+      </Seccion>
 
       {error ? (
-        <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p role="alert" className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={enviando}
-        className="rounded-md bg-accent-500 px-6 py-3 text-sm font-semibold text-brand-950 transition-colors hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {enviando
-          ? esEdicion
-            ? "Guardando..."
-            : "Publicando..."
-          : esEdicion
-            ? "Guardar cambios"
-            : "Publicar"}
-      </button>
+      {/* Envío fijo abajo en mobile: siempre a mano al terminar de cargar. */}
+      <div className="sticky bottom-0 z-20 -mx-4 border-t border-linea bg-superficie/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <Boton
+          type="submit"
+          variante="acento"
+          tamanio="lg"
+          cargando={enviando}
+          className="w-full sm:w-auto sm:min-w-56"
+        >
+          {enviando
+            ? esEdicion
+              ? "Guardando..."
+              : "Publicando..."
+            : esEdicion
+              ? "Guardar cambios"
+              : "Publicar"}
+        </Boton>
+      </div>
     </form>
   );
 }

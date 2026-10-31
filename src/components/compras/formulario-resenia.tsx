@@ -102,7 +102,7 @@ export function FormularioResenia({ compraId, onExito }: FormularioReseniaProps)
         role="status"
         className="rounded-card border border-brand-100 bg-brand-50 p-4"
       >
-        <p className="text-sm font-medium text-brand-900 dark:text-bone">
+        <p className="text-sm font-medium text-brand-900">
           ¡Gracias por tu reseña!
         </p>
       </div>
@@ -124,10 +124,10 @@ export function FormularioResenia({ compraId, onExito }: FormularioReseniaProps)
       <div className="mt-4">
         <label
           htmlFor={`comentario-${compraId}`}
-          className="text-sm font-medium text-brand-900 dark:text-bone"
+          className="text-sm font-medium text-brand-900"
         >
           Comentario{" "}
-          <span className="font-normal text-brand-600 dark:text-brand-200">
+          <span className="font-normal text-brand-600">
             (opcional)
           </span>
         </label>
@@ -140,11 +140,11 @@ export function FormularioResenia({ compraId, onExito }: FormularioReseniaProps)
           maxLength={MAX_COMENTARIO}
           rows={3}
           placeholder="Contanos cómo fue la venta..."
-          className="mt-1 w-full rounded-control border border-brand-300 bg-white px-3 py-2 text-sm text-brand-900 placeholder:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          className="mt-1 w-full rounded-control border border-linea-fuerte bg-superficie px-3 py-2 text-sm text-tinta placeholder:text-tinta-tenue/70 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
         />
         <p
           aria-live="polite"
-          className="mt-1 text-right text-xs text-brand-600 dark:text-brand-200"
+          className="mt-1 text-right text-xs text-brand-600"
         >
           {comentario.length}/{MAX_COMENTARIO}
         </p>

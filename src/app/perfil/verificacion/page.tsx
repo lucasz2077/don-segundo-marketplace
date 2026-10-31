@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { obtenerMiVerificacion } from "@/lib/verificaciones";
 import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
 import { FormularioSolicitudVerificacion } from "@/components/verificacion/formulario-solicitud-verificacion";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
 
 export const dynamic = "force-dynamic";
 
 const estiloCard =
-  "rounded-lg border border-brand-100 bg-white p-6 shadow-sm";
+  "rounded-card border border-linea bg-superficie p-4 shadow-card sm:p-6";
 
 const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
   dateStyle: "long",
@@ -30,22 +30,11 @@ export default async function VerificacionPage() {
   const { estado, solicitud } = await obtenerMiVerificacion(session.user.id);
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-      <Link
-        href="/perfil"
-        className="text-sm font-medium text-brand-700 underline dark:text-brand-200"
-      >
-        Volver a Mi perfil
-      </Link>
-
-      <h1 className="mt-4 text-3xl font-semibold text-brand-900 dark:text-bone">
-        Verificación de vendedor
-      </h1>
-      <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-        Confirmá tu identidad para ganarte la confianza de los compradores.
-      </p>
-
-      <div className="mt-8 flex flex-col gap-6">
+    <PaginaCuenta
+      titulo="Verificación de vendedor"
+      descripcion="Confirmá tu identidad para ganarte la confianza de los compradores."
+    >
+<div className="flex flex-col gap-4 sm:gap-6">
         <section className={estiloCard}>
           {estado === "NONE" ? (
             <>
@@ -69,7 +58,7 @@ export default async function VerificacionPage() {
               <h2 className="text-lg font-semibold text-brand-900">
                 Solicitud en revisión
               </h2>
-              <span className="mt-2 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+              <span className="mt-2 inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning-fuerte ring-1 ring-inset ring-warning/25">
                 En revisión
               </span>
               {solicitud ? (
@@ -105,7 +94,7 @@ export default async function VerificacionPage() {
               <h2 className="text-lg font-semibold text-brand-900">
                 Solicitud rechazada
               </h2>
-              <span className="mt-2 inline-flex items-center rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-medium text-danger">
+              <span className="mt-2 inline-flex items-center rounded-full bg-danger/10 px-2.5 py-0.5 text-xs font-medium text-danger ring-1 ring-inset ring-danger/20">
                 Rechazada
               </span>
               {solicitud?.motivoRechazo ? (
@@ -128,6 +117,6 @@ export default async function VerificacionPage() {
           ) : null}
         </section>
       </div>
-    </main>
+    </PaginaCuenta>
   );
 }

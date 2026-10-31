@@ -52,7 +52,7 @@ export function EstrellasEntrada({
 
   return (
     <fieldset ref={grupoRef} onKeyDown={manejarTeclado}>
-      <legend className="text-sm font-medium text-brand-900 dark:text-bone">
+      <legend className="text-sm font-medium text-brand-900">
         {label}
       </legend>
       <div className="mt-2 flex items-center gap-1">

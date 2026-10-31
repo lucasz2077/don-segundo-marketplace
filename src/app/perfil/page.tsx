@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight, ExternalLink, Tag } from "lucide-react";
 import { getSession } from "@/lib/auth/session";
 import { obtenerEstadoVinculacionMp } from "@/lib/pagos/oauth";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
+import { GRUPOS_CUENTA } from "@/components/cuenta/secciones-cuenta";
+import { Alerta } from "@/components/ui/alerta";
+import { Avatar } from "@/components/ui/avatar";
+import { clasesBoton } from "@/components/ui/boton";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
+import { Tarjeta } from "@/components/ui/tarjeta";
 
 export const dynamic = "force-dynamic";
 
-const estiloCard =
-  "rounded-lg border border-brand-100 bg-white p-6 shadow-sm transition-colors hover:border-brand-300";
-
+/**
+ * Índice y resumen de "Mi cuenta". En mobile es el menú de la cuenta (cada
+ * sección como fila tocable); en desktop acompaña a la navegación lateral.
+ * Muestra el estado del vínculo con Mercado Pago (RF-47/RF-48), requisito
+ * para vender, resuelto server-side: nunca llegan tokens al cliente (RNF-20).
+ */
 export default async function PerfilPage() {
   const session = await getSession();
 
@@ -15,118 +26,87 @@ export default async function PerfilPage() {
     redirect("/sign-in?redirect=/perfil");
   }
 
-  // Estado del vínculo con Mercado Pago resuelto server-side (RF-47/RF-48).
-  // Nunca llegan tokens ni mpUserId al cliente (RNF-20): solo el estado.
   const estadoMp = await obtenerEstadoVinculacionMp(session.user.id);
+  const primerNombre = session.user.name.trim().split(/\s+/)[0] || session.user.name;
+
+  // `<a>` nativo, no `<Link>`: la ruta responde 302 hacia
+  // auth.mercadopago.com.ar y el prefetch RSC de `<Link>` seguía la
+  // redirección con fetch, que MP bloquea por CORS. Navegación completa.
+  const enlaceMp = (
+    <a
+      href="/api/pagos/oauth/iniciar"
+      className={clasesBoton({ variante: estadoMp === "VINCULADA" ? "secundario" : "primario", tamanio: "sm" })}
+    >
+      {estadoMp === "SIN_VINCULO" ? "Vincular Mercado Pago" : "Re-vincular"}
+      <ExternalLink className="size-4" aria-hidden="true" />
+    </a>
+  );
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-        Mi perfil
-      </h1>
-      <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-        Gestioná tus datos personales, tus direcciones de entrega y tus publicaciones.
-      </p>
+    <PaginaCuenta titulo="Mi cuenta" sinRegreso>
+      <div className="flex flex-col gap-4">
+        <Tarjeta relleno="ninguno" className="p-4 sm:p-6">
+          <div className="flex items-center gap-4">
+            <Avatar nombre={session.user.name} imagen={session.user.image} tamanio="lg" />
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-semibold text-tinta">Hola, {primerNombre}</p>
+              <p className="truncate text-sm text-tinta-tenue">{session.user.email}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
+            <BotonEnlace href="/publicar" variante="acento" tamanio="sm">
+              <Tag className="size-4" aria-hidden="true" />
+              Publicar
+            </BotonEnlace>
+            <BotonEnlace href={`/vendedores/${session.user.id}`} variante="secundario" tamanio="sm">
+              Ver mi perfil público
+            </BotonEnlace>
+          </div>
+        </Tarjeta>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Link href="/perfil/informacion" className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Información del perfil
-          </h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Nombre, apellido, DNI, tipo de cuenta y contraseña.
-          </p>
-        </Link>
-        <Link href="/perfil/direcciones" className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">Direcciones</h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Agregá y administrá tus direcciones de entrega.
-          </p>
-        </Link>
-        <Link href="/perfil/publicaciones" className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Mis publicaciones
-          </h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Consultá el stock, pausá o reanudá tus publicaciones y editalas.
-          </p>
-        </Link>
-        <Link href="/perfil/verificacion" className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Verificación de vendedor
-          </h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Estado de tu verificación y solicitud.
-          </p>
-        </Link>
-        <div className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Mercado Pago
-          </h2>
-          {estadoMp === "VINCULADA" ? (
-            <p className="mt-1 text-sm text-brand-600">
-              Tu cuenta de Mercado Pago está vinculada y lista para cobrar tus
-              ventas.
-            </p>
-          ) : estadoMp === "REVOCADA" ? (
-            <p className="mt-1 text-sm text-brand-600">
-              Tu vínculo con Mercado Pago fue revocado. Re-vinculalo para
-              seguir vendiendo.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-brand-600">
-              Para publicar necesitás vincular tu cuenta de Mercado Pago.
-            </p>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {/* `<a>` nativo, no `<Link>`: la ruta responde 302 hacia
-                auth.mercadopago.com.ar y el prefetch RSC de `<Link>` seguía la
-                redirección con fetch, que MP bloquea por CORS (error de
-                consola en /perfil). Navegación de documento completo. */}
-            <a
-              href="/api/pagos/oauth/iniciar"
-              className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-            >
-              {estadoMp === "SIN_VINCULO"
-                ? "Vincular Mercado Pago"
-                : "Re-vincular"}
-            </a>
-          </div>
-        </div>
-        <Link href="/perfil/devoluciones" className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Devoluciones
-          </h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Revisá y resolvé las solicitudes de devolución de tus ventas.
-          </p>
-        </Link>
-        {/* La card de perfil público lleva dos acciones (editar y ver el
-            perfil público), así que es un div y no un Link completo como las
-            otras cuatro cards: un enlace dentro de otro enlace es HTML inválido. */}
-        <div className={estiloCard}>
-          <h2 className="text-lg font-semibold text-brand-900">
-            Perfil público
-          </h2>
-          <p className="mt-1 text-sm text-brand-600">
-            Tu bio y tu nombre comercial, visibles para los compradores.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href="/perfil/publico"
-              className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
-            >
-              Editar perfil
-            </Link>
-            <Link
-              href={`/vendedores/${session.user.id}`}
-              className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
-            >
-              Ver mi perfil
-            </Link>
-          </div>
+        {estadoMp === "VINCULADA" ? (
+          <Alerta tono="exito" titulo="Mercado Pago vinculado" accion={enlaceMp}>
+            Tu cuenta está lista para cobrar tus ventas.
+          </Alerta>
+        ) : estadoMp === "REVOCADA" ? (
+          <Alerta tono="advertencia" titulo="Tu vínculo con Mercado Pago fue revocado" accion={enlaceMp}>
+            Volvé a vincularlo para seguir publicando y cobrando tus ventas.
+          </Alerta>
+        ) : (
+          <Alerta titulo="Vinculá tu cuenta de Mercado Pago para vender" accion={enlaceMp}>
+            Es el requisito para publicar: tus ventas se cobran directo en tu cuenta.
+          </Alerta>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {GRUPOS_CUENTA.map((grupo) => (
+            <Tarjeta key={grupo.titulo} as="section" relleno="ninguno" className="overflow-hidden">
+              <h2 className="border-b border-linea px-4 py-3 text-sm font-semibold text-tinta sm:px-5">
+                {grupo.titulo}
+              </h2>
+              <ul className="divide-y divide-linea">
+                {grupo.enlaces.map(({ href, etiqueta, descripcion, icono: Icono }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className="flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-none sm:px-5"
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                        <Icono className="size-5" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-tinta">{etiqueta}</span>
+                        <span className="block text-xs text-tinta-tenue">{descripcion}</span>
+                      </span>
+                      <ChevronRight className="size-5 shrink-0 text-tinta-tenue" aria-hidden="true" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Tarjeta>
+          ))}
         </div>
       </div>
-    </main>
+    </PaginaCuenta>
   );
 }

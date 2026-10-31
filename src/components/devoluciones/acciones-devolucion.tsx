@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boton } from "@/components/ui/boton";
+import { clasesControl } from "@/components/ui/campo";
 
 type RespuestaApi = {
   error?: { message?: string };
@@ -36,8 +37,7 @@ type AccionesDevolucionProps = {
   solicitudId: string;
 };
 
-const claseCampo =
-  "w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
+const claseCampo = `min-h-11 ${clasesControl()}`;
 
 /**
  * Acciones de la bandeja de devoluciones del vendedor (RF-49..RF-51, 5.4):
@@ -125,7 +125,7 @@ export function AccionesDevolucion({ solicitudId }: AccionesDevolucionProps) {
     <div className="mt-3">
       {modoRechazo ? (
         <form
-          className="flex flex-col gap-3 rounded-lg border border-brand-100 bg-white p-3 shadow-sm"
+          className="flex flex-col gap-3 rounded-card border border-linea bg-superficie p-3 shadow-card"
           onSubmit={(evento) => {
             evento.preventDefault();
             void enviar("rechazar");
@@ -153,7 +153,7 @@ export function AccionesDevolucion({ solicitudId }: AccionesDevolucionProps) {
           {error ? (
             <p
               role="alert"
-              className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger"
+              className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
             >
               {error}
             </p>
@@ -199,7 +199,7 @@ export function AccionesDevolucion({ solicitudId }: AccionesDevolucionProps) {
           {error ? (
             <p
               role="alert"
-              className="w-full rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger"
+              className="w-full rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger"
             >
               {error}
             </p>
@@ -207,7 +207,7 @@ export function AccionesDevolucion({ solicitudId }: AccionesDevolucionProps) {
           {advertencia ? (
             <p
               role="status"
-              className="w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+              className="w-full rounded-control border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-fuerte"
             >
               {advertencia}
             </p>

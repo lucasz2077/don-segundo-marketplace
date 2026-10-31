@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -6,7 +5,10 @@ import {
   compraEnVentanaDevolucion,
   obtenerMisCompras,
 } from "@/lib/compras";
+import { ShoppingBag } from "lucide-react";
 import { TarjetaCompra } from "@/components/compras/tarjeta-compra";
+import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
 import { EstadoVacio } from "@/components/ui/estado-vacio";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +35,12 @@ export default async function ComprasPage() {
   const compras = await obtenerMisCompras(session.user.id);
 
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <h1 className="text-3xl font-semibold text-brand-900 dark:text-bone">
-        Mis compras
-      </h1>
-
+    <PaginaCuenta
+      titulo="Mis compras"
+      descripcion="Seguí el pago de cada compra, calificá al vendedor o pedí una devolución."
+    >
       {compras.length > 0 ? (
-        <ul className="mt-6 flex flex-col gap-4">
+        <ul className="flex flex-col gap-3 sm:gap-4">
           {compras.map((compra) => (
             <li key={compra.id}>
               <TarjetaCompra
@@ -59,21 +60,13 @@ export default async function ComprasPage() {
           ))}
         </ul>
       ) : (
-        <div className="mt-6">
-          <EstadoVacio
-            titulo="Todavía no compraste nada"
-            descripcion="Cuando compres una publicación, aparece acá para que puedas calificar la venta."
-            accion={
-              <Link
-                href="/listados"
-                className="inline-flex min-h-11 items-center justify-center rounded-control bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-              >
-                Explorar publicaciones
-              </Link>
-            }
-          />
-        </div>
+        <EstadoVacio
+          icono={ShoppingBag}
+          titulo="Todavía no compraste nada"
+          descripcion="Cuando compres una publicación, aparece acá para que sigas el pago y califiques la venta."
+          accion={<BotonEnlace href="/listados">Explorar publicaciones</BotonEnlace>}
+        />
       )}
-    </main>
+    </PaginaCuenta>
   );
 }

@@ -1,10 +1,13 @@
 import Image from "next/image";
-import { formatearPrecio } from "@/lib/formato";
+import Link from "next/link";
+import { ImageOff } from "lucide-react";
 import type { CompraConDetalle } from "@/lib/compras";
 import type {
   CompraEstadoPago,
   MotivoReembolso,
 } from "@/generated/prisma/client";
+import { Insignia, type TonoInsignia } from "@/components/ui/insignia";
+import { Precio } from "@/components/ui/precio";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { EstrellasCalificacion } from "./estrellas-calificacion";
 import { BotonCalificar } from "./boton-calificar";
@@ -16,16 +19,14 @@ const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
   year: "numeric",
 });
 
-/** Clases del badge según estado de pago (RF-41): reutiliza los tonos
- * semánticos del proyecto (amber/success/danger + neutros brand y sand), el
- * mismo patrón de las etiquetas de estado de verificaciones. */
-const CLASES_ESTADO_PAGO: Record<CompraEstadoPago, string> = {
-  PENDIENTE: "bg-amber-100 text-amber-800",
-  APROBADO: "bg-success/15 text-success",
-  FALLIDO: "bg-danger/15 text-danger",
-  REEMBOLSO_PENDIENTE: "bg-amber-100 text-amber-800",
-  REEMBOLSADO: "bg-brand-50 text-brand-700",
-  EXPIRADA: "bg-sand-200 text-sand-700",
+/** Tono de la insignia según estado de pago (RF-41). */
+const TONO_ESTADO_PAGO: Record<CompraEstadoPago, TonoInsignia> = {
+  PENDIENTE: "advertencia",
+  APROBADO: "exito",
+  FALLIDO: "peligro",
+  REEMBOLSO_PENDIENTE: "advertencia",
+  REEMBOLSADO: "neutro",
+  EXPIRADA: "inactivo",
 };
 
 /** Texto del badge en español según estado de pago (RF-41). */
@@ -91,83 +92,87 @@ export function TarjetaCompra({
   const imagen = compra.listing.images[0];
 
   return (
-    <Tarjeta
-      as="article"
-      className="transition-shadow motion-safe:transition-shadow hover:shadow-card-hover"
-    >
-      <div className="flex flex-col gap-4 sm:flex-row">
-        {imagen ? (
-          <Image
-            src={imagen.url}
-            alt={imagen.alt ?? compra.listing.title}
-            width={96}
-            height={96}
-            className="h-24 w-24 shrink-0 rounded-card object-cover"
-          />
-        ) : (
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-card bg-brand-50">
-            <span className="text-xs text-brand-600 dark:text-brand-200">
-              Sin foto
+    <Tarjeta as="article" relleno="ninguno" className="p-4 sm:p-5">
+      <div className="flex gap-3 sm:gap-4">
+        <Link
+          href={`/listados/${compra.listing.id}`}
+          className="relative size-20 shrink-0 overflow-hidden rounded-control bg-brand-50 sm:size-24"
+        >
+          {imagen ? (
+            <Image
+              src={imagen.url}
+              alt={imagen.alt ?? compra.listing.title}
+              fill
+              sizes="96px"
+              className="object-cover"
+            />
+          ) : (
+            <span className="flex h-full items-center justify-center text-tinta-tenue">
+              <ImageOff className="size-5" aria-hidden="true" />
+              <span className="sr-only">Sin foto</span>
             </span>
-          </div>
-        )}
+          )}
+        </Link>
 
         <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-medium text-brand-900 dark:text-bone">
-            {compra.listing.title}
-          </h3>
-          <p className="mt-1 text-sm font-medium text-brand-900 dark:text-bone">
-            {formatearPrecio(compra.precioUnitario, compra.currency)}
-          </p>
-          <p className="mt-1 text-sm text-brand-600 dark:text-brand-200">
-            Comprado el {formateadorFecha.format(compra.createdAt)}
-          </p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${CLASES_ESTADO_PAGO[compra.estadoPago]}`}
-            >
+          <div className="flex flex-wrap items-center gap-2">
+            <Insignia tono={TONO_ESTADO_PAGO[compra.estadoPago]}>
               {TEXTO_ESTADO_PAGO[compra.estadoPago]}
+            </Insignia>
+            <span className="text-xs text-tinta-tenue">
+              {formateadorFecha.format(compra.createdAt)}
             </span>
-            {compra.estadoPago === "APROBADO" &&
-            etiquetaMedioPago(compra.medioPago) ? (
-              <span className="text-sm text-brand-600 dark:text-brand-200">
-                Medio de pago: {etiquetaMedioPago(compra.medioPago)}
-              </span>
-            ) : null}
-            {(compra.estadoPago === "REEMBOLSADO" ||
-              compra.estadoPago === "REEMBOLSO_PENDIENTE") &&
-            compra.motivoReembolso ? (
-              <span className="text-sm text-brand-600 dark:text-brand-200">
-                {TEXTO_MOTIVO_REEMBOLSO[compra.motivoReembolso]}
-              </span>
-            ) : null}
           </div>
+          <h3 className="mt-1.5 line-clamp-2 text-sm font-medium text-tinta sm:text-base">
+            <Link href={`/listados/${compra.listing.id}`} className="hover:underline">
+              {compra.listing.title}
+            </Link>
+          </h3>
+          <Precio
+            precio={compra.precioUnitario}
+            moneda={compra.currency}
+            tamanio="sm"
+            className="mt-1 font-medium"
+          />
+          {compra.estadoPago === "APROBADO" && etiquetaMedioPago(compra.medioPago) ? (
+            <p className="mt-1 text-xs text-tinta-tenue">
+              Medio de pago: {etiquetaMedioPago(compra.medioPago)}
+            </p>
+          ) : null}
+          {(compra.estadoPago === "REEMBOLSADO" ||
+            compra.estadoPago === "REEMBOLSO_PENDIENTE") &&
+          compra.motivoReembolso ? (
+            <p className="mt-1 text-xs text-tinta-tenue">
+              {TEXTO_MOTIVO_REEMBOLSO[compra.motivoReembolso]}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
+      {compra.rating ||
+      calificable ||
+      compra.estadoPago === "APROBADO" ||
+      compra.solicitudPendienteId ||
+      devolucionable ? (
+        <div className="mt-4 flex flex-col gap-3 border-t border-linea pt-4">
           {compra.rating ? (
-            <div className="mt-3">
-              <EstrellasCalificacion
-                promedio={compra.rating.puntaje}
-                cantidad={1}
-                tamanio="sm"
-              />
-              <p className="mt-1 text-sm font-medium text-brand-900 dark:text-bone">
-                Tu calificación
-              </p>
+            <div>
+              <p className="text-xs font-medium text-tinta-tenue">Tu calificación</p>
+              <div className="mt-1">
+                <EstrellasCalificacion
+                  promedio={compra.rating.puntaje}
+                  cantidad={1}
+                  tamanio="sm"
+                />
+              </div>
               {compra.rating.comentario ? (
-                <p className="mt-1 text-sm text-brand-700 dark:text-brand-200">
-                  {compra.rating.comentario}
-                </p>
+                <p className="mt-1 text-sm text-tinta-suave">{compra.rating.comentario}</p>
               ) : null}
             </div>
           ) : calificable ? (
-            <div className="mt-3">
-              <BotonCalificar compraId={compra.id} />
-            </div>
+            <BotonCalificar compraId={compra.id} />
           ) : compra.estadoPago === "APROBADO" ? (
-            <p className="mt-3 text-sm text-brand-600 dark:text-brand-200">
-              La ventana de calificación ya venció.
-            </p>
+            <p className="text-sm text-tinta-tenue">La ventana de calificación ya venció.</p>
           ) : null}
 
           {/* Devolución (RF-49/5.4): con solicitud PENDIENTE se informa el
@@ -176,16 +181,14 @@ export function TarjetaCompra({
               la ventana no se muestra nada para no duplicar mensajes con la
               calificación. */}
           {compra.solicitudPendienteId ? (
-            <p className="mt-3 text-sm text-brand-600 dark:text-brand-200">
-              Solicitud de devolución en revisión.
-            </p>
+            <Insignia tono="advertencia" className="self-start">
+              Solicitud de devolución en revisión
+            </Insignia>
           ) : devolucionable ? (
-            <div className="mt-3">
-              <BotonSolicitarDevolucion compraId={compra.id} />
-            </div>
+            <BotonSolicitarDevolucion compraId={compra.id} />
           ) : null}
         </div>
-      </div>
+      ) : null}
     </Tarjeta>
   );
 }

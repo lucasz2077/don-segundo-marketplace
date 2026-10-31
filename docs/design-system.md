@@ -112,7 +112,27 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
   - Indicadores (calificación, tiempo de respuesta, en venta), bio y publicaciones en grilla de 2 columnas en mobile.
 - Los botones de acción (`BotonComprar`, `BotonContactar`, `BotonReportar`, `BotonEliminarPublicacion`, `BotonFavorito`) usan las primitivas; su lógica no cambió.
 
-## 7. Plan de reconstrucción estética
+## 7. Área de cuenta
+
+- **`PaginaCuenta`** (`src/components/cuenta/`): envoltorio común.
+  - Desde `lg`: navegación lateral fija (`NavCuenta`, marca la sección con `aria-current`).
+  - En mobile: regreso "‹ Mi cuenta" arriba del título.
+  - Encabezado con título, descripción y acción principal.
+- **Secciones:** salen de `secciones-cuenta.ts` (Compras, Ventas, Actividad, Mis datos).
+- **`/perfil`:** en mobile es el menú de la cuenta (filas tocables con ícono, descripción y chevron). Muestra el saludo, accesos a Publicar y al perfil público, y el estado de Mercado Pago como `Alerta`.
+- **Mis compras:** `TarjetaCompra` con insignia de estado de pago, precio, medio de pago y acciones (calificar, devolución) separadas por un divisor.
+- **Favoritos:** grilla de 2 columnas en mobile; el corazón lleno sobre la foto quita el favorito.
+- **Mis publicaciones:** fila con miniatura, insignia de estado, precio, vendidas y acciones con ícono (Ver, Pausar/Reanudar, Editar).
+- **Mensajes:**
+  - Bandeja con foto de la publicación, nombre, hora corta ("08:04" hoy, "12/10" antes), vista previa y burbuja de no leídos.
+  - Chat con encabezado compacto (volver, avatar, publicación), burbujas, doble check de leído y composer con botón de enviar redondo.
+- **Notificaciones:** lista con ícono por tipo, punto de "nueva" y paginación numerada.
+- **Publicar:**
+  - Formulario por secciones: fotos primero (grilla con portada y tile "Agregar fotos"), qué vendés (condición como botones), precio y stock, ubicación y descripción.
+  - Botón de envío fijo abajo en mobile.
+- **Formularios de datos** (información, direcciones, perfil público, verificación, devoluciones): usan `clasesControl()`, `clasesBoton()` y tokens de aviso.
+
+## 8. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
@@ -120,7 +140,7 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
 | 2. Shell global | Header con logo, buscador central y menú de usuario; barra de categorías; cajón mobile; footer con garantías; `not-found` y `error` globales | **Completada** |
 | 3. Descubrimiento | Home (hero, categorías con ícono, recién publicadas, llamado a vender); `TarjetaPublicacion` v2; listado con filtros (sidebar / hoja inferior en mobile), chips, orden y paginación numerada; página de categoría con publicaciones | **Completada** |
 | 4. Conversión | Detalle con breadcrumb, galería táctil, caja de compra (barra fija en mobile), garantías, vendedor, reseñas y similares; perfil público del vendedor | **Completada** |
-| 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | Pendiente |
+| 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | **Completada** |
 | 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, tablas de admin, `loading.tsx`, microcopy en voseo | Pendiente |
 | 7. QA visual | Capturas Playwright (mobile/tablet/desktop), accesibilidad (foco, contraste, headings), lint y build | Pendiente |
 

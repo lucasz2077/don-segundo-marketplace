@@ -94,10 +94,10 @@ export function EstrellasCalificacion({
         ))}
       </div>
       <p className="text-sm">
-        <span className="font-medium text-brand-900 dark:text-bone">
+        <span className="font-medium text-brand-900">
           {textoPromedio}
         </span>{" "}
-        <span className="text-brand-600 dark:text-brand-200">
+        <span className="text-brand-600">
           ({cantidad} {palabraResenias})
         </span>
       </p>

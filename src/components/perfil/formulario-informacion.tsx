@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { clasesBoton } from "@/components/ui/boton";
+import { clasesControl } from "@/components/ui/campo";
 
 type FormularioInformacionProps = {
   name: string;
@@ -11,10 +13,9 @@ type FormularioInformacionProps = {
   accountType: "BUYER" | "SELLER" | "BOTH";
 };
 
-const claseCampo =
-  "w-full rounded-md border border-brand-200 bg-white px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
+const claseCampo = `min-h-11 ${clasesControl()}`;
 
-const etiquetaCampo = "mb-1 block text-sm font-medium text-brand-700";
+const etiquetaCampo = "mb-1.5 block text-sm font-medium text-tinta";
 
 /**
  * Formulario de datos personales y tipo de cuenta. Actualiza vía
@@ -143,12 +144,12 @@ export function FormularioInformacion({
       </div>
 
       {error ? (
-        <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="rounded-control border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {exito ? (
-        <p className="rounded-md border border-success/20 bg-success/10 px-3 py-2 text-sm text-success">
+        <p className="rounded-control border border-success/30 bg-success/5 px-3 py-2 text-sm text-success">
           {exito}
         </p>
       ) : null}
@@ -156,7 +157,7 @@ export function FormularioInformacion({
       <button
         type="submit"
         disabled={enviando}
-        className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+        className={clasesBoton()}
       >
         {enviando ? "Guardando..." : "Guardar cambios"}
       </button>
