@@ -128,7 +128,7 @@ export function AccionesReporte({
           tipo: "error",
           mensaje:
             datos?.error?.message ??
-            "No se pudo completar la acción. Intenta de nuevo.",
+            "No se pudo completar la acción. Intentá de nuevo.",
         });
         return;
       }
@@ -138,7 +138,7 @@ export function AccionesReporte({
     } catch {
       setResultado({
         tipo: "error",
-        mensaje: "No se pudo completar la acción. Intenta de nuevo.",
+        mensaje: "No se pudo completar la acción. Intentá de nuevo.",
       });
     } finally {
       setAccionEnProgreso(null);
@@ -161,10 +161,10 @@ export function AccionesReporte({
             type="button"
             onClick={() => ejecutarAccion(accion)}
             disabled={accionEnProgreso !== null}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            className={`inline-flex min-h-9 items-center rounded-control border px-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               accion.peligrosa
                 ? "border-danger/40 text-danger hover:bg-danger/10"
-                : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                : "border-linea-fuerte bg-superficie text-tinta-suave hover:border-brand-300"
             }`}
           >
             {accionEnProgreso === accion.llave

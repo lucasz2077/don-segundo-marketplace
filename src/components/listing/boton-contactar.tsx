@@ -95,7 +95,7 @@ export function BotonContactar({
 
       if (!respuesta.ok) {
         setError(
-          datos?.error?.message ?? "No se pudo enviar tu consulta. Intenta de nuevo."
+          datos?.error?.message ?? "No se pudo enviar tu consulta. Intentá de nuevo."
         );
         return;
       }

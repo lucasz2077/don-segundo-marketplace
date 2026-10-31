@@ -56,7 +56,7 @@ export function FormularioSolicitudVerificacion() {
       const cuerpo = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
         setError(
-          cuerpo?.error?.message ?? "No se pudo subir el documento. Intenta de nuevo."
+          cuerpo?.error?.message ?? "No se pudo subir el documento. Intentá de nuevo."
         );
         return;
       }
@@ -66,7 +66,7 @@ export function FormularioSolicitudVerificacion() {
         nombre: subida.nombre ?? archivo.name,
       });
     } catch {
-      setError("No se pudo subir el documento. Intenta de nuevo.");
+      setError("No se pudo subir el documento. Intentá de nuevo.");
     } finally {
       setSubiendo(null);
     }
@@ -121,14 +121,14 @@ export function FormularioSolicitudVerificacion() {
       if (!respuesta.ok) {
         setError(
           cuerpo?.error?.message ??
-            "No se pudo crear la solicitud. Intenta de nuevo."
+            "No se pudo crear la solicitud. Intentá de nuevo."
         );
         setEnviando(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("No se pudo crear la solicitud. Intenta de nuevo.");
+      setError("No se pudo crear la solicitud. Intentá de nuevo.");
       setEnviando(false);
     }
   }

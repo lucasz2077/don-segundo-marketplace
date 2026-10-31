@@ -5,7 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { signInSchema } from "@/lib/validation/auth";
+import { EntradaContrasena } from "@/components/auth/entrada-contrasena";
+import { mensajeErrorAuth } from "@/components/auth/mensajes-error-auth";
+import { PanelAutenticacion } from "@/components/auth/panel-autenticacion";
+import { Alerta } from "@/components/ui/alerta";
+import { Boton } from "@/components/ui/boton";
+import { Campo, Entrada } from "@/components/ui/campo";
 
+/**
+ * Ingreso con email y contraseña (Better Auth). Valida con Zod antes de
+ * enviar, traduce los errores del servidor y vuelve a la ruta de origen
+ * (`?redirect=`) o al listado.
+ */
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -22,7 +33,7 @@ export default function SignInPage() {
 
     const parsed = signInSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Entrada no válida");
+      setError(parsed.error.issues[0]?.message ?? "Revisá los datos ingresados.");
       return;
     }
 
@@ -34,7 +45,7 @@ export default function SignInPage() {
       });
 
       if (signInError) {
-        setError(signInError.message ?? "No se pudo iniciar sesión");
+        setError(mensajeErrorAuth(signInError, "No pudimos iniciar tu sesión. Intentá de nuevo."));
         return;
       }
 
@@ -47,80 +58,47 @@ export default function SignInPage() {
     }
   }
 
-  const inputClass =
-    "w-full rounded-md border border-brand-200 px-3 py-2 text-sm text-brand-900 focus:border-brand-400 focus:outline-none";
-
   return (
-    <main className="flex flex-1 items-center justify-center bg-bone px-4">
-      <div className="w-full max-w-sm rounded-lg border border-brand-100 bg-white p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold text-brand-900">
-          Bienvenido de nuevo
-        </h1>
-        <p className="mb-6 text-sm text-brand-600">
-          Ingresa a tu cuenta de Don Segundo
-        </p>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-1 block text-sm font-medium text-brand-700"
-            >
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {error ? (
-            <p className="rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Ingresando..." : "Ingresar"}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-brand-600">
-          ¿No tenes cuenta?{" "}
-          <Link
-            href="/sign-up"
-            className="font-medium text-brand-700 underline"
-          >
-            Regístrate
+    <PanelAutenticacion
+      titulo="Ingresá a tu cuenta"
+      descripcion="Comprá, vendé y seguí tus publicaciones del campo."
+      pie={
+        <>
+          ¿No tenés cuenta?{" "}
+          <Link href="/sign-up" className="font-semibold text-brand-700 hover:underline">
+            Creá una gratis
           </Link>
-        </p>
-      </div>
-    </main>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <Campo id="email" etiqueta="Email">
+          <Entrada
+            id="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </Campo>
+        <Campo id="password" etiqueta="Contraseña">
+          <EntradaContrasena
+            id="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </Campo>
+
+        {error ? <Alerta tono="peligro">{error}</Alerta> : null}
+
+        <Boton type="submit" tamanio="lg" anchoCompleto cargando={loading}>
+          {loading ? "Ingresando..." : "Ingresar"}
+        </Boton>
+      </form>
+    </PanelAutenticacion>
   );
 }

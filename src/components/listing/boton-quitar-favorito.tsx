@@ -26,13 +26,13 @@ export function BotonQuitarFavorito({ listingId }: BotonQuitarFavoritoProps) {
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo quitar el favorito. Intenta de nuevo.");
+        setError("No se pudo quitar el favorito. Intentá de nuevo.");
         setCargando(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("No se pudo quitar el favorito. Intenta de nuevo.");
+      setError("No se pudo quitar el favorito. Intentá de nuevo.");
       setCargando(false);
     }
   }

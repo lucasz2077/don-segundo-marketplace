@@ -68,7 +68,7 @@ export function FormularioDireccion({
     });
 
     if (!parseado.success) {
-      setError(parseado.error.issues[0]?.message ?? "Revisa los datos de la dirección");
+      setError(parseado.error.issues[0]?.message ?? "Revisá los datos de la dirección");
       return;
     }
 
@@ -85,7 +85,7 @@ export function FormularioDireccion({
       const cuerpo = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
         setError(
-          cuerpo?.error?.message ?? "No se pudo guardar la dirección. Intenta de nuevo."
+          cuerpo?.error?.message ?? "No se pudo guardar la dirección. Intentá de nuevo."
         );
         setEnviando(false);
         return;
@@ -143,7 +143,7 @@ export function FormularioDireccion({
             className={claseCampo}
             required
           >
-            <option value="">Selecciona una provincia</option>
+            <option value="">Elegí una provincia</option>
             {PROVINCIAS_ARGENTINA.map((provinciaDisponible) => (
               <option key={provinciaDisponible} value={provinciaDisponible}>
                 {provinciaDisponible}

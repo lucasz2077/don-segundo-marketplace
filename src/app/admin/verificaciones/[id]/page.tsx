@@ -56,7 +56,7 @@ export default async function DetalleVerificacionPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+    <main className="mx-auto w-full max-w-sitio flex-1 px-4 py-6 sm:px-6">
       <Link
         href="/admin/verificaciones"
         className="text-sm font-medium text-brand-700 underline"
@@ -64,7 +64,7 @@ export default async function DetalleVerificacionPage({
         Volver a verificaciones
       </Link>
 
-      <header className="mt-4 rounded-lg border border-brand-100 bg-white p-4 sm:p-6">
+      <header className="mt-4 rounded-card border border-linea bg-superficie p-4 sm:p-6 shadow-card">
         <div className="flex flex-wrap items-center gap-2">
           <span
             data-testid="estado-verificacion"
@@ -88,7 +88,7 @@ export default async function DetalleVerificacionPage({
       </header>
 
       <section
-        className="mt-6 rounded-lg border border-brand-100 bg-white p-4 sm:p-6"
+        className="mt-6 rounded-card border border-linea bg-superficie p-4 sm:p-6 shadow-card"
         aria-labelledby="titulo-documentos"
       >
         <h2
@@ -106,7 +106,7 @@ export default async function DetalleVerificacionPage({
               href={`/api/verificaciones/${solicitud.id}/documentos/dni`}
               target="_blank"
               rel="noopener"
-              className="inline-flex w-fit items-center gap-2 rounded-md text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"
+              className="inline-flex w-fit items-center gap-2 rounded-control text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"
             >
               Documento de identidad
             </a>
@@ -120,7 +120,7 @@ export default async function DetalleVerificacionPage({
               href={`/api/verificaciones/${solicitud.id}/documentos/domicilio`}
               target="_blank"
               rel="noopener"
-              className="inline-flex w-fit items-center gap-2 rounded-md text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"
+              className="inline-flex w-fit items-center gap-2 rounded-control text-sm font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900"
             >
               Documento de domicilio
             </a>
@@ -129,18 +129,18 @@ export default async function DetalleVerificacionPage({
       </section>
 
       {solicitud.motivoRechazo ? (
-        <section className="mt-6 rounded-lg border border-brand-100 bg-white p-4 sm:p-6">
+        <section className="mt-6 rounded-card border border-linea bg-superficie p-4 sm:p-6 shadow-card">
           <h2 className="text-base font-semibold text-brand-900">
             Motivo del rechazo
           </h2>
-          <p className="mt-2 whitespace-pre-line rounded-md bg-bone p-3 text-sm text-brand-900">
+          <p className="mt-2 whitespace-pre-line rounded-control bg-superficie-alt p-3 text-sm text-brand-900">
             {solicitud.motivoRechazo}
           </p>
         </section>
       ) : null}
 
       {solicitud.estado !== "PENDING" ? (
-        <section className="mt-6 rounded-lg border border-brand-100 bg-white p-4 sm:p-6">
+        <section className="mt-6 rounded-card border border-linea bg-superficie p-4 sm:p-6 shadow-card">
           <h2 className="text-base font-semibold text-brand-900">
             Revisión
           </h2>

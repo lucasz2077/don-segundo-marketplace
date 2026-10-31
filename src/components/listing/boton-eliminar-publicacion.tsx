@@ -33,7 +33,7 @@ export function BotonEliminarPublicacion({
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo eliminar la publicación. Intenta de nuevo.");
+        setError("No se pudo eliminar la publicación. Intentá de nuevo.");
         setCargando(false);
         setConfirmando(false);
         return;
@@ -41,7 +41,7 @@ export function BotonEliminarPublicacion({
       router.push("/listados");
       router.refresh();
     } catch {
-      setError("No se pudo eliminar la publicación. Intenta de nuevo.");
+      setError("No se pudo eliminar la publicación. Intentá de nuevo.");
       setCargando(false);
       setConfirmando(false);
     }

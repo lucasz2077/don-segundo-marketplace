@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, CheckCheck, Send } from "lucide-react";
 import { clasesControl } from "@/components/ui/campo";
@@ -41,13 +41,40 @@ type RespuestaEnvio = {
   error?: { message?: string };
 };
 
-const formateadorFecha = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
+const formateadorHora = new Intl.DateTimeFormat("es-AR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+const formateadorDia = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+});
+
+const formateadorDiaConAnio = new Intl.DateTimeFormat("es-AR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+function claveDia(fecha: Date): string {
+  return `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
+}
+
+/** Separador de día del chat: "Hoy", "Ayer" o la fecha (con año si no es el actual). */
+export function etiquetaDia(fecha: Date, ahora: Date = new Date()): string {
+  const ayer = new Date(ahora);
+  ayer.setDate(ahora.getDate() - 1);
+  if (claveDia(fecha) === claveDia(ahora)) {
+    return "Hoy";
+  }
+  if (claveDia(fecha) === claveDia(ayer)) {
+    return "Ayer";
+  }
+  return fecha.getFullYear() === ahora.getFullYear()
+    ? formateadorDia.format(fecha)
+    : formateadorDiaConAnio.format(fecha);
+}
 
 /**
  * Fusiona los mensajes nuevos con el historial actual sin duplicar: si un id
@@ -293,7 +320,7 @@ export function ChatConversacion({
         setMensajes((previos) => previos.filter((m) => m.id !== idTemporal));
         setError(
           datos?.error?.message ??
-            "No se pudo enviar el mensaje. Intenta de nuevo."
+            "No se pudo enviar el mensaje. Intentá de nuevo."
         );
         return;
       }
@@ -330,47 +357,58 @@ export function ChatConversacion({
         className="h-[60dvh] min-h-72 space-y-3 overflow-y-auto bg-fondo/60 p-3 sm:p-4"
       >
         {mensajes.length > 0 ? (
-          mensajes.map((mensaje) => {
+          mensajes.map((mensaje, indice) => {
+            const fecha = new Date(mensaje.createdAt);
+            const anterior = mensajes[indice - 1];
+            // Separador al empezar un día nuevo: las burbujas muestran solo la hora.
+            const nuevoDia =
+              !anterior || claveDia(new Date(anterior.createdAt)) !== claveDia(fecha);
             const esPropio = mensaje.senderId === usuarioId;
             const leido =
               esPropio &&
               (mensaje.readAt !== null || idsLeidos.has(mensaje.id));
             const IconoEstado = leido ? CheckCheck : Check;
             return (
-              <div
-                key={mensaje.id}
-                className={esPropio ? "flex justify-end" : "flex justify-start"}
-              >
-                <div
-                  className={unirClases(
-                    "max-w-[85%] rounded-2xl px-3.5 py-2 shadow-xs sm:max-w-[75%]",
-                    esPropio
-                      ? "rounded-br-md bg-brand-700 text-white"
-                      : "rounded-bl-md border border-linea bg-superficie text-tinta",
-                    mensaje.enviando && "opacity-70",
-                  )}
-                >
-                  <p className="whitespace-pre-line text-sm leading-relaxed">{mensaje.body}</p>
-                  <div className="mt-0.5 flex items-center justify-end gap-1">
-                    <span
-                      className={unirClases(
-                        "text-xs",
-                        esPropio ? "text-brand-100" : "text-tinta-tenue",
-                      )}
-                    >
-                      {formateadorFecha.format(new Date(mensaje.createdAt))}
+              <Fragment key={mensaje.id}>
+                {nuevoDia ? (
+                  <div className="flex justify-center py-1">
+                    <span className="rounded-full bg-superficie px-3 py-1 text-xs font-medium text-tinta-tenue shadow-xs">
+                      {etiquetaDia(fecha)}
                     </span>
-                    {esPropio ? (
-                      <span role="img" aria-label={leido ? "Leído" : "Enviado"} title={leido ? "Leído" : "Enviado"}>
-                        <IconoEstado
-                          className={unirClases("size-3.5", leido ? "text-accent-300" : "text-brand-100")}
-                          aria-hidden="true"
-                        />
+                  </div>
+                ) : null}
+                <div className={esPropio ? "flex justify-end" : "flex justify-start"}>
+                  <div
+                    className={unirClases(
+                      "max-w-[85%] rounded-2xl px-3.5 py-2 shadow-xs sm:max-w-[75%]",
+                      esPropio
+                        ? "rounded-br-md bg-brand-700 text-white"
+                        : "rounded-bl-md border border-linea bg-superficie text-tinta",
+                      mensaje.enviando && "opacity-70",
+                    )}
+                  >
+                    <p className="whitespace-pre-line text-sm leading-relaxed">{mensaje.body}</p>
+                    <div className="mt-0.5 flex items-center justify-end gap-1">
+                      <span
+                        className={unirClases(
+                          "text-xs",
+                          esPropio ? "text-brand-100" : "text-tinta-tenue",
+                        )}
+                      >
+                        {formateadorHora.format(fecha)}
                       </span>
-                    ) : null}
+                      {esPropio ? (
+                        <span role="img" aria-label={leido ? "Leído" : "Enviado"} title={leido ? "Leído" : "Enviado"}>
+                          <IconoEstado
+                            className={unirClases("size-3.5", leido ? "text-accent-300" : "text-brand-100")}
+                            aria-hidden="true"
+                          />
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Fragment>
             );
           })
         ) : (

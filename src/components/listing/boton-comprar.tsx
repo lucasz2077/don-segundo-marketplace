@@ -27,7 +27,7 @@ const MENSAJE_SIN_STOCK =
 const MENSAJE_PAGO_INDISPONIBLE =
   "El pago no está disponible en este momento. Intentá de nuevo en unos minutos.";
 const MENSAJE_ERROR_GENERICO =
-  "No se pudo concretar la compra. Intenta de nuevo.";
+  "No se pudo concretar la compra. Intentá de nuevo.";
 
 /**
  * Botón de compra directa del detalle de publicación. Sin sesión redirige al

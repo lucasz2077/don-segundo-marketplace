@@ -64,7 +64,7 @@ export function AccionesRevision({ solicitudId }: AccionesRevisionProps) {
           | null;
         setError(
           datos?.error?.message ??
-            "No se pudo guardar la revisión. Intenta de nuevo."
+            "No se pudo guardar la revisión. Intentá de nuevo."
         );
         return;
       }
@@ -75,7 +75,7 @@ export function AccionesRevision({ solicitudId }: AccionesRevisionProps) {
       }
       router.refresh();
     } catch {
-      setError("No se pudo guardar la revisión. Intenta de nuevo.");
+      setError("No se pudo guardar la revisión. Intentá de nuevo.");
     } finally {
       setEnviando(null);
     }

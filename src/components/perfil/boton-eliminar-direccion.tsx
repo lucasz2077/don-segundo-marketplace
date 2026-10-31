@@ -31,7 +31,7 @@ export function BotonEliminarDireccion({
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo eliminar la dirección. Intenta de nuevo.");
+        setError("No se pudo eliminar la dirección. Intentá de nuevo.");
         setCargando(false);
         setConfirmando(false);
         return;

@@ -8,6 +8,7 @@ import {
   etiquetasMotivoReporte,
 } from "@/lib/etiquetas-reportes";
 import { AccionesReporte } from "@/components/reportes/acciones-reporte";
+import { clasesBoton } from "@/components/ui/boton";
 
 export const dynamic = "force-dynamic";
 
@@ -114,12 +115,12 @@ export default async function AdminReportesPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-      <h1 className="text-2xl font-semibold text-brand-900">
+    <main className="mx-auto w-full max-w-sitio flex-1 px-4 py-6 sm:px-6">
+      <h1 className="text-xl font-semibold text-tinta sm:text-2xl">
         Reportes y moderación
       </h1>
       <p className="mt-2 text-sm text-brand-600">
-        Revisa los reportes de la comunidad y modera las publicaciones que
+        Revisá los reportes de la comunidad y moderá las publicaciones que
         infrinjan las normas.
       </p>
 
@@ -139,10 +140,10 @@ export default async function AdminReportesPage({
                 key={filtro.etiqueta}
                 href={enlaceFiltros(filtro.estado, motivo)}
                 aria-current={activo ? "page" : undefined}
-                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
                   activo
                     ? "border-brand-700 bg-brand-700 text-white"
-                    : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                    : "border-linea-fuerte bg-superficie text-tinta-suave hover:border-brand-300"
                 }`}
               >
                 {filtro.etiqueta}
@@ -165,10 +166,10 @@ export default async function AdminReportesPage({
                 key={filtro.etiqueta}
                 href={enlaceFiltros(estado, filtro.motivo)}
                 aria-current={activo ? "page" : undefined}
-                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors ${
                   activo
                     ? "border-brand-700 bg-brand-700 text-white"
-                    : "border-brand-300 text-brand-700 hover:bg-brand-50"
+                    : "border-linea-fuerte bg-superficie text-tinta-suave hover:border-brand-300"
                 }`}
               >
                 {filtro.etiqueta}
@@ -179,7 +180,7 @@ export default async function AdminReportesPage({
       </div>
 
       {reportes.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-brand-100 bg-white p-6 text-sm text-brand-600">
+        <p className="mt-8 rounded-card border border-linea bg-superficie p-6 text-sm shadow-card text-brand-600">
           No hay reportes para mostrar por ahora.
         </p>
       ) : (
@@ -187,13 +188,13 @@ export default async function AdminReportesPage({
           {reportes.map((reporte) => (
             <li
               key={reporte.id}
-              className="rounded-lg border border-brand-100 bg-white p-4"
+              className="rounded-card border border-linea bg-superficie p-4 shadow-card"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+                <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
                   {etiquetasEstadoReporte[reporte.status]}
                 </span>
-                <span className="rounded bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700">
+                <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
                   {etiquetasEstadoPublicacion[reporte.listing.status] ?? reporte.listing.status}
                 </span>
                 <time className="text-xs text-brand-600">
@@ -201,7 +202,7 @@ export default async function AdminReportesPage({
                 </time>
                 <Link
                   href={`/admin/reportes/${reporte.id}`}
-                  className="ml-auto rounded-md border border-brand-300 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-50"
+                  className={`ml-auto ${clasesBoton({ variante: "secundario", tamanio: "sm" })}`}
                 >
                   Ver detalle
                 </Link>
@@ -210,7 +211,7 @@ export default async function AdminReportesPage({
               <h2 className="mt-3 text-base font-semibold text-brand-900">
                 <Link
                   href={`/listados/${reporte.listing.id}`}
-                  className="text-brand-700 underline hover:text-brand-900"
+                  className="text-brand-700 hover:underline"
                 >
                   {reporte.listing.title}
                 </Link>
@@ -230,7 +231,7 @@ export default async function AdminReportesPage({
               </dl>
 
               {reporte.details ? (
-                <p className="mt-3 whitespace-pre-line rounded-md bg-bone p-3 text-sm text-brand-900">
+                <p className="mt-3 whitespace-pre-line rounded-control bg-superficie-alt p-3 text-sm text-brand-900">
                   {reporte.details}
                 </p>
               ) : null}
@@ -250,7 +251,7 @@ export default async function AdminReportesPage({
           {tieneAnterior ? (
             <Link
               href={enlacePagina(paginaActual - 1)}
-              className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              className={clasesBoton({ variante: "secundario" })}
             >
               Anterior
             </Link>
@@ -263,7 +264,7 @@ export default async function AdminReportesPage({
           {tieneSiguiente ? (
             <Link
               href={enlacePagina(paginaActual + 1)}
-              className="rounded-md border border-brand-300 px-4 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-50"
+              className={clasesBoton({ variante: "secundario" })}
             >
               Siguiente
             </Link>

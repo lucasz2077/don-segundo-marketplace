@@ -55,14 +55,14 @@ export function BotonCambioEstadoPublicacion({
           | RespuestaEstado
           | null;
         setError(
-          datos?.error?.message ?? "No se pudo completar la acción. Intenta de nuevo."
+          datos?.error?.message ?? "No se pudo completar la acción. Intentá de nuevo."
         );
         return;
       }
 
       router.refresh();
     } catch {
-      setError("No se pudo completar la acción. Intenta de nuevo.");
+      setError("No se pudo completar la acción. Intentá de nuevo.");
     } finally {
       setCargando(false);
     }

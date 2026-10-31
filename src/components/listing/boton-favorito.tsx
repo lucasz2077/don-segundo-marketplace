@@ -53,7 +53,7 @@ export function BotonFavorito({
       }
 
       if (!respuesta.ok) {
-        setError("No se pudo actualizar el favorito. Intenta de nuevo.");
+        setError("No se pudo actualizar el favorito. Intentá de nuevo.");
         return;
       }
 

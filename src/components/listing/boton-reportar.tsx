@@ -82,10 +82,10 @@ export function BotonReportar({
           | null;
         if (respuesta.status === 403 || respuesta.status === 404 || respuesta.status === 400) {
           setError(
-            datos?.error?.message ?? "No se pudo enviar el reporte. Intenta de nuevo."
+            datos?.error?.message ?? "No se pudo enviar el reporte. Intentá de nuevo."
           );
         } else {
-          setError("No se pudo enviar el reporte. Intenta de nuevo.");
+          setError("No se pudo enviar el reporte. Intentá de nuevo.");
         }
         return;
       }

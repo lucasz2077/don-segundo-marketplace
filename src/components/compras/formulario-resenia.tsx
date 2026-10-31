@@ -25,7 +25,7 @@ export function mapearErrorResenia(
   if (status === 422) {
     return mensajeServidor || "Los datos de la reseña no son válidos.";
   }
-  return "No se pudo enviar tu reseña. Intenta de nuevo.";
+  return "No se pudo enviar tu reseña. Intentá de nuevo.";
 }
 
 type FormularioReseniaProps = {
@@ -90,7 +90,7 @@ export function FormularioResenia({ compraId, onExito }: FormularioReseniaProps)
       router.refresh();
       onExito?.();
     } catch {
-      setError("No se pudo enviar tu reseña. Intenta de nuevo.");
+      setError("No se pudo enviar tu reseña. Intentá de nuevo.");
     } finally {
       setEnviando(false);
     }

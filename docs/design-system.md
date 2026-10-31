@@ -132,7 +132,24 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
   - Botón de envío fijo abajo en mobile.
 - **Formularios de datos** (información, direcciones, perfil público, verificación, devoluciones): usan `clasesControl()`, `clasesBoton()` y tokens de aviso.
 
-## 8. Plan de reconstrucción estética
+## 8. Auth, pagos, admin y estados
+
+- **Ingreso y registro** (`src/components/auth/`):
+  - `PanelAutenticacion`: en mobile solo el formulario; desde `lg`, panel de marca con beneficios.
+  - `EntradaContrasena`: mostrar u ocultar la contraseña.
+  - `mensajeErrorAuth()`: traduce los códigos de error de Better Auth, que llegan en inglés.
+- **`/pagos/resultado`:** tarjeta centrada con ícono y tono por estado (aprobado, pendiente, reembolso, no completado), acción principal y "Volver al inicio".
+- **Admin:** contenedor ancho, filtros como chips redondeados, insignias de estado y tokens de superficie.
+- **Carga:**
+  - Esqueletos compartidos en `src/components/ui/esqueletos.tsx` (`EsqueletoTarjeta`, `EsqueletoGrillaTarjetas`, `EsqueletoCuenta`, `AvisoCarga`).
+  - `loading.tsx` genérico en la raíz, más específicos en listado, detalle, categoría y cuenta.
+- **Chat:** separadores de día ("Hoy", "Ayer", "12 de octubre") y burbujas solo con la hora.
+- **Microcopy:**
+  - Voseo en la interfaz ("Intentá de nuevo", "Elegí una provincia", "Ingresá un email válido").
+  - Sin jerga técnica a la vista del usuario.
+  - Los mensajes de error de las rutas API (`src/app/api`) siguen pendientes de unificar.
+
+## 9. Plan de reconstrucción estética
 
 | Fase | Alcance | Estado |
 |---|---|---|
@@ -141,7 +158,7 @@ La mayoría de los usuarios entra desde el celular: cada pantalla se diseña pri
 | 3. Descubrimiento | Home (hero, categorías con ícono, recién publicadas, llamado a vender); `TarjetaPublicacion` v2; listado con filtros (sidebar / hoja inferior en mobile), chips, orden y paginación numerada; página de categoría con publicaciones | **Completada** |
 | 4. Conversión | Detalle con breadcrumb, galería táctil, caja de compra (barra fija en mobile), garantías, vendedor, reseñas y similares; perfil público del vendedor | **Completada** |
 | 5. Área de cuenta | Layout "Mi cuenta" con navegación lateral; compras, publicaciones, favoritos, mensajes, notificaciones; formulario de publicar por secciones | **Completada** |
-| 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, tablas de admin, `loading.tsx`, microcopy en voseo | Pendiente |
+| 6. Auth, pagos, admin y estados | Sign-in/up con panel de marca, `/pagos/resultado`, admin, `loading.tsx`, microcopy en voseo y chat agrupado por día | **Completada** |
 | 7. QA visual | Capturas Playwright (mobile/tablet/desktop), accesibilidad (foco, contraste, headings), lint y build | Pendiente |
 
 Pendientes detectados fuera del alcance visual (requieren autorización de backend, ver `src/AGENTS.md` §12):

@@ -22,7 +22,7 @@ export function mapearErrorResolucion(
     return "Esta solicitud de devolución ya fue resuelta.";
   }
   if (status === 502) {
-    return "El reembolso no pudo procesarse en Mercado Pago. Intenta de nuevo.";
+    return "El reembolso no pudo procesarse en Mercado Pago. Intentá de nuevo.";
   }
   if (status === 404) {
     return "La solicitud de devolución no existe.";
@@ -30,7 +30,7 @@ export function mapearErrorResolucion(
   if (status === 403) {
     return "No podés resolver esta solicitud de devolución.";
   }
-  return mensajeServidor || "No se pudo resolver la devolución. Intenta de nuevo.";
+  return mensajeServidor || "No se pudo resolver la devolución. Intentá de nuevo.";
 }
 
 type AccionesDevolucionProps = {
@@ -109,7 +109,7 @@ export function AccionesDevolucion({ solicitudId }: AccionesDevolucionProps) {
       }
       router.refresh();
     } catch {
-      setError("No se pudo resolver la devolución. Intenta de nuevo.");
+      setError("No se pudo resolver la devolución. Intentá de nuevo.");
     } finally {
       setEnviando(null);
     }

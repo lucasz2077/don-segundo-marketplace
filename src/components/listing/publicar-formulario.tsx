@@ -145,7 +145,7 @@ export function PublicarFormulario({
           },
         ]);
       } catch {
-        setError("No se pudo subir una imagen. Intenta de nuevo.");
+        setError("No se pudo subir una imagen. Intentá de nuevo.");
       }
     }
   }
@@ -191,7 +191,7 @@ export function PublicarFormulario({
     });
 
     if (!parseado.success) {
-      setError(parseado.error.issues[0]?.message ?? "Revisa los datos del formulario");
+      setError(parseado.error.issues[0]?.message ?? "Revisá los datos del formulario");
       return;
     }
 
@@ -210,8 +210,8 @@ export function PublicarFormulario({
         setError(
           cuerpo?.error?.message ??
             (esEdicion
-              ? "No se pudo guardar los cambios. Intenta de nuevo."
-              : "No se pudo publicar. Intenta de nuevo.")
+              ? "No se pudo guardar los cambios. Intentá de nuevo."
+              : "No se pudo publicar. Intentá de nuevo.")
         );
         setEnviando(false);
         return;
@@ -224,8 +224,8 @@ export function PublicarFormulario({
     } catch {
       setError(
         esEdicion
-          ? "No se pudo guardar los cambios. Intenta de nuevo."
-          : "No se pudo publicar. Intenta de nuevo."
+          ? "No se pudo guardar los cambios. Intentá de nuevo."
+          : "No se pudo publicar. Intentá de nuevo."
       );
       setEnviando(false);
     }

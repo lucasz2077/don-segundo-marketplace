@@ -53,7 +53,7 @@ export default async function InformacionPage() {
                 {usuario.email}
               </p>
               <p className="mt-1 text-xs text-brand-600">
-                Para cambiar el email se requiere configurar SMTP (pendiente).
+                Por ahora el email de la cuenta no se puede cambiar desde acá.
               </p>
             </div>
             <div>

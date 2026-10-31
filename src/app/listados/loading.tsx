@@ -1,4 +1,5 @@
 import { Contenedor } from "@/components/ui/contenedor";
+import { AvisoCarga } from "@/components/ui/esqueletos";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -9,9 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function CargandoListados() {
   return (
     <Contenedor as="main" className="flex-1 py-4 sm:py-6">
-      <span className="sr-only" role="status">
-        Cargando publicaciones...
-      </span>
+      <AvisoCarga texto="Cargando publicaciones..." />
       <Skeleton className="h-7 w-56" />
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-4">
         <Skeleton className="hidden h-96 lg:block" />

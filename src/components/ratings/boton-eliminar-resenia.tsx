@@ -28,14 +28,14 @@ export function BotonEliminarResenia({ reseniaId }: BotonEliminarReseniaProps) {
         method: "DELETE",
       });
       if (!respuesta.ok) {
-        setError("No se pudo eliminar la reseña. Intenta de nuevo.");
+        setError("No se pudo eliminar la reseña. Intentá de nuevo.");
         setCargando(false);
         setConfirmando(false);
         return;
       }
       router.refresh();
     } catch {
-      setError("No se pudo eliminar la reseña. Intenta de nuevo.");
+      setError("No se pudo eliminar la reseña. Intentá de nuevo.");
       setCargando(false);
       setConfirmando(false);
     }

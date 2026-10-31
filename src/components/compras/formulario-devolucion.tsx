@@ -42,7 +42,7 @@ export function mapearErrorDevolucion(
   if (status === 403) {
     return "No podés solicitar la devolución de esta compra.";
   }
-  return "No se pudo solicitar la devolución. Intenta de nuevo.";
+  return "No se pudo solicitar la devolución. Intentá de nuevo.";
 }
 
 type FormularioDevolucionProps = {
@@ -111,7 +111,7 @@ export function FormularioDevolucion({
       router.refresh();
       onExito?.();
     } catch {
-      setError("No se pudo solicitar la devolución. Intenta de nuevo.");
+      setError("No se pudo solicitar la devolución. Intentá de nuevo.");
     } finally {
       setEnviando(false);
     }
