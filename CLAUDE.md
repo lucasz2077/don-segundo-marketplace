@@ -41,7 +41,7 @@ npx vitest run src/lib/compras.test.ts   # un archivo puntual
 
 **Tests:** `vitest.config.ts` define el alias `@/`, el entorno jsdom y `src/test/setup.ts` (matchers de jest-dom, cleanup y stub de `IntersectionObserver`). Correr con `npm test` o `npx vitest run <archivo>`. El CI (`.github/workflows/ci.yml`) corre `prisma validate`, lint, tests y build. Los tests de páginas deben mockear `@/components/layout/categorias-navegacion` (consulta la base) y, si renderizan la navegación de Mi cuenta, `usePathname`/`useRouter` de `next/navigation`.
 
-**Claude Code:** `.claude/settings.json` define permisos del proyecto y dos hooks en `.claude/hooks/`: `proteger-archivos.mjs` bloquea editar `.env*` (salvo `.env.example`), `package-lock.json`, `src/generated/**` y migraciones existentes; `lint-archivo.mjs` corre ESLint sobre cada archivo editado y devuelve los errores.
+**Claude Code:** `.claude/settings.json` define permisos del proyecto y dos hooks en `.claude/hooks/`: `proteger-archivos.mjs` bloquea editar `.env*` (salvo `.env.example`), `package-lock.json`, `src/generated/**` y migraciones existentes; `lint-archivo.mjs` corre ESLint sobre cada archivo editado y devuelve los errores. Subagente `revisor-pagos` (`.claude/agents/revisor-pagos.md`): revisor de solo lectura del flujo de Mercado Pago; usarlo antes de mergear cambios en `src/lib/pagos/`, `src/lib/compras.ts` o `src/app/api/pagos/`.
 
 Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`).
 
