@@ -18,6 +18,9 @@ vi.mock("@/lib/conversaciones", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  // Lo usa la navegación de "Mi cuenta" (Client Component) para marcar la sección activa.
+  usePathname: () => "/mensajes",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock("next/image", () => ({

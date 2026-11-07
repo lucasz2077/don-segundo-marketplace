@@ -18,6 +18,8 @@ vi.mock("@/lib/pagos/oauth", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  usePathname: () => "/perfil",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
 }));
 
 async function renderizarPagina() {
@@ -31,7 +33,9 @@ describe("Página /perfil", () => {
     mocks.redirect.mockImplementation(() => {
       throw new Error("NEXT_REDIRECT");
     });
-    mocks.getSession.mockResolvedValue({ user: { id: "usuario-1" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "usuario-1", name: "Juan Pérez", email: "juan@example.com" },
+    });
     mocks.obtenerEstadoVinculacionMp.mockResolvedValue("VINCULADA");
   });
 
@@ -42,51 +46,55 @@ describe("Página /perfil", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/sign-in?redirect=/perfil");
   });
 
-  it("muestra la card 'Perfil público' con edición y 'Ver mi perfil' (REQ-10)", async () => {
+  // Desde el rediseño (fase 5) /perfil es el índice de "Mi cuenta": cada
+  // sección es una fila con etiqueta + descripción. La navegación lateral
+  // repite las etiquetas solas, así que las filas se buscan por la descripción.
+
+  it("enlaza la edición del perfil público y 'Ver mi perfil público' (REQ-10)", async () => {
     await renderizarPagina();
 
-    expect(
-      screen.getByRole("heading", { name: "Perfil público" })
-    ).toBeInTheDocument();
-
-    const editar = screen.getByRole("link", { name: "Editar perfil" });
+    const editar = screen.getByRole("link", { name: /Perfil público.*Bio y nombre comercial/ });
     expect(editar).toHaveAttribute("href", "/perfil/publico");
 
-    const verMiPerfil = screen.getByRole("link", { name: "Ver mi perfil" });
+    const verMiPerfil = screen.getByRole("link", { name: "Ver mi perfil público" });
     expect(verMiPerfil).toHaveAttribute("href", "/vendedores/usuario-1");
   });
 
-  it("conserva las cards existentes del perfil", async () => {
+  it("saluda al usuario por su primer nombre y muestra su email", async () => {
+    await renderizarPagina();
+
+    expect(screen.getByText("Hola, Juan")).toBeInTheDocument();
+    expect(screen.getByText("juan@example.com")).toBeInTheDocument();
+  });
+
+  it("lista las secciones de la cuenta en el índice", async () => {
     await renderizarPagina();
 
     expect(
-      screen.getByRole("link", { name: /Información del perfil/ })
+      screen.getByRole("link", { name: /Información personal.*Nombre, DNI/ })
     ).toHaveAttribute("href", "/perfil/informacion");
     expect(
-      screen.getByRole("link", { name: /Direcciones/ })
+      screen.getByRole("link", { name: /Direcciones.*direcciones de entrega/ })
     ).toHaveAttribute("href", "/perfil/direcciones");
     expect(
-      screen.getByRole("link", { name: /Mis publicaciones/ })
+      screen.getByRole("link", { name: /Mis publicaciones.*Stock/ })
     ).toHaveAttribute("href", "/perfil/publicaciones");
   });
 
-  it("incluye la card de verificación de vendedor (RF-32)", async () => {
+  it("incluye la sección de verificación de vendedor (RF-32)", async () => {
     await renderizarPagina();
 
-    const card = screen.getByRole("link", { name: /Verificación de vendedor/ });
-    expect(card).toHaveAttribute("href", "/perfil/verificacion");
-    expect(screen.getByText(/Estado de tu verificación/)).toBeInTheDocument();
+    const fila = screen.getByRole("link", { name: /Verificación de vendedor.*sello de vendedor verificado/ });
+    expect(fila).toHaveAttribute("href", "/perfil/verificacion");
   });
 
-  it("muestra el vínculo con Mercado Pago vinculada y la acción de re-vincular (RF-47)", async () => {
+  it("muestra el vínculo con Mercado Pago vinculado y la acción de re-vincular (RF-47)", async () => {
     mocks.obtenerEstadoVinculacionMp.mockResolvedValue("VINCULADA");
 
     await renderizarPagina();
 
-    expect(
-      screen.getByRole("heading", { name: "Mercado Pago" })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/está vinculada/)).toBeInTheDocument();
+    expect(screen.getByText("Mercado Pago vinculado")).toBeInTheDocument();
+    expect(screen.getByText(/lista para cobrar tus ventas/)).toBeInTheDocument();
 
     const reVincular = screen.getByRole("link", { name: "Re-vincular" });
     expect(reVincular).toHaveAttribute("href", "/api/pagos/oauth/iniciar");
@@ -97,7 +105,9 @@ describe("Página /perfil", () => {
 
     await renderizarPagina();
 
-    expect(screen.getByText(/necesitás vincular tu cuenta de Mercado Pago/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Vinculá tu cuenta de Mercado Pago para vender")
+    ).toBeInTheDocument();
 
     const vincular = screen.getByRole("link", { name: "Vincular Mercado Pago" });
     expect(vincular).toHaveAttribute("href", "/api/pagos/oauth/iniciar");
