@@ -35,11 +35,13 @@ npm run build                # prisma generate && next build
 npx prisma migrate dev       # nueva migración en local
 npx prisma migrate deploy    # aplicar migraciones (producción)
 npm run db:seed              # categorías y subcategorías
-npx vitest run               # tests (ver advertencia abajo)
+npm test                     # vitest run (ver nota de tests abajo)
 npx vitest run src/lib/compras.test.ts   # un archivo puntual
 ```
 
-**Advertencia de tests:** hoy no existe `vitest.config.ts` (tsconfig lo excluye pero nunca se commiteó) ni script `test` en `package.json`. Sin esa config falla el alias `@/` y no hay entorno jsdom, así que la mayoría de los tests no corre. El CI (`.github/workflows/ci.yml`) solo corre `prisma validate`, lint y build: no corre tests ni typecheck aparte.
+**Tests:** `vitest.config.ts` define el alias `@/`, el entorno jsdom y `src/test/setup.ts` (matchers de jest-dom + cleanup). Correr con `npm test` o `npx vitest run <archivo>`. Hoy fallan 33 tests en 5 archivos de `src/app/**/page.test.tsx` (quedaron desactualizados tras el rediseño de UI); por eso el CI (`.github/workflows/ci.yml`) todavía no corre tests: solo `prisma validate`, lint y build.
+
+**Claude Code:** `.claude/settings.json` define permisos del proyecto y dos hooks en `.claude/hooks/`: `proteger-archivos.mjs` bloquea editar `.env*` (salvo `.env.example`), `package-lock.json`, `src/generated/**` y migraciones existentes; `lint-archivo.mjs` corre ESLint sobre cada archivo editado y devuelve los errores.
 
 Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`).
 
