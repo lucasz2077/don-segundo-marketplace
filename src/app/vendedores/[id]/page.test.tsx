@@ -55,6 +55,20 @@ const publicacionActiva = {
   images: [{ url: "https://img.example/tractor.jpg", alt: "Tractor" }],
 };
 
+// Las tarjetas de publicación viven en la sección "Publicaciones de …"; el
+// encabezado también usa listas (ubicación, antigüedad), así que se acota ahí.
+function seccionPublicaciones() {
+  return screen.getByRole("region", { name: /Publicaciones de/ });
+}
+
+// Valor del indicador de confianza con el título dado ("Calificación",
+// "Respuesta", "En venta") del encabezado de tienda (fase 4).
+function indicador(titulo: string) {
+  const elemento = screen.getByText(titulo).parentElement;
+  if (!elemento) throw new Error(`Sin indicador ${titulo}`);
+  return elemento;
+}
+
 async function renderizarPagina(id = "vendedor-1") {
   const pagina = await VendedorPage({ params: Promise.resolve({ id }) });
   return render(pagina);
@@ -99,11 +113,11 @@ describe("Página pública /vendedores/[id]", () => {
       screen.getByRole("heading", { level: 1, name: "Juan Pérez" })
     ).toBeInTheDocument();
     expect(screen.getByText("Agro Juan")).toBeInTheDocument();
-    expect(screen.getByText(/En la plataforma desde/)).toHaveTextContent(
+    expect(screen.getByText(/En Don Segundo desde/)).toHaveTextContent(
       "enero de 2025"
     );
     expect(screen.getByText("Vendo maquinaria agrícola")).toBeInTheDocument();
-    expect(screen.getByText(/Tiempo de respuesta/)).toHaveTextContent("~10 h");
+    expect(indicador("Respuesta")).toHaveTextContent("~10 h");
     expect(screen.getByText("Tractor John Deere")).toBeInTheDocument();
   });
 
@@ -116,11 +130,12 @@ describe("Página pública /vendedores/[id]", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Juan Pérez" })
     ).toBeInTheDocument();
-    expect(screen.getByText(/En la plataforma desde/)).toBeInTheDocument();
+    expect(screen.getByText(/En Don Segundo desde/)).toBeInTheDocument();
     expect(screen.getByText("Tractor John Deere")).toBeInTheDocument();
     expect(screen.queryByText("Agro Juan")).not.toBeInTheDocument();
     expect(screen.queryByText("Vendo maquinaria agrícola")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Tiempo de respuesta/)).not.toBeInTheDocument();
+    // Sin métrica el indicador muestra el estado vacío, nunca un tiempo.
+    expect(indicador("Respuesta")).toHaveTextContent("Sin datos aún");
     expect(mocks.queryRaw).not.toHaveBeenCalled();
   });
 
@@ -139,7 +154,8 @@ describe("Página pública /vendedores/[id]", () => {
 
     await renderizarPagina();
 
-    expect(screen.queryByText(/Tiempo de respuesta/)).not.toBeInTheDocument();
+    expect(indicador("Respuesta")).toHaveTextContent("Sin datos aún");
+    expect(indicador("Respuesta")).not.toHaveTextContent(/~\d+ h/);
   });
 
   it("solo consulta publicaciones ACTIVE con stock > 0 y renderiza las recibidas (REQ-4)", async () => {
@@ -174,10 +190,10 @@ describe("Página pública /vendedores/[id]", () => {
       screen.getByText(/todavía no tiene publicaciones activas/i)
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Contactar" })
+      screen.queryByRole("link", { name: "Preguntar al vendedor" })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Contactar" })
+      screen.queryByRole("button", { name: "Preguntar al vendedor" })
     ).not.toBeInTheDocument();
   });
 
@@ -187,7 +203,7 @@ describe("Página pública /vendedores/[id]", () => {
 
     await renderizarPagina();
 
-    const contacto = screen.getByRole("link", { name: "Contactar" });
+    const contacto = screen.getByRole("link", { name: "Preguntar al vendedor" });
     expect(contacto).toHaveAttribute(
       "href",
       expect.stringContaining("/sign-in?redirect=")
@@ -202,10 +218,10 @@ describe("Página pública /vendedores/[id]", () => {
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("link", { name: "Contactar" })
+      screen.queryByRole("link", { name: "Preguntar al vendedor" })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Contactar" })
+      screen.queryByRole("button", { name: "Preguntar al vendedor" })
     ).not.toBeInTheDocument();
   });
 
@@ -223,12 +239,15 @@ describe("Página pública /vendedores/[id]", () => {
 
     await renderizarPagina();
 
-    // Header: bloque de rating del perfil (RF-24) + tarjeta: estrellas sm
+    // Header: indicador de calificación (RF-24) + tarjeta: estrellas sm
     // (RF-52). Ambas comparten el aria-label "X de 5 (n reseñas)".
     expect(
       screen.getAllByRole("img", { name: "4,5 de 5 (12 reseñas)" })
     ).toHaveLength(2);
-    const tarjetas = screen.getAllByRole("listitem");
+    expect(
+      within(indicador("Calificación")).getByRole("img", { name: "4,5 de 5 (12 reseñas)" })
+    ).toBeInTheDocument();
+    const tarjetas = within(seccionPublicaciones()).getAllByRole("listitem");
     expect(
       within(tarjetas[0]).getByRole("img", { name: "4,5 de 5 (12 reseñas)" })
     ).toBeInTheDocument();
@@ -250,8 +269,11 @@ describe("Página pública /vendedores/[id]", () => {
 
     expect(screen.queryByRole("img", { name: /de 5/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/\d+ de 5/)).not.toBeInTheDocument();
-    // RF-52: la tarjeta muestra el estado vacío, nunca un puntaje (RF-24).
-    expect(screen.getByText("Sin reseñas aún")).toBeInTheDocument();
+    // El indicador del header y la tarjeta (RF-52) muestran el estado vacío,
+    // nunca un puntaje (RF-24).
+    expect(indicador("Calificación")).toHaveTextContent("Sin reseñas aún");
+    const tarjetas = within(seccionPublicaciones()).getAllByRole("listitem");
+    expect(within(tarjetas[0]).getByText("Sin reseñas aún")).toBeInTheDocument();
   });
 
   it("muestra el sello Verificado en el header y en la tarjeta cuando el vendedor está VERIFIED (RF-34/RF-38)", async () => {
@@ -273,7 +295,7 @@ describe("Página pública /vendedores/[id]", () => {
     // publicación (RF-38): la tarjeta recibe sellerVerified del perfil.
     const sellos = screen.getAllByText("Verificado");
     expect(sellos).toHaveLength(2);
-    const tarjetas = screen.getAllByRole("listitem");
+    const tarjetas = within(seccionPublicaciones()).getAllByRole("listitem");
     expect(tarjetas).toHaveLength(1);
     expect(within(tarjetas[0]).getByText("Verificado")).toBeInTheDocument();
   });

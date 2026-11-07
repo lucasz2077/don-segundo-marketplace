@@ -39,7 +39,7 @@ npm test                     # vitest run (ver nota de tests abajo)
 npx vitest run src/lib/compras.test.ts   # un archivo puntual
 ```
 
-**Tests:** `vitest.config.ts` define el alias `@/`, el entorno jsdom y `src/test/setup.ts` (matchers de jest-dom + cleanup). Correr con `npm test` o `npx vitest run <archivo>`. Hoy fallan 33 tests en 5 archivos de `src/app/**/page.test.tsx` (quedaron desactualizados tras el rediseño de UI); por eso el CI (`.github/workflows/ci.yml`) todavía no corre tests: solo `prisma validate`, lint y build.
+**Tests:** `vitest.config.ts` define el alias `@/`, el entorno jsdom y `src/test/setup.ts` (matchers de jest-dom, cleanup y stub de `IntersectionObserver`). Correr con `npm test` o `npx vitest run <archivo>`. El CI (`.github/workflows/ci.yml`) corre `prisma validate`, lint, tests y build. Los tests de páginas deben mockear `@/components/layout/categorias-navegacion` (consulta la base) y, si renderizan la navegación de Mi cuenta, `usePathname`/`useRouter` de `next/navigation`.
 
 **Claude Code:** `.claude/settings.json` define permisos del proyecto y dos hooks en `.claude/hooks/`: `proteger-archivos.mjs` bloquea editar `.env*` (salvo `.env.example`), `package-lock.json`, `src/generated/**` y migraciones existentes; `lint-archivo.mjs` corre ESLint sobre cada archivo editado y devuelve los errores.
 

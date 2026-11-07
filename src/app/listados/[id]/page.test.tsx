@@ -5,6 +5,8 @@ import DetallePublicacionPage from "./page";
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   obtenerPublicacionPorId: vi.fn(),
+  obtenerPublicacionesActivas: vi.fn(),
+  obtenerCategoriasNavegacion: vi.fn(),
   obtenerResenasDePublicacion: vi.fn(),
   esFavorito: vi.fn(),
   notFound: vi.fn(),
@@ -17,7 +19,14 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 
 vi.mock("@/lib/listings", () => ({
+  obtenerPublicacion: vi.fn(),
   obtenerPublicacionPorId: mocks.obtenerPublicacionPorId,
+  obtenerPublicacionesActivas: mocks.obtenerPublicacionesActivas,
+}));
+
+// Las categorías de navegación (migas y similares) consultan la base: se mockean.
+vi.mock("@/components/layout/categorias-navegacion", () => ({
+  obtenerCategoriasNavegacion: mocks.obtenerCategoriasNavegacion,
 }));
 
 vi.mock("@/lib/ratings", () => ({
@@ -80,15 +89,19 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue({ user: { id: "comprador-1" } });
   mocks.esFavorito.mockResolvedValue(false);
   mocks.obtenerResenasDePublicacion.mockResolvedValue([]);
+  mocks.obtenerPublicacionesActivas.mockResolvedValue({ publicaciones: [] });
+  mocks.obtenerCategoriasNavegacion.mockResolvedValue([]);
 });
 
 describe("Detalle de publicación /listados/[id]", () => {
-  it("enlaza el nombre del vendedor a su perfil público y muestra el businessName (REQ-7)", async () => {
+  it("enlaza la card del vendedor a su perfil público y muestra el businessName (REQ-7)", async () => {
     mocks.obtenerPublicacionPorId.mockResolvedValue(publicacionActiva);
 
     await renderizarPagina();
 
-    const enlace = screen.getByRole("link", { name: "Juan Pérez" });
+    // Desde el rediseño (fase 4) el enlace al perfil es el botón de la card.
+    expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
+    const enlace = screen.getByRole("link", { name: "Ver perfil y publicaciones" });
     expect(enlace).toHaveAttribute("href", "/vendedores/owner-1");
     expect(screen.getByText("Agro Juan")).toBeInTheDocument();
   });
@@ -102,7 +115,7 @@ describe("Detalle de publicación /listados/[id]", () => {
     await renderizarPagina();
 
     expect(
-      screen.getByRole("link", { name: "Juan Pérez" })
+      screen.getByRole("link", { name: "Ver perfil y publicaciones" })
     ).toHaveAttribute("href", "/vendedores/owner-1");
     expect(screen.queryByText("Agro Juan")).not.toBeInTheDocument();
   });
@@ -232,12 +245,14 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
       await renderizarPagina();
 
       // Visitante con sesión iniciada y no dueño: botón Comprar visible.
-      expect(screen.getByRole("button", { name: "Comprar" })).toBeVisible();
-      // El fixture con la categoría se aplicó de verdad: el breadcrumb apunta a ella.
-      expect(screen.getByRole("link", { name })).toHaveAttribute(
-        "href",
-        `/categorias/${slug}`
-      );
+      expect(screen.getByRole("button", { name: "Comprar ahora" })).toBeVisible();
+      // El fixture con la categoría se aplicó de verdad: las migas y el enlace
+      // de categoría (mobile) apuntan a ella.
+      const enlaces = screen.getAllByRole("link", { name });
+      expect(enlaces.length).toBeGreaterThan(0);
+      for (const enlace of enlaces) {
+        expect(enlace).toHaveAttribute("href", `/categorias/${slug}`);
+      }
     }
   );
 
@@ -248,7 +263,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Editar" })).toBeVisible();
   });
@@ -262,7 +277,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
   });
 
@@ -278,7 +293,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
     expect(screen.getByText("Publicación pausada")).toBeVisible();
   });
