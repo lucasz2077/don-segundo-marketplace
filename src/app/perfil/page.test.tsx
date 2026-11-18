@@ -18,10 +18,12 @@ vi.mock("@/lib/pagos/oauth", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  usePathname: () => "/perfil",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
 }));
 
-async function renderizarPagina() {
-  const pagina = await PerfilPage();
+async function renderizarPagina(query: { mp?: string } = {}) {
+  const pagina = await PerfilPage({ searchParams: Promise.resolve(query) });
   return render(pagina);
 }
 
@@ -31,7 +33,9 @@ describe("Página /perfil", () => {
     mocks.redirect.mockImplementation(() => {
       throw new Error("NEXT_REDIRECT");
     });
-    mocks.getSession.mockResolvedValue({ user: { id: "usuario-1" } });
+    mocks.getSession.mockResolvedValue({
+      user: { id: "usuario-1", name: "Ana Pérez", email: "ana@example.com", image: null },
+    });
     mocks.obtenerEstadoVinculacionMp.mockResolvedValue("VINCULADA");
   });
 
@@ -112,5 +116,23 @@ describe("Página /perfil", () => {
     expect(
       screen.getByRole("link", { name: "Re-vincular" })
     ).toHaveAttribute("href", "/api/pagos/oauth/iniciar");
+  });
+
+  it("al volver de MP con la vinculación hecha confirma el resultado (RF-48)", async () => {
+    await renderizarPagina({ mp: "vinculada" });
+
+    expect(
+      screen.getByText("¡Listo! Vinculaste tu cuenta de Mercado Pago")
+    ).toBeInTheDocument();
+  });
+
+  it("al volver de MP con un error lo avisa en lugar de callar (RF-48)", async () => {
+    mocks.obtenerEstadoVinculacionMp.mockResolvedValue("SIN_VINCULO");
+
+    await renderizarPagina({ mp: "error" });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No pudimos vincular tu cuenta de Mercado Pago"
+    );
   });
 });

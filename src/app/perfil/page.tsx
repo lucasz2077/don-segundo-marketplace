@@ -18,8 +18,15 @@ export const dynamic = "force-dynamic";
  * sección como fila tocable); en desktop acompaña a la navegación lateral.
  * Muestra el estado del vínculo con Mercado Pago (RF-47/RF-48), requisito
  * para vender, resuelto server-side: nunca llegan tokens al cliente (RNF-20).
+ * Al volver del OAuth de MP, `?mp=` (vinculada | cancelado | error) muestra
+ * el resultado de la vinculación arriba de todo.
  */
-export default async function PerfilPage() {
+export default async function PerfilPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ mp?: string }>;
+}) {
+  const { mp: resultadoVinculacion } = (await searchParams) ?? {};
   const session = await getSession();
 
   if (!session) {
@@ -45,6 +52,20 @@ export default async function PerfilPage() {
   return (
     <PaginaCuenta titulo="Mi cuenta" sinRegreso>
       <div className="flex flex-col gap-4">
+        {resultadoVinculacion === "vinculada" && estadoMp === "VINCULADA" ? (
+          <Alerta tono="exito" titulo="¡Listo! Vinculaste tu cuenta de Mercado Pago">
+            Ya podés publicar: lo que vendas se cobra directo en tu cuenta.
+          </Alerta>
+        ) : resultadoVinculacion === "cancelado" ? (
+          <Alerta tono="advertencia" titulo="No se completó la vinculación">
+            Cancelaste la autorización en Mercado Pago. Podés volver a intentarlo cuando quieras.
+          </Alerta>
+        ) : resultadoVinculacion === "error" ? (
+          <Alerta tono="peligro" titulo="No pudimos vincular tu cuenta de Mercado Pago">
+            Volvé a intentarlo en unos minutos. Si sigue fallando, escribinos y lo revisamos.
+          </Alerta>
+        ) : null}
+
         <Tarjeta relleno="ninguno" className="p-4 sm:p-6">
           <div className="flex items-center gap-4">
             <Avatar nombre={session.user.name} imagen={session.user.image} tamanio="lg" />
