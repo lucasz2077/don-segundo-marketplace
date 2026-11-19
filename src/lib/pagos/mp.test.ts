@@ -15,7 +15,13 @@ vi.mock("mercadopago", () => ({
   },
 }));
 
-import { aCentavos, calcularFee, clienteMpApp, clienteMpVendedor } from "@/lib/pagos/mp";
+import {
+  aCentavos,
+  calcularFee,
+  clienteMpApp,
+  clienteMpVendedor,
+  normalizarCredencialMp,
+} from "@/lib/pagos/mp";
 
 const vendedorMp = {
   id: "mp-1",
@@ -92,6 +98,22 @@ describe("clienteMpApp", () => {
     const cliente = clienteMpApp();
     expect(mocks.configCreado).toHaveBeenCalledWith("APP_USR-APP");
     expect(cliente.accessToken).toBe("APP_USR-APP");
+  });
+
+  it("limpia espacios, saltos de línea y comillas de un token mal pegado", () => {
+    vi.stubEnv("MP_ACCESS_TOKEN", '  "APP_USR-APP"\n');
+    expect(clienteMpApp().accessToken).toBe("APP_USR-APP");
+  });
+
+  it("explica el problema si el token no tiene formato de Mercado Pago, sin mostrarlo", () => {
+    vi.stubEnv("MP_ACCESS_TOKEN", "pegado-cualquier-cosa");
+    expect(() => clienteMpApp()).toThrow(/APP_USR- o TEST-.*21 caracteres/);
+    expect(() => clienteMpApp()).not.toThrow(/pegado-cualquier-cosa/);
+  });
+
+  it("trata un token de solo espacios como no configurado", () => {
+    vi.stubEnv("MP_ACCESS_TOKEN", "   ");
+    expect(() => clienteMpApp()).toThrow("MP_ACCESS_TOKEN no está configurado");
   });
 
   it("es singleton: dos llamadas no crean una segunda instancia", () => {

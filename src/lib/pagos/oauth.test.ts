@@ -38,6 +38,7 @@ vi.mock("mercadopago", () => ({
 vi.mock("@/lib/pagos/mp", () => ({
   clienteMpApp: () => ({ accessToken: "APP_USR-APP" }),
   enModoPruebaMp: () => process.env.MP_MODO_PRUEBA === "true",
+  normalizarCredencialMp: (valor: string | undefined) => (valor ?? "").trim(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
