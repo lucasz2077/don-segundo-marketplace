@@ -15,6 +15,17 @@ function credencialesMp(): { client_id: string; client_secret: string } {
   return { client_id, client_secret };
 }
 
+/**
+ * True si la plataforma opera con cuentas de prueba de MP (`MP_MODO_PRUEBA`).
+ * Con cuentas de prueba, el token del vendedor tiene que pedirse en modo
+ * sandbox (`test_token: true`): un token "live" hace que MP rechace las
+ * operaciones sobre pagos de prueba (401 "Unauthorized use of live
+ * credentials", visto al reembolsar). Para operar con dinero real se quita.
+ */
+export function enModoPruebaMp(): boolean {
+  return process.env.MP_MODO_PRUEBA === "true";
+}
+
 /** URL de callback registrada en la app MP (RF-47). */
 function urlCallback(): string {
   return `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/pagos/oauth/callback`;
@@ -69,14 +80,19 @@ export async function completarVinculacionMp({
   const { client_id, client_secret } = credencialesMp();
   const oauth = new OAuth(clienteMpApp());
 
-  const respuesta = await oauth.create({
-    body: {
-      client_secret,
-      client_id,
-      code,
-      redirect_uri: urlCallback(),
-    },
-  });
+  // `test_token` no está tipado en el SDK, pero el SDK envía el body tal cual
+  // a /oauth/token (documentado por MP para credenciales de sandbox).
+  const cuerpo: Parameters<OAuth["create"]>[0]["body"] & { test_token?: boolean } = {
+    client_secret,
+    client_id,
+    code,
+    redirect_uri: urlCallback(),
+  };
+  if (enModoPruebaMp()) {
+    cuerpo.test_token = true;
+  }
+
+  const respuesta = await oauth.create({ body: cuerpo });
 
   if (!respuesta.access_token || !respuesta.user_id) {
     throw new Error("MP no devolvió tokens en la vinculación");

@@ -164,6 +164,23 @@ describe("completarVinculacionMp", () => {
     });
   });
 
+  it("con MP_MODO_PRUEBA pide el token del vendedor en modo sandbox (test_token)", async () => {
+    vi.stubEnv("MP_MODO_PRUEBA", "true");
+    mocks.oauthCreate.mockResolvedValue({
+      access_token: "APP_USR-PRUEBA",
+      user_id: 987654321,
+      live_mode: false,
+    });
+    mocks.upsertCuenta.mockResolvedValue({ id: "mp-1", userId: "vendedor-1" });
+
+    await completarVinculacionMp({ userId: "vendedor-1", code: "AUTH-CODE" });
+
+    expect(mocks.oauthCreate).toHaveBeenCalledWith({
+      body: expect.objectContaining({ code: "AUTH-CODE", test_token: true }),
+    });
+    vi.stubEnv("MP_MODO_PRUEBA", "");
+  });
+
   it("revierte la revocación al re-vincular (revocadaAt null en update)", async () => {
     mocks.oauthCreate.mockResolvedValue({
       access_token: "APP_USR-NUEVO",
