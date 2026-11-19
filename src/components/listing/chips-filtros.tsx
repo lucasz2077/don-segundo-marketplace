@@ -30,9 +30,10 @@ export function nombreCategoria(
 
 const formateadorMonto = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 });
 
-/** Rango de precio legible. El filtro compara montos sin importar la moneda. */
-function textoPrecio({ minPrecio, maxPrecio }: FiltrosListado): string | null {
-  const formatear = (monto: number) => formateadorMonto.format(monto);
+/** Rango de precio legible, con el símbolo de su moneda (D7). */
+function textoPrecio({ minPrecio, maxPrecio, moneda }: FiltrosListado): string | null {
+  const simbolo = moneda === "USD" ? "US$ " : "$ ";
+  const formatear = (monto: number) => `${simbolo}${formateadorMonto.format(monto)}`;
   if (minPrecio !== undefined && maxPrecio !== undefined) {
     return `Precio: ${formatear(minPrecio)} a ${formatear(maxPrecio)}`;
   }
@@ -68,8 +69,21 @@ export function ChipsFiltros({ filtros, categorias }: ChipsFiltrosProps) {
     filtros.provincia
       ? { etiqueta: filtros.provincia, href: urlListados(filtros, { provincia: null }) }
       : null,
+    filtros.localidad
+      ? { etiqueta: filtros.localidad, href: urlListados(filtros, { localidad: null }) }
+      : null,
+    // La moneda tiene chip propio solo si no hay rango (el rango ya la muestra).
+    filtros.moneda && filtros.minPrecio === undefined && filtros.maxPrecio === undefined
+      ? {
+          etiqueta: filtros.moneda === "USD" ? "Solo dólares" : "Solo pesos",
+          href: urlListados(filtros, { moneda: null }),
+        }
+      : null,
     precio
-      ? { etiqueta: precio, href: urlListados(filtros, { minPrecio: null, maxPrecio: null }) }
+      ? {
+          etiqueta: precio,
+          href: urlListados(filtros, { minPrecio: null, maxPrecio: null, moneda: null }),
+        }
       : null,
   ].filter((chip): chip is { etiqueta: string; href: string } => chip !== null);
 

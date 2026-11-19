@@ -47,6 +47,7 @@ import {
   crearPublicacion,
   CuentaNoVendedoraError,
   ImagenInvalidaError,
+  monedaEfectiva,
   LIMITE_PUBLICACIONES_POR_DIA,
   LimitePublicacionesError,
   obtenerPublicacionesActivas,
@@ -391,6 +392,39 @@ describe("obtenerPublicacionesActivas", () => {
     expect(consulta.values).toContain("USED");
   });
 
+  it("con moneda elegida filtra por esa moneda y ordena solo por precio (D7)", async () => {
+    await obtenerPublicacionesActivas({ moneda: "USD", minPrecio: 10000, orden: "precio-asc" });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).toContain('"currency"::text = ?');
+    expect(consulta.values).toContain("USD");
+    expect(consulta.sql).toContain('ORDER BY "price" ASC');
+  });
+
+  it("un rango sin moneda se interpreta en pesos (D7)", async () => {
+    await obtenerPublicacionesActivas({ maxPrecio: 500000 });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).toContain('"currency"::text = ?');
+    expect(consulta.values).toContain("ARS");
+  });
+
+  it("sin moneda, el orden por precio agrupa pesos y dólares sin mezclarlos (D7)", async () => {
+    await obtenerPublicacionesActivas({ orden: "precio-desc" });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).not.toContain('"currency"::text = ?');
+    expect(consulta.sql).toContain('ORDER BY "currency" ASC, "price" DESC');
+  });
+
+  it("filtra por departamento o localidad sin interpretar comodines (RF-15)", async () => {
+    await obtenerPublicacionesActivas({ localidad: " 9_de Julio% " });
+
+    const consulta = consultaDeIds();
+    expect(consulta.sql).toContain('"city" ILIKE ?');
+    expect(consulta.values).toContain("%9\\_de Julio\\%%");
+  });
+
   it("sin filtros no restringe por categoría ni condición", async () => {
     const resultado = await obtenerPublicacionesActivas();
 
@@ -399,5 +433,13 @@ describe("obtenerPublicacionesActivas", () => {
     expect(consulta.sql).not.toContain("condition");
     expect(resultado).toMatchObject({ publicaciones: [], total: 0, totalPaginas: 1 });
     expect(mocks.findManyListings).not.toHaveBeenCalled();
+  });
+});
+
+describe("monedaEfectiva (D7)", () => {
+  it("respeta la moneda elegida, usa pesos si hay rango y nada si no hay rango", () => {
+    expect(monedaEfectiva({ moneda: "USD", minPrecio: 1 })).toBe("USD");
+    expect(monedaEfectiva({ minPrecio: 1 })).toBe("ARS");
+    expect(monedaEfectiva({})).toBeUndefined();
   });
 });

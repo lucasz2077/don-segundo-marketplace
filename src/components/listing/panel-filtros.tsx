@@ -151,8 +151,35 @@ export function PanelFiltros({ filtros, categorias, provincias, idPanel }: Panel
               ))}
             </Selector>
           </Campo>
+          <Campo
+            id={`localidad-${idPanel}`}
+            etiqueta="Departamento o localidad"
+          >
+            <Entrada
+              id={`localidad-${idPanel}`}
+              name="localidad"
+              type="text"
+              autoComplete="address-level2"
+              placeholder="Ej.: Pergamino"
+              defaultValue={filtros.localidad ?? ""}
+            />
+          </Campo>
           <fieldset>
             <legend className="mb-1.5 text-sm font-medium text-tinta">Precio</legend>
+            <label htmlFor={`moneda-${idPanel}`} className="sr-only">
+              Moneda del precio
+            </label>
+            {/* D7: el rango y el orden por precio aplican a una sola moneda. */}
+            <Selector
+              id={`moneda-${idPanel}`}
+              name="moneda"
+              defaultValue={filtros.moneda ?? ""}
+              className="mb-2"
+            >
+              <option value="">Pesos y dólares</option>
+              <option value="ARS">Solo pesos ($)</option>
+              <option value="USD">Solo dólares (US$)</option>
+            </Selector>
             <div className="flex items-center gap-2">
               <label htmlFor={`min-${idPanel}`} className="sr-only">
                 Precio mínimo
@@ -182,6 +209,9 @@ export function PanelFiltros({ filtros, categorias, provincias, idPanel }: Panel
                 defaultValue={filtros.maxPrecio}
               />
             </div>
+            <p className="mt-1.5 text-xs text-tinta-tenue">
+              Si ponés un rango sin elegir moneda, se busca en pesos.
+            </p>
           </fieldset>
           <Boton type="submit" variante="secundario" anchoCompleto>
             Aplicar

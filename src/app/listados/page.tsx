@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { SearchX } from "lucide-react";
 import { busquedaSchema, type BusquedaInput } from "@/lib/validation/listing";
-import { obtenerPublicacionesActivas } from "@/lib/listings";
+import { monedaEfectiva, obtenerPublicacionesActivas } from "@/lib/listings";
 import { derivarRatingVendedor } from "@/lib/perfiles";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
 import { obtenerCategoriasNavegacion } from "@/components/layout/categorias-navegacion";
@@ -60,6 +60,8 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
     categoria: leerTexto(params.categoria),
     condicion: leerTexto(params.condicion),
     provincia: leerTexto(params.provincia),
+    localidad: leerTexto(params.localidad),
+    moneda: leerTexto(params.moneda),
     minPrecio: leerTexto(params.minPrecio),
     maxPrecio: leerTexto(params.maxPrecio),
     orden: leerTexto(params.orden),
@@ -72,6 +74,9 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
     categoria: entrada.categoria,
     condicion: entrada.condicion,
     provincia: entrada.provincia,
+    localidad: entrada.localidad || undefined,
+    // D7: un rango sin moneda se muestra y filtra en pesos.
+    moneda: monedaEfectiva(entrada),
     minPrecio: entrada.minPrecio,
     maxPrecio: entrada.maxPrecio,
     orden: entrada.orden,
@@ -83,6 +88,8 @@ export default async function ListadosPage({ searchParams }: ListadosPageProps) 
       categoria: filtros.categoria,
       condicion: filtros.condicion,
       provincia: filtros.provincia,
+      localidad: filtros.localidad,
+      moneda: filtros.moneda,
       minPrecio: filtros.minPrecio,
       maxPrecio: filtros.maxPrecio,
       orden: filtros.orden,

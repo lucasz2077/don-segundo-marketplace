@@ -6,6 +6,8 @@ export type FiltrosListado = {
   categoria?: string;
   condicion?: "NEW" | "USED";
   provincia?: string;
+  localidad?: string;
+  moneda?: "ARS" | "USD";
   minPrecio?: number;
   maxPrecio?: number;
   orden?: OrdenListado;
@@ -21,6 +23,8 @@ const ORDEN_CLAVES: Array<keyof FiltrosListado> = [
   "categoria",
   "condicion",
   "provincia",
+  "localidad",
+  "moneda",
   "minPrecio",
   "maxPrecio",
   "orden",
@@ -76,6 +80,8 @@ export function contarFiltros(filtros: FiltrosListado): number {
     filtros.categoria,
     filtros.condicion,
     filtros.provincia,
+    filtros.localidad,
+    filtros.moneda,
     filtros.minPrecio !== undefined || filtros.maxPrecio !== undefined ? "precio" : undefined,
   ].filter(Boolean).length;
 }
