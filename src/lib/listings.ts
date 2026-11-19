@@ -561,3 +561,16 @@ export async function eliminarPublicacion(id: string, ownerId: string) {
 
   return resultado;
 }
+
+/**
+ * Publicaciones activas para el sitemap (RNF-12): id y última actualización,
+ * de la más nueva a la más vieja.
+ */
+export async function obtenerPublicacionesParaSitemap(limite = 5000) {
+  return prisma.listing.findMany({
+    where: { status: "ACTIVE", deletedAt: null },
+    select: { id: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" },
+    take: limite,
+  });
+}

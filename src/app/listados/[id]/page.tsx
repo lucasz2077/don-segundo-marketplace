@@ -33,7 +33,8 @@ import { Alerta } from "@/components/ui/alerta";
 import { Avatar } from "@/components/ui/avatar";
 import { BotonEnlace } from "@/components/ui/boton-enlace";
 import { Migas, type Miga } from "@/components/ui/migas";
-import { Precio } from "@/components/ui/precio";
+import { partesPrecio, Precio } from "@/components/ui/precio";
+import { descripcionCorta, urlImagenCompartir } from "@/lib/seo";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
 
@@ -50,14 +51,26 @@ export async function generateMetadata({ params }: DetallePublicacionPageProps):
   // obtenerPublicacion no suma vistas (el contador lo maneja la página).
   const publicacion = await obtenerPublicacion(id).catch(() => null);
   if (!publicacion || publicacion.status !== "ACTIVE") {
-    return { title: "Publicación — Don Segundo" };
+    return { title: "Publicación", robots: { index: false } };
   }
+  // Vista previa al compartir por WhatsApp (RNF-12): título, precio y ubicación
+  // en la descripción y la primera foto recortada a 1200x630.
+  const partes = partesPrecio(publicacion.price);
+  const precio = `${publicacion.currency === "USD" ? "US$" : "$"} ${partes.entero}${partes.centavos ? `,${partes.centavos}` : ""}`;
+  const ubicacion = publicacion.city ? `${publicacion.city}, ${publicacion.province}` : publicacion.province;
+  const descripcion = descripcionCorta(`${precio} · ${ubicacion}. ${publicacion.description}`);
+  const imagen = publicacion.images[0];
   return {
-    title: `${publicacion.title} — Don Segundo`,
-    description: publicacion.description.slice(0, 160),
+    title: publicacion.title,
+    description: descripcion,
+    alternates: { canonical: `/listados/${publicacion.id}` },
     openGraph: {
       title: publicacion.title,
-      images: publicacion.images[0] ? [{ url: publicacion.images[0].url }] : undefined,
+      description: descripcion,
+      url: `/listados/${publicacion.id}`,
+      images: imagen
+        ? [{ url: urlImagenCompartir(imagen.url), width: 1200, height: 630, alt: imagen.alt ?? publicacion.title }]
+        : undefined,
     },
   };
 }
