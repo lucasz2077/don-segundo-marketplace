@@ -52,10 +52,36 @@ type Notificacion = Awaited<
 >["notificaciones"][number];
 
 /**
+ * Destino de una notificación GENERAL según el evento de su payload: lleva a
+ * la pantalla donde el usuario actúa, no a la publicación. Una devolución
+ * PENDIENTE le llega al vendedor, que la resuelve en /perfil/devoluciones
+ * (RF-49); las resueltas le llegan al comprador, que las ve en /compras.
+ * Devuelve null para los eventos sin pantalla propia.
+ */
+function destinoEventoGeneral(
+  payload: NotificacionPayload | null
+): { href: string; etiqueta: string } | null {
+  if (!payload || !("evento" in payload)) return null;
+  switch (payload.evento) {
+    case "devolucion":
+      return payload.estado === "PENDIENTE"
+        ? { href: "/perfil/devoluciones", etiqueta: "Revisar solicitud" }
+        : { href: "/compras", etiqueta: "Ver mis compras" };
+    case "verificacion":
+      return { href: "/perfil/verificacion", etiqueta: "Ver verificación" };
+    case "vinculacion_mp":
+      return { href: "/perfil", etiqueta: "Volver a vincular Mercado Pago" };
+    default:
+      return null;
+  }
+}
+
+/**
  * Define el enlace de acción de una notificación según su tipo. Las de
  * mensaje nuevo llevan al chat de la conversación; las de cambios en
- * publicaciones propias o favoritas llevan al detalle del listado. Si el
- * payload no se puede parsear, se renderiza sin enlace (nunca lanza).
+ * publicaciones propias o favoritas llevan al detalle del listado; las
+ * GENERAL con evento conocido, a la pantalla donde se actúa. Si el payload no
+ * se puede parsear, se renderiza sin enlace (nunca lanza).
  */
 function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
   const payload = parsearPayload(notificacion.tipo, notificacion.payload);
@@ -98,7 +124,21 @@ function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
     );
   }
 
-  // GENERAL (legacy): comportamiento original, enlace solo si hay listing.
+  const destino =
+    notificacion.tipo === "GENERAL" ? destinoEventoGeneral(payload) : null;
+  if (destino) {
+    return (
+      <Link
+        href={destino.href}
+        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
+      >
+        {destino.etiqueta}
+      </Link>
+    );
+  }
+
+  // GENERAL sin evento con pantalla propia (legacy, reseñas, pagos):
+  // comportamiento original, enlace solo si hay listing.
   if (notificacion.listing) {
     return (
       <Link
