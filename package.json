@@ -2,11 +2,16 @@
   "name": "don-segundo",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "typecheck": "next typegen && tsc --noEmit",
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

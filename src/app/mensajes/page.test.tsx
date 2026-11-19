@@ -18,6 +18,8 @@ vi.mock("@/lib/conversaciones", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  usePathname: () => "/mensajes",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
 }));
 
 vi.mock("next/image", () => ({

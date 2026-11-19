@@ -16,7 +16,7 @@ Marketplace vertical del campo argentino (maquinaria, herramientas, insumos, hac
 - **Next.js 16.3** (App Router), React 19.2, TypeScript strict, Tailwind CSS 4 (tokens en `src/app/globals.css` vía `@theme`, sin `tailwind.config`). Íconos: `lucide-react`.
   - El middleware se llama `src/proxy.ts` (export `proxy`), no `middleware.ts`.
   - `params` y `searchParams` son `Promise` y se hacen `await`.
-  - `LayoutProps`/`PageProps` son tipos globales generados por `next dev`/`next build` (por eso `tsc` suelto falla si no existe `.next/types`).
+  - `LayoutProps`/`PageProps` son tipos globales generados por `next dev`/`next build` (por eso `tsc` suelto falla si no existe `.next/types`; `npm run typecheck` corre `next typegen` antes).
   - Antes de usar una API de Next, consultar `node_modules/next/dist/docs/`.
 - **Prisma 7** con `@prisma/adapter-pg`. El client se genera en `src/generated/prisma` (gitignored) y se importa desde `@/generated/prisma/client`. Config en `prisma.config.ts` (usa `DIRECT_URL` si existe, si no `DATABASE_URL`). En Vercel `DATABASE_URL` va al Transaction pooler de Supabase (6543); el Session pooler (5432) agotó las conexiones y tiró el sitio. Migraciones: Session pooler vía `DIRECT_URL`. Los parámetros `sslmode` de la URL se ignoran (`src/lib/db/url-conexion.ts`): pisaban la config TLS del pool.
 - **Better Auth 1.6** (email + contraseña) con adapter Prisma; campos extra del usuario (`role`, `accountType`, `phone`, `province`, `dni`...) en `src/lib/auth.ts`.
@@ -35,11 +35,12 @@ npm run build                # prisma generate && next build
 npx prisma migrate dev       # nueva migración en local
 npx prisma migrate deploy    # aplicar migraciones (producción)
 npm run db:seed              # categorías y subcategorías
-npx vitest run               # tests (ver advertencia abajo)
+npm test                     # tests (vitest run)
 npx vitest run src/lib/compras.test.ts   # un archivo puntual
+npm run typecheck            # next typegen + tsc --noEmit (los *.test.* quedan fuera de tsconfig)
 ```
 
-**Advertencia de tests:** hoy no existe `vitest.config.ts` (tsconfig lo excluye pero nunca se commiteó) ni script `test` en `package.json`. Sin esa config falla el alias `@/` y no hay entorno jsdom, así que la mayoría de los tests no corre. El CI (`.github/workflows/ci.yml`) solo corre `prisma validate`, lint y build: no corre tests ni typecheck aparte.
+**Tests:** config en `vitest.config.mts` (alias `@` → `src`, jsdom, `globals`) con setup en `src/test/setup.ts` (matchers de jest-dom y un `IntersectionObserver` inerte, que jsdom no trae). El CI (`.github/workflows/ci.yml`) corre `prisma validate`, lint, tests y build; el build ya incluye el chequeo de tipos de la app. Nunca saltear ni borrar tests para que pasen.
 
 Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
 

@@ -1,10 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DetallePublicacionPage from "./page";
 
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   obtenerPublicacionPorId: vi.fn(),
+  obtenerPublicacionesActivas: vi.fn(),
+  obtenerCategoriasRaiz: vi.fn(),
   obtenerResenasDePublicacion: vi.fn(),
   esFavorito: vi.fn(),
   notFound: vi.fn(),
@@ -18,6 +20,12 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/listings", () => ({
   obtenerPublicacionPorId: mocks.obtenerPublicacionPorId,
+  obtenerPublicacionesActivas: mocks.obtenerPublicacionesActivas,
+}));
+
+// Categorías de las migas y de "similares": se aíslan de la base.
+vi.mock("@/lib/categories", () => ({
+  obtenerCategoriasRaiz: mocks.obtenerCategoriasRaiz,
 }));
 
 vi.mock("@/lib/ratings", () => ({
@@ -63,6 +71,14 @@ const publicacionActiva = {
   },
 };
 
+/** Tarjeta "Información del vendedor" del detalle. */
+function bloqueVendedor() {
+  const encabezado = screen.getByRole("heading", { name: "Información del vendedor" });
+  const seccion = encabezado.closest("section");
+  if (!seccion) throw new Error("No se encontró el bloque del vendedor");
+  return within(seccion);
+}
+
 async function renderizarPagina(id = "lista-1") {
   const pagina = await DetallePublicacionPage({
     params: Promise.resolve({ id }),
@@ -80,17 +96,22 @@ beforeEach(() => {
   mocks.getSession.mockResolvedValue({ user: { id: "comprador-1" } });
   mocks.esFavorito.mockResolvedValue(false);
   mocks.obtenerResenasDePublicacion.mockResolvedValue([]);
+  mocks.obtenerPublicacionesActivas.mockResolvedValue({ publicaciones: [], total: 0 });
+  mocks.obtenerCategoriasRaiz.mockResolvedValue([]);
 });
 
 describe("Detalle de publicación /listados/[id]", () => {
-  it("enlaza el nombre del vendedor a su perfil público y muestra el businessName (REQ-7)", async () => {
+  it("muestra el vendedor con su businessName y enlaza a su perfil público (REQ-7)", async () => {
     mocks.obtenerPublicacionPorId.mockResolvedValue(publicacionActiva);
 
     await renderizarPagina();
 
-    const enlace = screen.getByRole("link", { name: "Juan Pérez" });
-    expect(enlace).toHaveAttribute("href", "/vendedores/owner-1");
-    expect(screen.getByText("Agro Juan")).toBeInTheDocument();
+    const vendedor = bloqueVendedor();
+    expect(vendedor.getByText("Juan Pérez")).toBeInTheDocument();
+    expect(vendedor.getByText("Agro Juan")).toBeInTheDocument();
+    expect(
+      vendedor.getByRole("link", { name: "Ver perfil y publicaciones" })
+    ).toHaveAttribute("href", "/vendedores/owner-1");
   });
 
   it("mantiene el enlace al perfil aunque el vendedor no tenga businessName", async () => {
@@ -101,8 +122,10 @@ describe("Detalle de publicación /listados/[id]", () => {
 
     await renderizarPagina();
 
+    const vendedor = bloqueVendedor();
+    expect(vendedor.getByText("Juan Pérez")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Juan Pérez" })
+      vendedor.getByRole("link", { name: "Ver perfil y publicaciones" })
     ).toHaveAttribute("href", "/vendedores/owner-1");
     expect(screen.queryByText("Agro Juan")).not.toBeInTheDocument();
   });
@@ -232,12 +255,14 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
       await renderizarPagina();
 
       // Visitante con sesión iniciada y no dueño: botón Comprar visible.
-      expect(screen.getByRole("button", { name: "Comprar" })).toBeVisible();
-      // El fixture con la categoría se aplicó de verdad: el breadcrumb apunta a ella.
-      expect(screen.getByRole("link", { name })).toHaveAttribute(
-        "href",
-        `/categorias/${slug}`
-      );
+      expect(screen.getByRole("button", { name: "Comprar ahora" })).toBeVisible();
+      // El fixture con la categoría se aplicó de verdad: las migas (desktop)
+      // y el enlace de categoría (mobile) apuntan a ella.
+      const enlaces = screen.getAllByRole("link", { name });
+      expect(enlaces.length).toBeGreaterThan(0);
+      for (const enlace of enlaces) {
+        expect(enlace).toHaveAttribute("href", `/categorias/${slug}`);
+      }
     }
   );
 
@@ -248,7 +273,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Editar" })).toBeVisible();
   });
@@ -262,7 +287,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
   });
 
@@ -278,7 +303,7 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     await renderizarPagina();
 
     expect(
-      screen.queryByRole("button", { name: "Comprar" })
+      screen.queryByRole("button", { name: "Comprar ahora" })
     ).not.toBeInTheDocument();
     expect(screen.getByText("Publicación pausada")).toBeVisible();
   });

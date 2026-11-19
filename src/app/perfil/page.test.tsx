@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PerfilPage from "./page";
 
@@ -27,6 +27,18 @@ async function renderizarPagina(query: { mp?: string } = {}) {
   return render(pagina);
 }
 
+/**
+ * El índice de /perfil agrupa las secciones en tarjetas con un h2 por grupo.
+ * La navegación lateral (desktop) repite los mismos enlaces, así que las
+ * consultas se acotan a la tarjeta del grupo.
+ */
+function grupoDelIndice(titulo: string) {
+  const encabezado = screen.getByRole("heading", { level: 2, name: titulo });
+  const seccion = encabezado.closest("section");
+  if (!seccion) throw new Error(`No se encontró la sección del grupo ${titulo}`);
+  return within(seccion);
+}
+
 describe("Página /perfil", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,40 +58,48 @@ describe("Página /perfil", () => {
     expect(mocks.redirect).toHaveBeenCalledWith("/sign-in?redirect=/perfil");
   });
 
-  it("muestra la card 'Perfil público' con edición y 'Ver mi perfil' (REQ-10)", async () => {
+  it("muestra el acceso a 'Perfil público' y el enlace 'Ver mi perfil público' (REQ-10)", async () => {
     await renderizarPagina();
 
+    const misDatos = grupoDelIndice("Mis datos");
     expect(
-      screen.getByRole("heading", { name: "Perfil público" })
-    ).toBeInTheDocument();
+      misDatos.getByRole("link", { name: /Perfil público/ })
+    ).toHaveAttribute("href", "/perfil/publico");
 
-    const editar = screen.getByRole("link", { name: "Editar perfil" });
-    expect(editar).toHaveAttribute("href", "/perfil/publico");
-
-    const verMiPerfil = screen.getByRole("link", { name: "Ver mi perfil" });
+    const verMiPerfil = screen.getByRole("link", { name: "Ver mi perfil público" });
     expect(verMiPerfil).toHaveAttribute("href", "/vendedores/usuario-1");
   });
 
-  it("conserva las cards existentes del perfil", async () => {
+  it("conserva las secciones existentes del perfil", async () => {
     await renderizarPagina();
 
+    const misDatos = grupoDelIndice("Mis datos");
     expect(
-      screen.getByRole("link", { name: /Información del perfil/ })
+      misDatos.getByRole("link", { name: /Información personal/ })
     ).toHaveAttribute("href", "/perfil/informacion");
     expect(
-      screen.getByRole("link", { name: /Direcciones/ })
+      misDatos.getByRole("link", { name: /Direcciones/ })
     ).toHaveAttribute("href", "/perfil/direcciones");
     expect(
-      screen.getByRole("link", { name: /Mis publicaciones/ })
+      grupoDelIndice("Ventas").getByRole("link", { name: /Mis publicaciones/ })
     ).toHaveAttribute("href", "/perfil/publicaciones");
   });
 
-  it("incluye la card de verificación de vendedor (RF-32)", async () => {
+  it("incluye la sección de verificación de vendedor (RF-32)", async () => {
     await renderizarPagina();
 
-    const card = screen.getByRole("link", { name: /Verificación de vendedor/ });
-    expect(card).toHaveAttribute("href", "/perfil/verificacion");
-    expect(screen.getByText(/Estado de tu verificación/)).toBeInTheDocument();
+    const ventas = grupoDelIndice("Ventas");
+    const enlace = ventas.getByRole("link", { name: /Verificación de vendedor/ });
+    expect(enlace).toHaveAttribute("href", "/perfil/verificacion");
+    expect(ventas.getByText(/sello de vendedor verificado/)).toBeInTheDocument();
+  });
+
+  it("muestra la navegación de la cuenta con el resumen como página actual", async () => {
+    await renderizarPagina();
+
+    const nav = within(screen.getByRole("navigation", { name: "Mi cuenta" }));
+    expect(nav.getByRole("link", { name: "Resumen" })).toHaveAttribute("aria-current", "page");
+    expect(nav.getByRole("link", { name: "Mis compras" })).not.toHaveAttribute("aria-current");
   });
 
   it("muestra el vínculo con Mercado Pago vinculada y la acción de re-vincular (RF-47)", async () => {
@@ -87,10 +107,8 @@ describe("Página /perfil", () => {
 
     await renderizarPagina();
 
-    expect(
-      screen.getByRole("heading", { name: "Mercado Pago" })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/está vinculada/)).toBeInTheDocument();
+    expect(screen.getByText("Mercado Pago vinculado")).toBeInTheDocument();
+    expect(screen.getByText(/está lista para cobrar tus ventas/)).toBeInTheDocument();
 
     const reVincular = screen.getByRole("link", { name: "Re-vincular" });
     expect(reVincular).toHaveAttribute("href", "/api/pagos/oauth/iniciar");
@@ -101,7 +119,10 @@ describe("Página /perfil", () => {
 
     await renderizarPagina();
 
-    expect(screen.getByText(/necesitás vincular tu cuenta de Mercado Pago/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Vinculá tu cuenta de Mercado Pago para vender")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Es el requisito para publicar/)).toBeInTheDocument();
 
     const vincular = screen.getByRole("link", { name: "Vincular Mercado Pago" });
     expect(vincular).toHaveAttribute("href", "/api/pagos/oauth/iniciar");
