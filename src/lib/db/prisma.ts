@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { attachDatabasePool } from "@vercel/functions";
 import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { opcionesTls } from "@/lib/db/tls";
 import { urlConexionSinSsl } from "@/lib/db/url-conexion";
 
 const globalForPrisma = globalThis as unknown as {
@@ -18,15 +19,16 @@ const INACTIVIDAD_CONEXION_MS = 5000;
 function createPrismaClient() {
   // Serverless-friendly pool: bound each lambda to a single connection and
   // cap connection attempts so Supabase's pooler is never exhausted.
-  // TLS: Supabase poolers use self-signed certificates, so do not reject the
-  // chain (the connection is still encrypted). Los parámetros SSL de la URL se
-  // quitan porque pisarían esta configuración (ver url-conexion.ts).
+  // TLS: con DATABASE_CA_CERT se verifica el certificado de Supabase; sin
+  // ella la conexión va cifrada sin verificar la cadena (ver tls.ts). Los
+  // parámetros SSL de la URL se quitan porque pisarían esta configuración
+  // (ver url-conexion.ts).
   const pool = new Pool({
     connectionString: urlConexionSinSsl(process.env.DATABASE_URL),
     max: 1,
     connectionTimeoutMillis: 5000,
     idleTimeoutMillis: INACTIVIDAD_CONEXION_MS,
-    ssl: { rejectUnauthorized: false },
+    ssl: opcionesTls(),
   });
 
   // En Vercel, una instancia suspendida no ejecuta timers: la conexión
