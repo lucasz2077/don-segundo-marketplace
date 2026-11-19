@@ -13,16 +13,33 @@ export type OrdenPublicaciones = "recientes" | "precio-asc" | "precio-desc";
 
 export type CondicionPublicacion = "NEW" | "USED";
 
+export type MonedaPublicacion = "ARS" | "USD";
+
 export type FiltrosPublicaciones = {
   busqueda?: string;
   categoria?: string;
   condicion?: CondicionPublicacion;
+  /** Moneda del rango y del orden por precio (decisión D7: no se mezclan). */
+  moneda?: MonedaPublicacion;
   provincia?: string;
+  /** Departamento o localidad (RF-15): coincidencia parcial sobre `city`. */
+  localidad?: string;
   minPrecio?: number;
   maxPrecio?: number;
   orden?: OrdenPublicaciones;
   pagina?: number;
 };
+
+/**
+ * Moneda con la que se filtra (D7): la elegida o, si hay rango de precio sin
+ * moneda, pesos. Sin rango ni moneda, no se filtra por moneda.
+ */
+export function monedaEfectiva(
+  filtros: Pick<FiltrosPublicaciones, "moneda" | "minPrecio" | "maxPrecio">
+): MonedaPublicacion | undefined {
+  if (filtros.moneda) return filtros.moneda;
+  return filtros.minPrecio !== undefined || filtros.maxPrecio !== undefined ? "ARS" : undefined;
+}
 
 /** Error de dominio: la categoría indicada no existe en la base. */
 export class CategoriaInvalidaError extends Error {
@@ -195,6 +212,18 @@ export async function obtenerPublicacionesActivas(
   if (filtros.provincia) {
     condiciones.push(Prisma.sql`"province" = ${filtros.provincia}`);
   }
+  const localidad = filtros.localidad?.trim();
+  if (localidad) {
+    // Se escapan los comodines de LIKE para buscar el texto tal cual.
+    const patron = `%${localidad.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    condiciones.push(Prisma.sql`"city" ILIKE ${patron}`);
+  }
+  // D7: pesos y dólares no se comparan entre sí. Un rango de precio sin
+  // moneda se interpreta en pesos.
+  const moneda = monedaEfectiva(filtros);
+  if (moneda) {
+    condiciones.push(Prisma.sql`"currency"::text = ${moneda}`);
+  }
   if (filtros.minPrecio !== undefined) {
     condiciones.push(Prisma.sql`"price" >= ${filtros.minPrecio}`);
   }
@@ -213,11 +242,14 @@ export async function obtenerPublicacionesActivas(
 
   const where = Prisma.sql`WHERE ${Prisma.join(condiciones, " AND ")}`;
 
+  // Sin moneda elegida, el orden por precio agrupa primero pesos y después
+  // dólares, para no intercalar montos que no son comparables (D7).
+  const grupoMoneda = moneda ? Prisma.empty : Prisma.sql`"currency" ASC, `;
   const ordenSql =
     filtros.orden === "precio-asc"
-      ? Prisma.sql`"price" ASC, "publishedAt" DESC`
+      ? Prisma.sql`${grupoMoneda}"price" ASC, "publishedAt" DESC`
       : filtros.orden === "precio-desc"
-        ? Prisma.sql`"price" DESC, "publishedAt" DESC`
+        ? Prisma.sql`${grupoMoneda}"price" DESC, "publishedAt" DESC`
         : Prisma.sql`"publishedAt" DESC, "createdAt" DESC`;
 
   const [filasIds, conteo] = await Promise.all([

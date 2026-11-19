@@ -53,7 +53,7 @@
 ### Búsqueda y descubrimiento
 
 - **RF-14 — Búsqueda por texto:** el usuario puede buscar publicaciones por palabras clave (título y descripción).
-- **RF-15 — Filtros combinables:** la búsqueda se filtra por categoría, subcategoría, ubicación (provincia, departamento), rango de precio y condición. Los filtros se combinan entre sí. Elegir una categoría raíz incluye las publicaciones de sus subcategorías. La condición se filtra con `condicion=NEW|USED` en `/listados` y `GET /api/listings`.
+- **RF-15 — Filtros combinables:** la búsqueda se filtra por categoría, subcategoría, ubicación (provincia, departamento), rango de precio y condición. Los filtros se combinan entre sí. Elegir una categoría raíz incluye las publicaciones de sus subcategorías. La condición se filtra con `condicion=NEW|USED` en `/listados` y `GET /api/listings`. El departamento o localidad se filtra con `localidad=` (coincidencia parcial, sin distinguir mayúsculas, sobre la ciudad de la publicación). Moneda (decisión D7): `moneda=ARS|USD`; el rango de precio y el orden por precio aplican a una sola moneda. Un rango sin moneda se interpreta en pesos; sin moneda ni rango, el orden por precio muestra primero las publicaciones en pesos y después las en dólares, sin intercalarlas.
 - **RF-16 — Listado y paginación:** los resultados se muestran paginados u ordenados por relevancia o por fecha.
 - **RF-17 — Detalle de publicación:** la publicación muestra todas sus imágenes, datos completos, ubicación y botón de contacto con el vendedor.
 - **RF-18 — Favoritos:** un usuario logueado puede guardar y desguardar publicaciones en favoritos, y consultar su lista de favoritos.

@@ -93,6 +93,8 @@ export const busquedaSchema = z.object({
     .enum(["NEW", "USED"], { message: "La condición no es válida" })
     .optional(),
   provincia: z.string().trim().max(80, "La provincia no es válida").optional(),
+  localidad: z.string().trim().max(80, "La localidad no es válida").optional(),
+  moneda: z.enum(["ARS", "USD"], { message: "La moneda no es válida" }).optional(),
   minPrecio: z.coerce
     .number({ message: "El precio mínimo no es válido" })
     .nonnegative("El precio mínimo no puede ser negativo")

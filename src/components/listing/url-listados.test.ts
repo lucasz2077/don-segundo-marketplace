@@ -37,3 +37,12 @@ describe("contarFiltros", () => {
     expect(contarFiltros({ q: "x", orden: "precio-desc" })).toBe(0);
   });
 });
+
+describe("urlListados con moneda y localidad (D7, RF-15)", () => {
+  it("incluye localidad y moneda en la URL y las cuenta como filtros", () => {
+    const filtros = { localidad: "Pergamino", moneda: "USD" as const, minPrecio: 1000 };
+
+    expect(urlListados(filtros)).toBe("/listados?localidad=Pergamino&moneda=USD&minPrecio=1000");
+    expect(contarFiltros(filtros)).toBe(3);
+  });
+});
