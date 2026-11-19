@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { OAuth } from "mercadopago";
 import type { VendedorMpAccount } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { clienteMpApp } from "@/lib/pagos/mp";
+import { clienteMpApp, enModoPruebaMp } from "@/lib/pagos/mp";
 import { crearNotificacion } from "@/lib/notificaciones";
 
 /** Credenciales de la app de MP desde el entorno (server-side, RNF-20). */
@@ -13,17 +13,6 @@ function credencialesMp(): { client_id: string; client_secret: string } {
     throw new Error("Faltan MP_CLIENT_ID / MP_CLIENT_SECRET");
   }
   return { client_id, client_secret };
-}
-
-/**
- * True si la plataforma opera con cuentas de prueba de MP (`MP_MODO_PRUEBA`).
- * Con cuentas de prueba, el token del vendedor tiene que pedirse en modo
- * sandbox (`test_token: true`): un token "live" hace que MP rechace las
- * operaciones sobre pagos de prueba (401 "Unauthorized use of live
- * credentials", visto al reembolsar). Para operar con dinero real se quita.
- */
-export function enModoPruebaMp(): boolean {
-  return process.env.MP_MODO_PRUEBA === "true";
 }
 
 /** URL de callback registrada en la app MP (RF-47). */
