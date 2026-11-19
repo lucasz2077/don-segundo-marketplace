@@ -8,7 +8,9 @@ import {
   etiquetasMotivoReporte,
 } from "@/lib/etiquetas-reportes";
 import { AccionesReporte } from "@/components/reportes/acciones-reporte";
+import { Flag } from "lucide-react";
 import { clasesBoton } from "@/components/ui/boton";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
 
 export const dynamic = "force-dynamic";
 
@@ -180,9 +182,17 @@ export default async function AdminReportesPage({
       </div>
 
       {reportes.length === 0 ? (
-        <p className="mt-8 rounded-card border border-linea bg-superficie p-6 text-sm shadow-card text-brand-600">
-          No hay reportes para mostrar por ahora.
-        </p>
+        <div className="mt-8">
+          <EstadoVacio
+            icono={Flag}
+            titulo="No hay reportes para mostrar"
+            descripcion={
+              estado || motivo
+                ? "Ningún reporte coincide con estos filtros. Probá con otros o quitalos."
+                : "Cuando un usuario reporte una publicación, va a aparecer acá."
+            }
+          />
+        </div>
       ) : (
         <ul className="mt-6 flex flex-col gap-4">
           {reportes.map((reporte) => (

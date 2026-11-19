@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { BotonEliminarDireccion } from "@/components/perfil/boton-eliminar-direccion";
 import { FormularioDireccion } from "@/components/perfil/formulario-direccion";
+import { MapPin } from "lucide-react";
 import { clasesBoton } from "@/components/ui/boton";
+import { EstadoVacio } from "@/components/ui/estado-vacio";
 
 type DireccionClient = {
   id: string;
@@ -61,14 +63,11 @@ export function GestionDirecciones({ direcciones }: GestionDireccionesProps) {
       ) : null}
 
       {direcciones.length === 0 && !creando ? (
-        <div className="rounded-card border border-linea bg-superficie p-8 shadow-card text-center">
-          <p className="text-brand-900">
-            Todavía no tenés direcciones guardadas.
-          </p>
-          <p className="mt-1 text-sm text-brand-600">
-            Agregá una dirección para agilizar tus compras y entregas.
-          </p>
-        </div>
+        <EstadoVacio
+          icono={MapPin}
+          titulo="Todavía no tenés direcciones guardadas"
+          descripcion="Agregá una dirección para agilizar tus compras y entregas."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {direcciones.map((direccion) =>
