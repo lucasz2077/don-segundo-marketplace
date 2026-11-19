@@ -136,6 +136,7 @@ marketplace-campo/
 ### 4.3 Lógica de negocio (servicios)
 
 - Módulos por dominio: listings, search, favorites, contact, moderation, notifications, pagos, compras, ratings, verificaciones.
+- Los mails transaccionales salen por Resend desde `src/lib/email/enviar.ts`, el único módulo que habla con el proveedor (API HTTP con `fetch`, sin SDK; los tests lo mockean). Nunca lanza: devuelve `false` si falta configuración (`RESEND_API_KEY`/`EMAIL_REMITENTE`) o si el envío falla. Las plantillas en español (`src/lib/email/plantillas.ts`) escapan los datos del usuario. Los mails de Better Auth (confirmación y recuperación, `src/lib/auth/emails-auth.ts`) se despachan con `waitUntil` para no demorar la respuesta.
 - La integración con Mercado Pago (SDK `mercadopago`) vive aislada en `src/lib/pagos/` (mp, preferencias, pagos, oauth, reembolsos): es el ÚNICO lugar que importa el SDK, para poder mockear el wrapper en tests sin llamadas reales (RNF-16..RNF-20).
 - Validación (Zod), autorización por rol y reglas del dominio viven en esta capa, no en las rutas.
 - Aislar la lógica acá permite probarla con unit tests sin HTTP y migrarla a un servicio backend dedicado en el futuro.

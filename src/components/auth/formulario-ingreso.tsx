@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { destinoSeguro } from "@/lib/auth/destino-seguro";
@@ -78,6 +79,12 @@ export function FormularioIngreso({ redirectTo }: { redirectTo: string }) {
           required
         />
       </Campo>
+      <Link
+        href="/recuperar-contrasenia"
+        className="-mt-2 self-end text-sm font-medium text-brand-700 hover:underline"
+      >
+        ¿Olvidaste tu contraseña?
+      </Link>
 
       {error ? <Alerta tono="peligro">{error}</Alerta> : null}
 

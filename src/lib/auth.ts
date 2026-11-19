@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/db/prisma";
 import { origenesConfiables } from "@/lib/auth/origenes-confiables";
 import { configuracionRateLimit, encabezadosIp } from "@/lib/auth/limites-auth";
+import { enviarEmailRestablecer, enviarEmailVerificacion } from "@/lib/auth/emails-auth";
 
 const baseURL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -17,6 +18,18 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    // RF-03: recuperación de contraseña por mail. Al cambiarla se cierran
+    // las otras sesiones abiertas.
+    sendResetPassword: enviarEmailRestablecer,
+    revokeSessionsOnPasswordReset: true,
+  },
+  // RF-01: confirmación de email al registrarse. No bloquea el ingreso
+  // (decisión D3, opción A): se puede mirar todo; publicar, comprar y
+  // escribir van a exigir el email confirmado.
+  emailVerification: {
+    sendVerificationEmail: enviarEmailVerificacion,
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
   },
   // Límites de intentos en login, registro y contraseña (RNF-07).
   rateLimit: configuracionRateLimit,

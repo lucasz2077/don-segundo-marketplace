@@ -48,6 +48,8 @@ export default function SignUpPage() {
         name: parsed.data.name,
         email: parsed.data.email,
         password: parsed.data.password,
+        // RF-01: a dónde vuelve el usuario al tocar el enlace del mail.
+        callbackURL: "/perfil?email=confirmado",
       });
 
       if (signUpError) {
