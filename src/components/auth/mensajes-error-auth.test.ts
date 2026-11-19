@@ -14,4 +14,10 @@ describe("mensajeErrorAuth", () => {
     );
     expect(mensajeErrorAuth(null, "No se pudo ingresar")).toBe("No se pudo ingresar");
   });
+
+  it("traduce el 429 del límite de intentos aunque no traiga código (RNF-07)", () => {
+    expect(
+      mensajeErrorAuth({ status: 429, message: "Too many requests. Please try again later." }, "x"),
+    ).toBe("Hiciste demasiados intentos. Esperá unos minutos y volvé a probar.");
+  });
 });

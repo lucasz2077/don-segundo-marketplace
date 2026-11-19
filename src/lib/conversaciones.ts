@@ -25,6 +25,36 @@ export class AutoContactoError extends Error {
   }
 }
 
+/** Máximo de mensajes que un usuario puede enviar por minuto (RNF-07). */
+export const LIMITE_MENSAJES_POR_MINUTO = 20;
+/** Máximo de conversaciones nuevas que un comprador puede iniciar por día (RNF-07). */
+export const LIMITE_CONVERSACIONES_NUEVAS_POR_DIA = 20;
+
+/**
+ * Error de dominio (RNF-07): el usuario superó el límite de mensajes o de
+ * conversaciones nuevas. Las rutas lo traducen a 429 RATE_LIMIT.
+ */
+export class LimiteMensajesError extends Error {
+  constructor(mensaje = "Estás enviando mensajes muy rápido. Intentá de nuevo en un momento.") {
+    super(mensaje);
+    this.name = "LimiteMensajesError";
+  }
+}
+
+/**
+ * Límite de envío de mensajes contado en la base (RNF-07): vale para todas
+ * las instancias serverless, a diferencia de un contador en memoria. Usa el
+ * índice Message(senderId, createdAt).
+ */
+async function verificarLimiteMensajes(userId: string) {
+  const enviadosUltimoMinuto = await prisma.message.count({
+    where: { senderId: userId, createdAt: { gte: new Date(Date.now() - 60_000) } },
+  });
+  if (enviadosUltimoMinuto >= LIMITE_MENSAJES_POR_MINUTO) {
+    throw new LimiteMensajesError();
+  }
+}
+
 // Solo campos públicos del participante (REQ-12/RF-19): el profile se usa
 // para mostrar el businessName como subtítulo en el detalle de publicación.
 const seleccionUsuarioConversacion = {
@@ -299,6 +329,25 @@ export async function crearConversacionOMensaje(
     throw new AutoContactoError();
   }
 
+  await verificarLimiteMensajes(buyerId);
+  // Conversaciones nuevas en las últimas 24 h (seguir una existente no cuenta).
+  const existente = await prisma.conversation.findUnique({
+    where: {
+      listingId_buyerId_sellerId: { listingId, buyerId, sellerId: publicacion.ownerId },
+    },
+    select: { id: true },
+  });
+  if (!existente) {
+    const nuevasDelDia = await prisma.conversation.count({
+      where: { buyerId, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) } },
+    });
+    if (nuevasDelDia >= LIMITE_CONVERSACIONES_NUEVAS_POR_DIA) {
+      throw new LimiteMensajesError(
+        `Alcanzaste el límite de ${LIMITE_CONVERSACIONES_NUEVAS_POR_DIA} consultas nuevas por día. Intentá de nuevo mañana.`
+      );
+    }
+  }
+
   const now = new Date();
 
   const resultado = await prisma.$transaction(async (tx) => {
@@ -379,6 +428,8 @@ export async function enviarMensaje(
   if (!publicacion) {
     throw new PublicacionNoDisponibleError();
   }
+
+  await verificarLimiteMensajes(userId);
 
   const mensaje = await prisma.$transaction(async (tx) => {
     const mensajeCreado = await tx.message.create({

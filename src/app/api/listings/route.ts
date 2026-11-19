@@ -12,6 +12,7 @@ import {
   obtenerPublicacionesActivas,
   SinCuentaMpError,
   CuentaNoVendedoraError,
+  LimitePublicacionesError,
 } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
@@ -103,6 +104,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof CuentaNoVendedoraError) {
       return respuestaError(403, "CUENTA_NO_VENDEDORA", error.message);
+    }
+    if (error instanceof LimitePublicacionesError) {
+      return respuestaError(429, "LIMITE_PUBLICACIONES", error.message);
     }
     if (error instanceof SinCuentaMpError) {
       return respuestaError(403, "MP_NO_VINCULADA", error.message);
