@@ -25,7 +25,7 @@ import { Tarjeta } from "@/components/ui/tarjeta";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Publicaciones — Don Segundo",
+  title: "Publicaciones",
   description:
     "Maquinaria agrícola, herramientas, insumos, hacienda, repuestos y servicios rurales en venta en todo el país.",
 };

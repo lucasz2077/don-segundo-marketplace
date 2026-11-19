@@ -31,11 +31,17 @@ export async function generateMetadata({ params }: CategoriaPageProps): Promise<
   const { slug } = await params;
   const categoria = await obtenerCategoria(slug);
   if (!categoria) {
-    return { title: "Categoría no encontrada — Don Segundo" };
+    return { title: "Categoría no encontrada" };
   }
   return {
-    title: `${categoria.name} — Don Segundo`,
+    title: categoria.name,
     description: `Publicaciones de ${categoria.name.toLowerCase()} en venta en el campo argentino.`,
+    alternates: { canonical: `/categorias/${categoria.slug}` },
+    openGraph: {
+      title: `${categoria.name} en Don Segundo`,
+      description: `Publicaciones de ${categoria.name.toLowerCase()} en venta en el campo argentino.`,
+      url: `/categorias/${categoria.slug}`,
+    },
   };
 }
 

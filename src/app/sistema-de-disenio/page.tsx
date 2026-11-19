@@ -32,7 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tarjeta } from "@/components/ui/tarjeta";
 
 export const metadata: Metadata = {
-  title: "Sistema de diseño — Don Segundo",
+  title: "Sistema de diseño",
   robots: { index: false, follow: false },
 };
 

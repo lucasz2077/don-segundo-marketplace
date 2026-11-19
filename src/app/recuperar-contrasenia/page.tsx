@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FormularioRecuperarContrasenia } from "@/components/auth/formulario-recuperar-contrasenia";
 import { PanelAutenticacion } from "@/components/auth/panel-autenticacion";
 
-export const metadata: Metadata = { title: "Recuperar contraseña · Don Segundo" };
+export const metadata: Metadata = { title: "Recuperar contraseña", robots: { index: false } };
 
 /** RF-03: pedido del enlace para restablecer la contraseña. */
 export default function RecuperarContraseniaPage() {

@@ -5,7 +5,7 @@ import { PanelAutenticacion } from "@/components/auth/panel-autenticacion";
 import { Alerta } from "@/components/ui/alerta";
 import { BotonEnlace } from "@/components/ui/boton-enlace";
 
-export const metadata: Metadata = { title: "Elegir contraseña nueva · Don Segundo" };
+export const metadata: Metadata = { title: "Elegir contraseña nueva", robots: { index: false } };
 
 type RestablecerContraseniaPageProps = {
   searchParams: Promise<{ token?: string | string[]; error?: string | string[] }>;

@@ -141,7 +141,7 @@
 ### Accesibilidad y SEO
 
 - **RNF-11 — Accesibilidad:** cumplimiento de WCAG 2.1 nivel AA en los flujos principales (contraste, foco visible, etiquetas de formularios, semántica).
-- **RNF-12 — SEO:** las publicaciones y categorías tienen metadatos, Open Graph y URLs limpias e indexables por buscadores.
+- **RNF-12 — SEO:** las publicaciones y categorías tienen metadatos, Open Graph y URLs limpias e indexables por buscadores. Implementación: `metadataBase` y plantilla de títulos ("Tractor usado — Don Segundo") en el layout; imagen por defecto para compartir (`app/opengraph-image.tsx`); en el detalle, descripción con precio y ubicación, URL canónica y la primera foto recortada a 1200×630 (`src/lib/seo.ts`); categorías y vendedores con título, descripción y Open Graph propios; `sitemap.xml` (inicio, listado, categorías y publicaciones activas) y `robots.txt` que excluye las páginas privadas y la API. Las publicaciones no activas y las páginas de contraseña no se indexan.
 
 ### Operación
 

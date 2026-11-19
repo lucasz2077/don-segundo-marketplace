@@ -16,6 +16,7 @@ import { EstadoVacio } from "@/components/ui/estado-vacio";
 import { Migas } from "@/components/ui/migas";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { BadgeVerificado } from "@/components/verificacion/badge-verificado";
+import { descripcionCorta } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,19 @@ type VendedorPageProps = {
 export async function generateMetadata({ params }: VendedorPageProps): Promise<Metadata> {
   const { id } = await params;
   const perfil = await obtenerPerfilPublicoVendedor(id).catch(() => null);
+  if (!perfil) {
+    return { title: "Vendedor" };
+  }
+  const nombre = perfil.profile?.businessName || perfil.usuario.name;
+  const descripcion = descripcionCorta(
+    perfil.profile?.bio ||
+      `Publicaciones de ${nombre} en Don Segundo, el marketplace del campo argentino.`
+  );
   return {
-    title: perfil ? `${perfil.usuario.name} — Vendedor en Don Segundo` : "Vendedor — Don Segundo",
+    title: `${nombre}, vendedor`,
+    description: descripcion,
+    alternates: { canonical: `/vendedores/${id}` },
+    openGraph: { title: `${nombre} en Don Segundo`, description: descripcion, url: `/vendedores/${id}` },
   };
 }
 
