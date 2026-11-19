@@ -107,6 +107,10 @@
 
 - **RF-52 — Reputación del vendedor en tarjetas de publicación:** las tarjetas de publicación de todas las superficies con sello de verificación (búsqueda `/listados`, recientes del inicio, favoritos y publicaciones del perfil público `/vendedores/[id]`) muestran la reputación del dueño cuando `ratingCount ≥ 3` (la misma constante `MINIMO_MUESTRAS_RATING` de RF-24): versión compacta de la calificación (una estrella, promedio y cantidad, p. ej. "4,6 (12)") con etiqueta accesible en español "X de 5 (n reseñas)". Con 0, 1 o 2 muestras, o si el dueño no tiene perfil, la tarjeta muestra el texto "Sin reseñas aún" (nunca un puntaje ni "0 (0 reseñas)"). El sello "Verificado" permanece intacto y la reputación no altera el orden, los filtros ni la paginación de la búsqueda (freeze RF-38, Slice 2). El detalle de publicación (`/listados/[id]`) muestra la reputación del vendedor (mismo umbral y texto "Sin reseñas aún") en el bloque "Información del vendedor", además de las reseñas de esa publicación (RF-30).
 
+### Transparencia de cargos (pendiente de revisión)
+
+- **RF-53 — Resumen de cargos visible para el vendedor (propuesto, no implementado):** el vendedor ve cuánto recibe neto, antes de publicar y en cada venta. El resumen muestra el precio publicado, la comisión de Don Segundo (`marketplace_fee`, hoy 5%, `FEE_MARKETPLACE`), los cargos estimados de Mercado Pago según su tarifa vigente, el costo de las cuotas si el vendedor las habilitó, y el monto que recibe de forma estimada. Las cifras que dependen de la tarifa de Mercado Pago se rotulan como estimadas hasta que la tarifa de la cuenta esté confirmada. En "Mis ventas" el desglose es el de la venta concreta. No se agrega ningún cargo fijo por unidad sin una decisión explícita del sponsor. Abierto: definir si el cálculo se muestra en el formulario de publicación, en el detalle de la venta, o en ambos; y si se muestra el costo financiero de cuotas al vendedor (depende de RF pendiente sobre cuotas, ver `docs/architecture.md` §6.2).
+
 ## 3. Requisitos no funcionales
 
 ### Rendimiento
