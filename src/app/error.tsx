@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { Boton } from "@/components/ui/boton";
@@ -20,6 +21,8 @@ type ErrorPaginaProps = {
 export default function ErrorPagina({ error, retry }: ErrorPaginaProps) {
   useEffect(() => {
     console.error(error);
+    // RNF-14: el error queda registrado en Sentry con su digest.
+    Sentry.captureException(error);
   }, [error]);
 
   return (

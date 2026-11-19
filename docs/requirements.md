@@ -146,7 +146,7 @@
 ### Operación
 
 - **RNF-13 — Disponibilidad:** objetivo de 99.5 % de disponibilidad en el stack Vercel + Supabase.
-- **RNF-14 — Logging y observabilidad:** logs estructurados y monitoreo de errores desde el día 1 (p. ej. Sentry).
+- **RNF-14 — Logging y observabilidad:** logs estructurados y monitoreo de errores desde el día 1 (p. ej. Sentry). Implementación: Sentry (plan gratuito) con `@sentry/nextjs`; DSN en `NEXT_SENTRY_DSN`. Captura errores del servidor (`onRequestError` en `src/instrumentation.ts`), del navegador (`src/instrumentation-client.ts`) y de las pantallas de error (`error.tsx`, `global-error.tsx`). Sin trazas de rendimiento y sin datos personales (`sendDefaultPii: false`). Un admin puede verificar la conexión con `GET /api/admin/probar-errores`.
 
 ## 4. User stories principales
 
