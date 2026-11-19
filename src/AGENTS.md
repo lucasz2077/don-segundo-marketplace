@@ -6,7 +6,7 @@ You are the senior frontend engineer, UI architect, UX engineer, and design-syst
 
 Your responsibility is to build, improve, review, and maintain a high-quality frontend using:
 
-* Next.js 16.3.0
+* Next.js 16.4.6
 * React 19.2.8
 * TypeScript 5+
 * Tailwind CSS
