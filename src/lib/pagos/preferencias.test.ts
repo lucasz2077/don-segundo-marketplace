@@ -23,6 +23,7 @@ vi.mock("mercadopago", () => ({
 }));
 
 vi.mock("@/lib/pagos/mp", () => ({
+  enModoPruebaMp: () => process.env.MP_MODO_PRUEBA === "true",
   clienteMpVendedor: (vendedorMp: { accessToken: string }) => {
     mocks.configCreado(vendedorMp.accessToken);
     return { accessToken: vendedorMp.accessToken };
@@ -130,6 +131,20 @@ describe("crearPreferenciaPago", () => {
     expect(llamado.body.date_of_expiration).toBe(
       new Date("2026-08-15T12:30:00Z").toISOString()
     );
+  });
+
+  it("con MP_MODO_PRUEBA redirige al checkout de prueba (sandbox_init_point)", async () => {
+    vi.stubEnv("MP_MODO_PRUEBA", "true");
+    mocks.preferenceCreate.mockResolvedValue({
+      id: "12345678",
+      init_point: "https://mp.example/real",
+      sandbox_init_point: "https://mp.example/prueba",
+    });
+
+    const resultado = await crearPreferenciaPago({ compra, vendedorMp });
+
+    expect(resultado).toEqual({ initPoint: "https://mp.example/prueba" });
+    vi.stubEnv("MP_MODO_PRUEBA", "");
   });
 
   it("lanza PreferenciaFallidaError cuando Mercado Pago rechaza la preferencia", async () => {

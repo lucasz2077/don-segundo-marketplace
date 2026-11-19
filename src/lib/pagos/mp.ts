@@ -9,6 +9,18 @@ import type { VendedorMpAccount } from "@/generated/prisma/client";
  */
 export const FEE_MARKETPLACE = 0.05;
 
+/**
+ * True si la plataforma opera con cuentas de prueba de MP (`MP_MODO_PRUEBA`).
+ * Con cuentas de prueba, el token del vendedor tiene que pedirse en modo
+ * sandbox (`test_token: true`): un token "live" hace que MP rechace las
+ * operaciones sobre pagos de prueba (401 "Unauthorized use of live
+ * credentials", visto al reembolsar) y el pago se hace en el checkout de
+ * prueba (`sandbox_init_point`). Para operar con dinero real se quita.
+ */
+export function enModoPruebaMp(): boolean {
+  return process.env.MP_MODO_PRUEBA === "true";
+}
+
 const globalForMp = globalThis as unknown as {
   clienteMpApp: MercadoPagoConfig | undefined;
 };

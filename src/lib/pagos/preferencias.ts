@@ -1,7 +1,7 @@
 import { Preference } from "mercadopago";
 import { Prisma } from "@/generated/prisma/client";
 import type { Compra, VendedorMpAccount } from "@/generated/prisma/client";
-import { clienteMpVendedor } from "@/lib/pagos/mp";
+import { clienteMpVendedor, enModoPruebaMp } from "@/lib/pagos/mp";
 
 /** Fallo al crear la preferencia de pago en MP → 502 PAGO_INDISPONIBLE (RF-39). */
 export class PreferenciaFallidaError extends Error {
@@ -81,7 +81,12 @@ export async function crearPreferenciaPago({
       },
     });
 
-    const initPoint = respuesta.init_point;
+    // Con cuentas de prueba (MP_MODO_PRUEBA) el token del vendedor es
+    // sandbox, y MP solo acepta el pago en su checkout de prueba: el
+    // `init_point` real responde "una de las partes es de prueba".
+    const initPoint = enModoPruebaMp()
+      ? respuesta.sandbox_init_point
+      : respuesta.init_point;
     if (!initPoint) {
       throw new PreferenciaFallidaError(new Error("MP no devolvió init_point"));
     }
