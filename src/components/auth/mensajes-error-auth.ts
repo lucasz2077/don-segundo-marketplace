@@ -1,4 +1,4 @@
-type ErrorAuth = { code?: string; message?: string } | null | undefined;
+type ErrorAuth = { code?: string; message?: string; status?: number } | null | undefined;
 
 /** Códigos de error de Better Auth traducidos al español argentino. */
 const MENSAJES_POR_CODIGO: Record<string, string> = {
@@ -14,11 +14,16 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
 /**
  * Mensaje de error de autenticación para mostrar al usuario. Better Auth
  * responde en inglés: se traduce por código y, si el código es desconocido,
- * se usa el texto de respaldo en lugar del mensaje original.
+ * se usa el texto de respaldo en lugar del mensaje original. Un 429 (límite
+ * de intentos) se traduce aunque no traiga código.
  */
 export function mensajeErrorAuth(error: ErrorAuth, respaldo: string): string {
   if (error?.code && MENSAJES_POR_CODIGO[error.code]) {
     return MENSAJES_POR_CODIGO[error.code];
+  }
+  // El rate limit (RNF-07) responde 429 sin código, solo con el estado HTTP.
+  if (error?.status === 429) {
+    return MENSAJES_POR_CODIGO.TOO_MANY_REQUESTS;
   }
   return respaldo;
 }

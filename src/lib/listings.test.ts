@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   findUniqueCategory: vi.fn(),
   findUniqueUser: vi.fn(),
   createListing: vi.fn(),
+  countListings: vi.fn(),
   findFirstListing: vi.fn(),
   updateListing: vi.fn(),
   obtenerCuentaMpVigente: vi.fn(),
@@ -20,6 +21,7 @@ vi.mock("@/lib/db/prisma", () => ({
     listing: {
       findMany: mocks.findManyListings,
       create: mocks.createListing,
+      count: mocks.countListings,
       findFirst: mocks.findFirstListing,
       update: mocks.updateListing,
     },
@@ -45,6 +47,8 @@ import {
   crearPublicacion,
   CuentaNoVendedoraError,
   ImagenInvalidaError,
+  LIMITE_PUBLICACIONES_POR_DIA,
+  LimitePublicacionesError,
   obtenerPublicacionesActivas,
   obtenerPublicacionesRecientes,
   PublicacionNoEditableError,
@@ -115,6 +119,7 @@ describe("RF-47 — OAuth de Mercado Pago obligatorio para publicar", () => {
     mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
     mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
     mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
+    mocks.countListings.mockResolvedValue(0);
   });
 
   it("crearPublicacion rechaza con SinCuentaMpError si el vendedor no tiene cuenta MP vigente", async () => {
@@ -183,6 +188,7 @@ describe("RF-07 / RF-08 — quién publica y qué se puede editar", () => {
     mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
     mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
     mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
+    mocks.countListings.mockResolvedValue(0);
     mocks.createListing.mockResolvedValue({ id: "listing-1" });
     mocks.updateListing.mockResolvedValue({
       id: "listing-1",
@@ -215,6 +221,19 @@ describe("RF-07 / RF-08 — quién publica y qué se puede editar", () => {
     await crearPublicacion("vendedor-1", datosPublicacion);
 
     expect(mocks.createListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("crearPublicacion rechaza al llegar al límite diario sin crear nada (RNF-07)", async () => {
+    mocks.countListings.mockResolvedValue(LIMITE_PUBLICACIONES_POR_DIA);
+
+    await expect(crearPublicacion("vendedor-1", datosPublicacion)).rejects.toBeInstanceOf(
+      LimitePublicacionesError
+    );
+    expect(mocks.createListing).not.toHaveBeenCalled();
+    const [argumento] = mocks.countListings.mock.calls[0] as [
+      { where: { ownerId: string; createdAt: { gte: Date } } },
+    ];
+    expect(argumento.where.ownerId).toBe("vendedor-1");
   });
 
   it.each(["SOLD", "REJECTED", "DELETED"])(
@@ -270,6 +289,7 @@ describe("Titularidad de las imágenes de una publicación", () => {
     mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
     mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
     mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
+    mocks.countListings.mockResolvedValue(0);
   });
 
   it("crearPublicacion acepta imágenes subidas por el vendedor", async () => {

@@ -5,45 +5,12 @@ import { enviarMensajeSchema } from "@/lib/validation/mensaje";
 import {
   enviarMensaje,
   obtenerMensajesNuevos,
+  LimiteMensajesError,
   NoParticipanteError,
   PublicacionNoDisponibleError,
 } from "@/lib/conversaciones";
 
 export const dynamic = "force-dynamic";
-
-const MAXIMO_ENVIOS_POR_MINUTO = 20;
-const VENTANA_RATE_LIMIT_MS = 60_000;
-const ocurrenciasDeEnvio = new Map<string, number[]>();
-
-/**
- * Rate limit en memoria para el envío de mensajes (RNF-07): permite como
- * máximo 20 envíos por minutos por usuario y conversación. En serverless con
- * múltiples instancias es best-effort por instancia; no reemplaza un límite
- * global si el abuso escala.
- */
-function excedeRateLimit(userId: string, conversacionId: string): boolean {
-  const ahora = Date.now();
-  const limiteInferior = ahora - VENTANA_RATE_LIMIT_MS;
-  const clave = `${userId}:${conversacionId}`;
-  const ocurrencias = (ocurrenciasDeEnvio.get(clave) ?? []).filter(
-    (marca) => marca > limiteInferior
-  );
-
-  if (ocurrencias.length >= MAXIMO_ENVIOS_POR_MINUTO) {
-    ocurrenciasDeEnvio.set(clave, ocurrencias);
-    return true;
-  }
-
-  // Limpieza: si la ventana expiró por completo, se descarta la clave.
-  if (ocurrencias.length === 0) {
-    ocurrenciasDeEnvio.delete(clave);
-  }
-
-  ocurrencias.push(ahora);
-  ocurrenciasDeEnvio.set(clave, ocurrencias);
-
-  return false;
-}
 
 type ErrorRespuesta = {
   error: { code: string; message: string };
@@ -108,7 +75,7 @@ export async function GET(
  * POST /api/conversaciones/[id]/mensajes — envía un mensaje en una
  * conversación existente. El usuario debe participar de la conversación y la
  * publicación debe seguir activa. El envío está limitado por la regla
- * RNF-07 (máximo 20 mensajes por minuto por usuario y conversación).
+ * RNF-07 (LIMITE_MENSAJES_POR_MINUTO por usuario, contado en la base): 429.
  */
 export async function POST(
   request: NextRequest,
@@ -119,14 +86,6 @@ export async function POST(
   const session = await getSession();
   if (!session) {
     return respuestaError(401, "NO_AUTENTICADO", "Debes iniciar sesión");
-  }
-
-  if (excedeRateLimit(session.user.id, id)) {
-    return respuestaError(
-      429,
-      "RATE_LIMIT",
-      "Estás enviando mensajes muy rápido. Intenta de nuevo en un momento."
-    );
   }
 
   let cuerpo: unknown;
@@ -149,6 +108,9 @@ export async function POST(
     const mensaje = await enviarMensaje(id, session.user.id, parseado.data.mensaje);
     return NextResponse.json({ data: mensaje }, { status: 201 });
   } catch (error) {
+    if (error instanceof LimiteMensajesError) {
+      return respuestaError(429, "RATE_LIMIT", error.message);
+    }
     if (error instanceof NoParticipanteError) {
       return respuestaError(404, "NO_ENCONTRADA", error.message);
     }

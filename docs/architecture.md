@@ -287,7 +287,7 @@ OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar`
 
 - **Validación:** Zod en todas las rutas y Server Actions; nunca se confía en el cliente.
 - **Sanitización:** escape del HTML en títulos y descripciones al renderizar; no se permite HTML arbitrario.
-- **Rate limiting:** límites por IP en autenticación, contacto y creación de publicaciones (p. ej. `@upstash/ratelimit` o middleware propio).
+- **Rate limiting (RNF-07):** contado en PostgreSQL para que valga en todas las instancias serverless. Autenticación por IP con el rate limit de Better Auth (`storage: "database"`, tabla `RateLimit`, `src/lib/auth/limites-auth.ts`, IP desde `x-real-ip`/`x-forwarded-for` que completa Vercel). Mensajes, consultas nuevas y publicaciones por usuario, contando filas existentes en los servicios (`src/lib/conversaciones.ts`, `src/lib/listings.ts`).
 - **Secrets:** todas las credenciales en variables de entorno (`DATABASE_URL`, auth secrets, Cloudinary, email). Nunca en el repositorio; rotación periódica.
 - **Autorización por rol:** roles `USER` y `ADMIN`; las rutas admin verifican rol en el servicio; los usuarios solo pueden mutar sus propios recursos (se valida el `ownerId` en cada operación).
 - **Sesiones:** cookies `httpOnly`, `secure` en producción, y protección CSRF. El proveedor de auth maneja el hash de contraseñas con bcrypt/argon2.

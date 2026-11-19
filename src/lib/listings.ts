@@ -81,6 +81,22 @@ export function esEditable(publicacion: { status: string; deletedAt: Date | null
   );
 }
 
+/** Máximo de publicaciones que un usuario puede crear por día (RNF-07). */
+export const LIMITE_PUBLICACIONES_POR_DIA = 10;
+
+/**
+ * Error de dominio (RNF-07): el usuario superó las publicaciones nuevas
+ * permitidas en 24 horas. Las rutas lo traducen a 429 LIMITE_PUBLICACIONES.
+ */
+export class LimitePublicacionesError extends Error {
+  constructor() {
+    super(
+      `Alcanzaste el límite de ${LIMITE_PUBLICACIONES_POR_DIA} publicaciones nuevas por día. Intentá de nuevo mañana.`
+    );
+    this.name = "LimitePublicacionesError";
+  }
+}
+
 /** Estados en los que el dueño puede editar su publicación (RF-08). */
 export const ESTADOS_EDITABLES = ["ACTIVE", "PAUSED"] as const;
 
@@ -355,6 +371,15 @@ export async function crearPublicacion(
   }
 
   validarImagenesPropias(datos.imagenes, ownerId);
+
+  // RNF-07: límite contado en la base (las eliminadas también cuentan, para
+  // que crear y borrar no lo esquive).
+  const creadasUltimoDia = await prisma.listing.count({
+    where: { ownerId, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) } },
+  });
+  if (creadasUltimoDia >= LIMITE_PUBLICACIONES_POR_DIA) {
+    throw new LimitePublicacionesError();
+  }
 
   const categoria = await prisma.category.findUnique({
     where: { id: datos.categoryId },

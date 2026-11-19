@@ -148,6 +148,18 @@ Registro de cada solicitud de verificación del vendedor (Fase 3, Slice 2, RF-32
 | readAt | timestamps? | Soporte para notificaciones |
 | createdAt | timestamps | |
 
+Índices: `(conversationId, createdAt)` para el hilo y `(senderId, createdAt)` para contar los mensajes de un usuario en el último minuto (límite RNF-07).
+
+### RateLimit
+Contadores del rate limit de Better Auth (RNF-07): ingreso, registro y recuperación de contraseña. Lo escribe Better Auth con `rateLimit.storage: "database"` (`src/lib/auth/limites-auth.ts`); vale para todas las instancias serverless. Migración `20261119030000_limites_de_uso`.
+
+| Campo | Tipo | Notas |
+| --- | --- | --- |
+| id | uuid | PK |
+| key | text | Único: IP + ruta (lo arma Better Auth) |
+| count | int | Pedidos en la ventana actual |
+| lastRequest | bigint | Epoch en milisegundos del último pedido |
+
 ### Report
 | Campo | Tipo | Notas |
 | --- | --- | --- |
@@ -452,6 +464,7 @@ model Message {
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
 }
 
 model Report {
@@ -582,7 +595,8 @@ model Rating {
 - **Favoritos:** índice único `(userId, listingId)` garantiza un favorito por usuario y publicación y acelera el toggle.
 - **Compras:** índice `(compradorId, createdAt)` para listar "Mis compras" ordenadas por fecha e índice `(listingId)` para las compras de una publicación.
 - **Calificaciones:** índice único en `compraId` garantiza una calificación por compra (RF-27); el índice `(vendedorId)` acelera los agregados del perfil del vendedor (RF-24).
-- **Mensajería:** índice `(conversationId, createdAt)` para listar mensajes de un hilo ordenados por fecha.
+- **Mensajería:** índice `(conversationId, createdAt)` para listar mensajes de un hilo ordenados por fecha e índice `(senderId, createdAt)` para el límite de mensajes por usuario (RNF-07).
+- **Límites de uso (RNF-07):** sin tablas propias, se cuentan filas existentes: mensajes del usuario en el último minuto, conversaciones nuevas y publicaciones creadas en las últimas 24 h. Solo el rate limit de Better Auth usa la tabla `RateLimit`.
 - **Búsqueda full-text:** `@@fulltext([title, description])` usa `tsvector` nativo de PostgreSQL; si el volumen crece, se migra a un índice GIN o a una herramienta dedicada (p. ej. Postgres trigram / Meilisearch) sin cambiar el contrato de la API.
 - **Conteos:** los contadores agregados (vistas, favoritos) se actualizan de forma incremental; se evitan COUNT sobre tablas grandes en listados públicos.
 - **Evitar N+1:** consultas de listado con `include`/`select` acotados de Prisma; las imágenes de una tarjeta se traen en una sola consulta.

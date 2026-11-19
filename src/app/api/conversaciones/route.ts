@@ -5,6 +5,7 @@ import { crearConversacionSchema } from "@/lib/validation/mensaje";
 import {
   AutoContactoError,
   crearConversacionOMensaje,
+  LimiteMensajesError,
   obtenerConversacionesDeUsuario,
   PublicacionNoDisponibleError,
 } from "@/lib/conversaciones";
@@ -71,6 +72,9 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({ data: resultado }, { status: 201 });
   } catch (error) {
+    if (error instanceof LimiteMensajesError) {
+      return respuestaError(429, "RATE_LIMIT", error.message);
+    }
     if (error instanceof PublicacionNoDisponibleError) {
       return respuestaError(404, "NO_ENCONTRADA", error.message);
     }

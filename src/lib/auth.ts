@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/db/prisma";
 import { origenesConfiables } from "@/lib/auth/origenes-confiables";
+import { configuracionRateLimit, encabezadosIp } from "@/lib/auth/limites-auth";
 
 const baseURL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -16,6 +17,11 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+  },
+  // Límites de intentos en login, registro y contraseña (RNF-07).
+  rateLimit: configuracionRateLimit,
+  advanced: {
+    ipAddress: { ipAddressHeaders: encabezadosIp },
   },
   // Red local en dev; en Vercel, solo la app y su propio deploy (RNF-04)
   trustedOrigins,

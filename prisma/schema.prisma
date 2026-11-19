@@ -177,6 +177,16 @@ model Account {
   @@index([userId])
 }
 
+/// Contadores del rate limit de Better Auth (RNF-07): login, registro y
+/// recuperación de contraseña. Lo escribe Better Auth (`rateLimit.storage:
+/// "database"`); vale para todas las instancias serverless.
+model RateLimit {
+  id          String @id @default(uuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+}
+
 model Verification {
   id         String   @id @default(uuid())
   identifier String
@@ -303,6 +313,8 @@ model Message {
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
+  // Límite de mensajes por usuario (RNF-07, src/lib/conversaciones.ts).
+  @@index([senderId, createdAt])
 }
 
 model Report {
