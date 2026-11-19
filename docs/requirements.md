@@ -46,7 +46,7 @@
 - **RF-08 — Editar publicación:** el vendedor puede editar sus publicaciones activas o pausadas. Las vendidas, rechazadas o eliminadas no se editan: la API responde 409 `NO_EDITABLE` (o 404 si ya tienen `deletedAt`) y la interfaz no ofrece la acción.
 - **RF-09 — Eliminar publicación:** el vendedor puede eliminar (soft delete) sus publicaciones.
 - **RF-10 — Gestionar publicaciones propias:** el vendedor tiene un panel para ver sus publicaciones activas, pausadas y vendidas.
-- **RF-11 — Estado de publicación:** cada publicación tiene un estado (activa, pausada, vendida, rechazada, eliminada). El vendedor puede marcarla como vendida.
+- **RF-11 — Estado de publicación (modificado, decisión del dueño D8):** cada publicación tiene un estado (activa, pausada, vendida, rechazada, eliminada). El vendedor NO la marca como vendida a mano: como toda venta pasa por la plataforma (RF-42), el estado vendida lo asigna el sistema cuando se paga la última unidad (RF-45). Para dejar de ofrecerla, el vendedor puede pausarla (la reanuda cuando quiera) o finalizarla con "Eliminar" (soft delete, RF-09).
 - **RF-12 — Categorías del dominio:** las publicaciones se clasifican en: Maquinaria agrícola, Herramientas y equipos, Insumos, Hacienda y ganado, Repuestos, Servicios rurales. Cada categoría con subcategorías.
 - **RF-13 — Moderación básica:** los usuarios pueden reportar una publicación. Un administrador puede pausar o eliminar publicaciones que violen las normas.
 
@@ -161,7 +161,7 @@
 | US-07 | comprador | guardar publicaciones en favoritos | comparar opciones antes de decidir |
 | US-08 | usuario | reportar una publicación inapropiada | mantener la plataforma confiable |
 | US-09 | administrador | pausar o eliminar publicaciones que violan normas | moderar el contenido |
-| US-10 | vendedor | marcar mi publicación como vendida | no recibir más contactos por algo vendido |
+| US-10 | vendedor | pausar o finalizar mi publicación (la marca de vendida la pone la plataforma al cobrar) | no recibir más contactos por algo que ya no ofrezco |
 | US-11 | comprador | chatear con el vendedor dentro de la plataforma | cerrar el trato sin depender de canales externos |
 | US-12 | vendedor | ver mis conversaciones agrupadas por publicación y saber cuáles no leí | responder rápido y no perder oportunidades |
 | US-13 | comprador | ver el perfil público del vendedor antes de contactar | evaluar su confiabilidad |
