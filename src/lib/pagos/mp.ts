@@ -32,13 +32,29 @@ const globalForMp = globalThis as unknown as {
  */
 export function clienteMpApp(): MercadoPagoConfig {
   if (!globalForMp.clienteMpApp) {
-    const accessToken = process.env.MP_ACCESS_TOKEN;
+    const accessToken = normalizarCredencialMp(process.env.MP_ACCESS_TOKEN);
     if (!accessToken) {
       throw new Error("MP_ACCESS_TOKEN no está configurado");
+    }
+    // Sin este chequeo, un valor mal pegado viaja igual y MP responde 401
+    // "authorization value not present", que no dice qué está mal.
+    if (!/^(APP_USR|TEST)-\S+$/.test(accessToken)) {
+      throw new Error(
+        `MP_ACCESS_TOKEN no tiene el formato de Mercado Pago: debe empezar con APP_USR- o TEST- (tiene ${accessToken.length} caracteres)`
+      );
     }
     globalForMp.clienteMpApp = new MercadoPagoConfig({ accessToken });
   }
   return globalForMp.clienteMpApp;
+}
+
+/**
+ * Normaliza una credencial copiada del panel de MP o de Vercel: quita
+ * espacios, saltos de línea y comillas alrededor, que no forman parte del
+ * valor. Nunca loguea ni devuelve el valor en un error.
+ */
+export function normalizarCredencialMp(valor: string | undefined): string {
+  return (valor ?? "").trim().replace(/^["']+|["']+$/g, "").trim();
 }
 
 /**

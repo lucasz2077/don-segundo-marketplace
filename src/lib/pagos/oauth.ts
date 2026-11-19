@@ -2,13 +2,13 @@ import { createHash } from "node:crypto";
 import { OAuth } from "mercadopago";
 import type { VendedorMpAccount } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { clienteMpApp, enModoPruebaMp } from "@/lib/pagos/mp";
+import { clienteMpApp, enModoPruebaMp, normalizarCredencialMp } from "@/lib/pagos/mp";
 import { crearNotificacion } from "@/lib/notificaciones";
 
 /** Credenciales de la app de MP desde el entorno (server-side, RNF-20). */
 function credencialesMp(): { client_id: string; client_secret: string } {
-  const client_id = process.env.MP_CLIENT_ID;
-  const client_secret = process.env.MP_CLIENT_SECRET;
+  const client_id = normalizarCredencialMp(process.env.MP_CLIENT_ID);
+  const client_secret = normalizarCredencialMp(process.env.MP_CLIENT_SECRET);
   if (!client_id || !client_secret) {
     throw new Error("Faltan MP_CLIENT_ID / MP_CLIENT_SECRET");
   }
@@ -38,7 +38,7 @@ export function stateOAuth(sessionToken: string): string {
  * la credencial, y la ruta lo traduce a 500.
  */
 export function obtenerAutorizacionMpUrl(estado: string): string {
-  const client_id = process.env.MP_CLIENT_ID;
+  const client_id = normalizarCredencialMp(process.env.MP_CLIENT_ID);
   if (!client_id) {
     throw new Error("Falta MP_CLIENT_ID");
   }
