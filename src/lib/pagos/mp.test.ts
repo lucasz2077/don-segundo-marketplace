@@ -135,3 +135,24 @@ describe("clienteMpVendedor", () => {
     expect(cliente.accessToken).toBe("APP_USR-VENDEDOR");
   });
 });
+
+describe("normalizarCredencialMp", () => {
+  it("quita espacios y saltos de línea alrededor del valor", () => {
+    expect(normalizarCredencialMp("  valor-credencial\n")).toBe("valor-credencial");
+  });
+
+  it("quita comillas simples o dobles que envuelven el valor", () => {
+    expect(normalizarCredencialMp('"valor-credencial"')).toBe("valor-credencial");
+    expect(normalizarCredencialMp("'valor-credencial'")).toBe("valor-credencial");
+    expect(normalizarCredencialMp(' " valor-credencial " ')).toBe("valor-credencial");
+  });
+
+  it("no toca el contenido interno del valor", () => {
+    expect(normalizarCredencialMp("valor con-espacio_interno")).toBe("valor con-espacio_interno");
+  });
+
+  it("devuelve cadena vacía si la credencial no está configurada", () => {
+    expect(normalizarCredencialMp(undefined)).toBe("");
+    expect(normalizarCredencialMp("   ")).toBe("");
+  });
+});

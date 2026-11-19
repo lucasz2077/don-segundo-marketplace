@@ -18,6 +18,8 @@ vi.mock("@/lib/perfiles", () => ({
 
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
+  usePathname: () => "/perfil/publico",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
 }));
 
 // El formulario client se prueba en su propio archivo; acá se aisla para

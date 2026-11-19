@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { obtenerAutorizacionMpUrl, stateOAuth } from "@/lib/pagos/oauth";
@@ -12,7 +11,7 @@ export const dynamic = "force-dynamic";
  * (httpOnly, design §5). Si faltan las credenciales MP responde 500 sin
  * exponer ningún secreto (RNF-20).
  */
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
