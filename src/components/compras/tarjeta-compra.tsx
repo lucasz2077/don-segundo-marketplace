@@ -68,7 +68,7 @@ type TarjetaCompraProps = {
    * (muestra el CTA; RF-41/D9). */
   calificable: boolean;
   /** true si el pago está APROBADO, la compra está dentro de la ventana de
-   * devolución de 7 días y no hay solicitud PENDIENTE (muestra el CTA
+   * devolución de 10 días y no hay solicitud PENDIENTE (muestra el CTA
    * "Solicitar devolución"; RF-49/5.4). */
   devolucionable: boolean;
 };
@@ -176,7 +176,7 @@ export function TarjetaCompra({
           ) : null}
 
           {/* Devolución (RF-49/5.4): con solicitud PENDIENTE se informa el
-              estado en revisión; sin ella y dentro de la ventana de 7 días
+              estado en revisión; sin ella y dentro de la ventana de 10 días
               se ofrece el CTA que despliega el formulario inline. Fuera de
               la ventana no se muestra nada para no duplicar mensajes con la
               calificación. */}

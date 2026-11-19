@@ -251,11 +251,12 @@ MP → POST /api/pagos/webhook (pública, body { data: { id }, type: "payment" }
       con ?compra: Payment.get con el token del VENDEDOR de esa compra (el pago es suyo)
         y external_reference debe ser esa compra (si no → log, no-op)
       sin ?compra (preferencias viejas): Payment.get con MP_ACCESS_TOKEN — nunca body crudo
-  → si status ≠ approved → no-op, 200 { data: { recibido: true } }
+  → si status es rejected/cancelled → Compra PENDIENTE → FALLIDO (updateMany condicionado)
+  → otro status ≠ approved → no-op, 200 { data: { recibido: true } }
   → si MP o la base fallan → 500 para que MP reintente (idempotente, RNF-17)
   → RF-46: monto/moneda ≠ Compra → log PAGO_INCONSISTENTE, no-op
   → aprobarPagoCompra() en $transaction (RNF-18, patrón updateMany condicionado):
-      1. updateMany Compra PENDIENTE → APROBADO (count 0 ⇒ no-op idempotente RNF-17)
+      1. updateMany Compra PENDIENTE|EXPIRADA|FALLIDO → APROBADO (count 0 ⇒ no-op idempotente RNF-17)
       2. updateMany Listing { ACTIVE, deletedAt null, stock > 0 } → decrement 1 + soldCount
          ├─ count 1 → Compra { mpPaymentId, aprobadoAt, medioPago } + SOLD si stock = 0
          └─ count 0 → carrera SIN_STOCK → Compra REEMBOLSO_PENDIENTE SIN_STOCK en la tx;
@@ -264,7 +265,7 @@ MP → POST /api/pagos/webhook (pública, body { data: { id }, type: "payment" }
   → post-commit best-effort: notifica venta paga al vendedor (nunca revierte — RF-45)
 ```
 
-Devoluciones (RF-49..RF-51): comprador solicita en `/compras` (ventana 7 días desde `aprobadoAt`, solo APROBADA → 410 `VENTANA_EXPIRADA`); vendedor aprueba/rechaza en `/perfil/devoluciones`; al aprobar: toma atómica PENDIENTE → APROBADA, refund TOTAL con el token del vendedor e idempotencia `devolucion-<solicitud>`, y recién con el refund confirmado `$transaction` Compra REEMBOLSADO + `mpRefundId`/`montoReembolsado`. Si el refund falla la solicitud vuelve a PENDIENTE (502, log `REEMBOLSO_FALLIDO`) y el vendedor reintenta sin duplicar. RF-51: el comprador recibe el 100% y MP descuenta en proporción al vendedor y al `marketplace_fee` de Don Segundo.
+Devoluciones (RF-49..RF-51): comprador solicita en `/compras` (ventana 10 días desde `aprobadoAt`, solo APROBADA → 410 `VENTANA_EXPIRADA`); vendedor aprueba/rechaza en `/perfil/devoluciones`; al aprobar: toma atómica PENDIENTE → APROBADA, refund TOTAL con el token del vendedor e idempotencia `devolucion-<solicitud>`, y recién con el refund confirmado `$transaction` Compra REEMBOLSADO + `mpRefundId`/`montoReembolsado` + stock +1 y publicación PAUSED (D10). Si el refund falla la solicitud vuelve a PENDIENTE (502, log `REEMBOLSO_FALLIDO`) y el vendedor reintenta sin duplicar. RF-51: el comprador recibe el 100% y MP descuenta en proporción al vendedor y al `marketplace_fee` de Don Segundo.
 
 Cron diario de pagos (`vercel.json` → `GET /api/cron/pagos`, `Authorization: Bearer $CRON_SECRET`): renueva los tokens de vendedor que vencen en menos de 30 días, reintenta los reembolsos `REEMBOLSO_PENDIENTE` y expira las órdenes PENDIENTES vencidas. Cada tarea es independiente.
 

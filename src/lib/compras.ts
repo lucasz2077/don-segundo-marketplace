@@ -26,15 +26,19 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 /** TTL de las órdenes PENDIENTES antes de expirar (D5): 30 minutos. */
 export const VENCIMIENTO_ORDEN_MINUTOS = 30;
 
-/** Ventana de devolución de una compra: 7 días corridos desde la aprobación
- * del pago (RF-50). */
-export const VENTANA_DEVOLUCION_DIAS = 7;
+/** Ventana de devolución de una compra: 10 días corridos desde la aprobación
+ * del pago (RF-50; decisión D5, alineada con el derecho de arrepentimiento
+ * de la Ley 24.240 art. 34). */
+export const VENTANA_DEVOLUCION_DIAS = 10;
+
+/** Máximo de compras PENDIENTES (sin pagar y sin vencer) por comprador (D9). */
+export const LIMITE_COMPRAS_PENDIENTES = 5;
 
 /**
  * Helper interno que generaliza la ventana de tiempo INCLUSIVA medida desde la
  * aprobación del pago: `aprobadoAt + dias <= ahora` todavía aplica. Comparten
  * esta única implementación `compraEnVentanaCalificacion` (30 días, RF-27/D9)
- * y `compraEnVentanaDevolucion` (7 días, RF-50); una sola semántica evita
+ * y `compraEnVentanaDevolucion` (10 días, RF-50); una sola semántica evita
  * que ambas ventanas deriven con el tiempo. `ahora` es inyectable para tests.
  */
 function enVentanaDeAprobacion(
@@ -143,10 +147,10 @@ export function compraEnVentanaCalificacion(
 
 /**
  * Devuelve true si la compra sigue dentro de la ventana de devolución de
- * 7 días (RF-50). La ventana arranca en la APROBACIÓN del pago, igual que la
+ * 10 días (RF-50). La ventana arranca en la APROBACIÓN del pago, igual que la
  * de calificación (D9): se mide desde `aprobadoAt`, no desde `createdAt`. Una
  * compra sin fecha de aprobación (no aprobada) nunca está en ventana → false.
- * La ventana es INCLUSIVA: `aprobadoAt + 7 días >= ahora` todavía puede
+ * La ventana es INCLUSIVA: `aprobadoAt + 10 días >= ahora` todavía puede
  * solicitarse la devolución. `ahora` es inyectable para tests deterministas.
  */
 export function compraEnVentanaDevolucion(
@@ -262,7 +266,7 @@ export async function obtenerSolicitudesDevolucion(
  * 3. 409 CompraNoAprobadaError si el pago no está APROBADO (RF-50: PENDIENTE/
  *    FALLIDO/REEMBOLSADO/EXPIRADA no aplican; REEMBOLSADO ya devolvió el
  *    dinero, no hay doble devolución).
- * 4. 410 VentanaDevolucionExpiradaError pasados los 7 días desde `aprobadoAt`
+ * 4. 410 VentanaDevolucionExpiradaError pasados los 10 días desde `aprobadoAt`
  *    (ventana inclusiva, misma semántica que la de calificación).
  * 5. 409 DevolucionYaPendienteError si ya existe una solicitud PENDIENTE para
  *    la misma compra (una a la vez).
@@ -491,8 +495,12 @@ export async function resolverDevolucion({
       : new ReembolsoFallidoError(error);
   }
 
-  // (4) Refund confirmado: la compra queda REEMBOLSADO.
-  await prisma.$transaction(async (tx) => {
+  // (4) Refund confirmado: la compra queda REEMBOLSADO y (D10) la unidad
+  // vuelve al stock con la publicación PAUSADA, para que el vendedor la
+  // reactive cuando tenga el producto de vuelta. Una publicación eliminada
+  // o rechazada no se toca.
+  const listingId = solicitud.compra.listing.id;
+  const restituida = await prisma.$transaction(async (tx) => {
     await tx.solicitudDevolucion.update({
       where: { id: solicitudId },
       data: { mpRefundId, montoReembolsado: solicitud.compra.precioUnitario },
@@ -505,7 +513,31 @@ export async function resolverDevolucion({
         motivoReembolso: "DEVOLUCION_VENDEDOR",
       },
     });
+    const stock = await tx.listing.updateMany({
+      where: { id: listingId, deletedAt: null, status: { notIn: ["DELETED", "REJECTED"] } },
+      data: { stock: { increment: 1 }, status: "PAUSED" },
+    });
+    await tx.listing.updateMany({
+      where: { id: listingId, soldCount: { gt: 0 } },
+      data: { soldCount: { decrement: 1 } },
+    });
+    return stock.count > 0;
   });
+
+  if (restituida) {
+    try {
+      await crearNotificacion(
+        vendedorId,
+        listingId,
+        "Publicación pausada por devolución",
+        `Devolviste el pago de "${solicitud.compra.listing.title}". Sumamos la unidad al stock y pausamos la publicación: reactivala desde Mis publicaciones cuando tengas el producto.`,
+        "ESTADO_PUBLICACION",
+        { listingId, estado: "PAUSED" }
+      );
+    } catch {
+      // La notificación es complementaria: se ignora el error silenciosamente.
+    }
+  }
 
   try {
     await crearNotificacion(
@@ -569,6 +601,20 @@ export class SinStockError extends Error {
 }
 
 /** Error de dominio: el pago no pudo inicializarse (→ 502 PAGO_INDISPONIBLE). */
+/**
+ * Error de dominio (D9): el comprador ya tiene LIMITE_COMPRAS_PENDIENTES
+ * compras sin pagar. Evita bloquear publicaciones con órdenes que nunca se
+ * pagan. La ruta lo traduce a 429 COMPRAS_PENDIENTES.
+ */
+export class LimiteComprasPendientesError extends Error {
+  constructor() {
+    super(
+      `Tenés ${LIMITE_COMPRAS_PENDIENTES} compras sin pagar. Pagá alguna o esperá a que venzan (30 minutos) para iniciar otra.`
+    );
+    this.name = "LimiteComprasPendientesError";
+  }
+}
+
 export class PagoIndisponibleError extends Error {
   constructor(causa?: unknown) {
     super("El pago no está disponible en este momento", { cause: causa });
@@ -630,10 +676,10 @@ export class CompraNoAprobadaError extends Error {
   }
 }
 
-/** Error de dominio: la ventana de devolución de 7 días venció. (410 VENTANA_EXPIRADA) */
+/** Error de dominio: la ventana de devolución de 10 días venció. (410 VENTANA_EXPIRADA) */
 export class VentanaDevolucionExpiradaError extends Error {
   constructor() {
-    super("La ventana de devolución de 7 días ya venció");
+    super("La ventana de devolución de 10 días ya venció");
     this.name = "VentanaDevolucionExpiradaError";
   }
 }
@@ -713,6 +759,14 @@ export async function iniciarCompra({
   }
   if (publicacion.stock <= 0) {
     throw new SinStockError();
+  }
+
+  // D9: tope de órdenes sin pagar vigentes (las vencidas no cuentan).
+  const pendientes = await prisma.compra.count({
+    where: { compradorId, estadoPago: "PENDIENTE", fechaVencimiento: { gt: new Date() } },
+  });
+  if (pendientes >= LIMITE_COMPRAS_PENDIENTES) {
+    throw new LimiteComprasPendientesError();
   }
 
   // Orden PENDIENTE con external_reference = compra.id (RF-39). El decremento
@@ -834,11 +888,13 @@ export async function aprobarPagoCompra({
   }
 
   const resultado = await prisma.$transaction(async (tx) => {
-    // (a) RNF-17: transición atómica de estado. PENDIENTE o EXPIRADA son
-    // "no procesadas" (D5: un pago real de una orden vencida se procesa
-    // igual); APROBADO/REEMBOLSADO/FALLIDO → count 0 → no-op idempotente.
+    // (a) RNF-17: transición atómica de estado. PENDIENTE, EXPIRADA o FALLIDO
+    // son "no procesadas": un pago real de una orden vencida se procesa igual
+    // (D5), y en el checkout de MP el comprador puede reintentar con otro
+    // medio después de un rechazo (FALLIDO). APROBADO/REEMBOLSADO → count 0 →
+    // no-op idempotente.
     const aprobacion = await tx.compra.updateMany({
-      where: { id: compra.id, estadoPago: { in: ["PENDIENTE", "EXPIRADA"] } },
+      where: { id: compra.id, estadoPago: { in: ["PENDIENTE", "EXPIRADA", "FALLIDO"] } },
       data: {
         estadoPago: "APROBADO",
         mpPaymentId: String(pago.id),
@@ -1036,10 +1092,18 @@ export async function procesarNotificacionPago({
     return;
   }
 
-  // Solo los pagos aprobados cierran la compra (RF-46). Los demás (pending,
-  // rejected, cancelled...) se ignoran; MP vuelve a avisar si cambian.
+  // Solo los pagos aprobados cierran la compra (RF-46). Un rechazo o una
+  // cancelación marcan la orden FALLIDO (RF-41: el comprador lo ve en Mis
+  // compras y deja de contar como pendiente, D9); si después paga con otro
+  // medio, la aprobación igual procede. Lo demás (pending, in_process...) se
+  // ignora; MP vuelve a avisar si cambia.
   if (pago.status === "approved") {
     await aprobarPagoCompra({ externalReference: pago.externalReference, pago });
+  } else if (pago.status === "rejected" || pago.status === "cancelled") {
+    await prisma.compra.updateMany({
+      where: { id: pago.externalReference, estadoPago: "PENDIENTE" },
+      data: { estadoPago: "FALLIDO" },
+    });
   }
 }
 

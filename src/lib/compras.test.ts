@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   findUniqueCompra: vi.fn(),
   updateCompra: vi.fn(),
   updateManyCompra: vi.fn(),
+  countCompra: vi.fn(),
+  createCompra: vi.fn(),
   findUniqueSolicitud: vi.fn(),
   updateSolicitud: vi.fn(),
   updateManySolicitud: vi.fn(),
@@ -33,6 +35,8 @@ vi.mock("@/lib/db/prisma", () => {
       findUnique: mocks.findUniqueCompra,
       update: mocks.updateCompra,
       updateMany: mocks.updateManyCompra,
+      count: mocks.countCompra,
+      create: mocks.createCompra,
     },
     solicitudDevolucion: {
       findUnique: mocks.findUniqueSolicitud,
@@ -70,6 +74,10 @@ vi.mock("@/lib/pagos/reembolsos", async (importOriginal) => {
 import {
   AccionEstadoInvalidaError,
   aprobarPagoCompra,
+  compraEnVentanaDevolucion,
+  iniciarCompra,
+  LIMITE_COMPRAS_PENDIENTES,
+  LimiteComprasPendientesError,
   procesarNotificacionPago,
   PublicacionPausadaPorModeracionError,
   reanudarPublicacionPropia,
@@ -154,6 +162,7 @@ describe("resolverDevolucion — aprobar (RF-49..RF-51)", () => {
     mocks.findUniqueSolicitud.mockResolvedValue(solicitudPendiente);
     mocks.obtenerTokenVendedor.mockResolvedValue("APP_USR-VENDEDOR");
     mocks.updateManySolicitud.mockResolvedValue({ count: 1 });
+    mocks.updateManyListing.mockResolvedValue({ count: 1 });
   });
 
   it("reembolsa con el token del vendedor y recién entonces marca la compra REEMBOLSADO", async () => {
@@ -182,6 +191,45 @@ describe("resolverDevolucion — aprobar (RF-49..RF-51)", () => {
         motivoReembolso: "DEVOLUCION_VENDEDOR",
       }),
     });
+  });
+
+  it("repone la unidad y pausa la publicación para que el vendedor la reactive (D10)", async () => {
+    mocks.reembolsarCompra.mockResolvedValue({ mpRefundId: 777 });
+
+    await resolverDevolucion({ vendedorId: "vendedor-1", solicitudId: "sol-1", accion: "aprobar" });
+
+    expect(mocks.updateManyListing).toHaveBeenCalledWith({
+      where: { id: "l1", deletedAt: null, status: { notIn: ["DELETED", "REJECTED"] } },
+      data: { stock: { increment: 1 }, status: "PAUSED" },
+    });
+    expect(mocks.updateManyListing).toHaveBeenCalledWith({
+      where: { id: "l1", soldCount: { gt: 0 } },
+      data: { soldCount: { decrement: 1 } },
+    });
+    expect(mocks.crearNotificacion).toHaveBeenCalledWith(
+      "vendedor-1",
+      "l1",
+      "Publicación pausada por devolución",
+      expect.stringContaining("reactivala"),
+      "ESTADO_PUBLICACION",
+      { listingId: "l1", estado: "PAUSED" }
+    );
+  });
+
+  it("no toca una publicación eliminada o rechazada ni avisa la pausa (D10)", async () => {
+    mocks.reembolsarCompra.mockResolvedValue({ mpRefundId: 777 });
+    mocks.updateManyListing.mockResolvedValue({ count: 0 });
+
+    await resolverDevolucion({ vendedorId: "vendedor-1", solicitudId: "sol-1", accion: "aprobar" });
+
+    expect(mocks.crearNotificacion).not.toHaveBeenCalledWith(
+      "vendedor-1",
+      expect.anything(),
+      "Publicación pausada por devolución",
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
   });
 
   it("si el refund falla, la solicitud vuelve a PENDIENTE y la compra no se toca", async () => {
@@ -332,6 +380,20 @@ describe("aprobarPagoCompra — avisos de venta y compra (RF-23, RF-45)", () => 
 });
 
 describe("procesarNotificacionPago (RF-43, RNF-16)", () => {
+  it("un pago rechazado marca la orden FALLIDO solo si seguía PENDIENTE (RF-41)", async () => {
+    vi.clearAllMocks();
+    mocks.findUniqueCompra.mockResolvedValueOnce({ listing: { ownerId: "vendedor-1" } });
+    mocks.obtenerTokenVendedor.mockResolvedValue("APP_USR-VENDEDOR");
+    mocks.verificarPago.mockResolvedValue({ ...pagoAprobado, status: "rejected" });
+
+    await procesarNotificacionPago({ mpPaymentId: "555", compraId: "compra-1" });
+
+    expect(mocks.updateManyCompra).toHaveBeenCalledWith({
+      where: { id: "compra-1", estadoPago: "PENDIENTE" },
+      data: { estadoPago: "FALLIDO" },
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.obtenerTokenVendedor.mockResolvedValue("APP_USR-VENDEDOR");
@@ -374,5 +436,72 @@ describe("procesarNotificacionPago (RF-43, RNF-16)", () => {
     await expect(
       procesarNotificacionPago({ mpPaymentId: "555", compraId: "compra-1" })
     ).rejects.toThrow("MP 503");
+  });
+});
+
+describe("aprobarPagoCompra después de un rechazo", () => {
+  it("acepta aprobar una orden FALLIDO (el comprador reintentó con otro medio)", async () => {
+    vi.clearAllMocks();
+    mocks.updateManyCompra.mockResolvedValue({ count: 1 });
+    mocks.updateManyListing.mockResolvedValue({ count: 1 });
+    mocks.findUniqueCompra.mockResolvedValue(compraPendiente);
+    mocks.findUniqueListing.mockResolvedValue({ stock: 1 });
+
+    await aprobarPagoCompra({ externalReference: "compra-1", pago: pagoAprobado });
+
+    expect(mocks.updateManyCompra).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "compra-1", estadoPago: { in: ["PENDIENTE", "EXPIRADA", "FALLIDO"] } },
+      })
+    );
+  });
+});
+
+describe("iniciarCompra — límite de compras pendientes (D9)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.findFirstListing.mockResolvedValue({
+      id: "l1",
+      ownerId: "vendedor-1",
+      status: "ACTIVE",
+      stock: 1,
+      title: "Tractor usado",
+      price: new Prisma.Decimal("1500.50"),
+      currency: "ARS",
+    });
+  });
+
+  it("rechaza al llegar a LIMITE_COMPRAS_PENDIENTES sin crear la orden", async () => {
+    mocks.countCompra.mockResolvedValue(LIMITE_COMPRAS_PENDIENTES);
+
+    await expect(
+      iniciarCompra({ compradorId: "comprador-1", listingId: "l1" })
+    ).rejects.toBeInstanceOf(LimiteComprasPendientesError);
+    expect(mocks.createCompra).not.toHaveBeenCalled();
+    const [consulta] = mocks.countCompra.mock.calls[0] as [
+      { where: { compradorId: string; estadoPago: string; fechaVencimiento: { gt: Date } } },
+    ];
+    expect(consulta.where.compradorId).toBe("comprador-1");
+    expect(consulta.where.estadoPago).toBe("PENDIENTE");
+    expect(consulta.where.fechaVencimiento.gt).toBeInstanceOf(Date);
+  });
+
+  it("el límite es 5", () => {
+    expect(LIMITE_COMPRAS_PENDIENTES).toBe(5);
+  });
+});
+
+describe("compraEnVentanaDevolucion (RF-50, D5: 10 días)", () => {
+  const aprobado = new Date("2026-11-01T12:00:00Z");
+  const dia = 24 * 60 * 60 * 1000;
+
+  it("acepta hasta 10 días corridos desde la aprobación, inclusive", () => {
+    expect(compraEnVentanaDevolucion(aprobado, aprobado.getTime() + 9 * dia)).toBe(true);
+    expect(compraEnVentanaDevolucion(aprobado, aprobado.getTime() + 10 * dia)).toBe(true);
+  });
+
+  it("rechaza pasado el día 10 o sin aprobación", () => {
+    expect(compraEnVentanaDevolucion(aprobado, aprobado.getTime() + 10 * dia + 1000)).toBe(false);
+    expect(compraEnVentanaDevolucion(null)).toBe(false);
   });
 });

@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * en compras con pago APROBADO (RF-41/D9), dentro de los 30 días desde la
  * aprobación del pago (D9, 6.6: la ventana se ancla a `aprobadoAt`) y sin
  * rating. El CTA "Solicitar devolución" (RF-49/5.4) aparece solo en compras
- * APROBADAS dentro de la ventana de 7 días desde la aprobación y sin
+ * APROBADAS dentro de la ventana de 10 días desde la aprobación y sin
  * solicitud PENDIENTE; con una solicitud en curso la tarjeta informa "en
  * revisión". El estado de pago se exhibe siempre en la tarjeta. Estados:
  * vacío con CTA a explorar publicaciones (E3).

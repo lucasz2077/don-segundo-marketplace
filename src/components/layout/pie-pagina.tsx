@@ -14,7 +14,7 @@ type Garantia = {
 /**
  * Señales de confianza respaldadas por funcionalidades reales: cobro con
  * Mercado Pago (RF-39), sello de vendedor verificado (RF-34) y devoluciones
- * dentro de los 7 días de aprobado el pago (RF-49).
+ * dentro de los 10 días de aprobado el pago (RF-49).
  */
 const GARANTIAS: Garantia[] = [
   {
@@ -29,7 +29,7 @@ const GARANTIAS: Garantia[] = [
   },
   {
     icono: RotateCcw,
-    titulo: "7 días para devolver",
+    titulo: "10 días para devolver",
     descripcion: "Si algo no está bien, solicitá la devolución desde Mis compras.",
   },
 ];

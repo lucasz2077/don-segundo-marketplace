@@ -86,7 +86,8 @@ export function BotonComprar({ listingId, sesionIniciada, compacto = false }: Bo
       if (!respuesta.ok) {
         if (respuesta.status === 409) {
           setError(MENSAJE_SIN_STOCK);
-        } else if (respuesta.status === 502) {
+        } else if (respuesta.status === 502 || respuesta.status === 429) {
+          // 429: tope de compras sin pagar (D9); el servidor explica qué hacer.
           setError(datos?.error?.message ?? MENSAJE_PAGO_INDISPONIBLE);
         } else {
           setError(MENSAJE_ERROR_GENERICO);

@@ -264,7 +264,7 @@ export default async function DetallePublicacionPage({
                   <li className="flex gap-3 text-sm">
                     <RotateCcw className="size-5 shrink-0 text-success" aria-hidden="true" />
                     <span className="text-tinta-suave">
-                      <span className="font-medium text-tinta">7 días para devolver.</span>{" "}
+                      <span className="font-medium text-tinta">10 días para devolver.</span>{" "}
                       Solicitalo desde Mis compras si algo no está bien.
                     </span>
                   </li>
