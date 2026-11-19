@@ -63,7 +63,7 @@ src/components/<dominio>/    # componentes por dominio; primitivas en components
 docs/                        # visión, requisitos, arquitectura, base de datos, roadmap
 ```
 
-La lógica vive en `src/lib/*.ts` (no en `src/lib/services/`, que está vacío pese a lo que dice `docs/architecture.md`).
+La lógica vive en `src/lib/*.ts`, un archivo por dominio (`docs/architecture.md` §3 tiene la estructura completa).
 
 ## Patrones de la casa
 
