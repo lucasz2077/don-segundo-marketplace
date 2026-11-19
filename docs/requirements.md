@@ -33,9 +33,9 @@
 
 ### Autenticación y cuentas
 
-- **RF-01 — Registro de usuario:** el usuario puede registrarse con email y contraseña, o con proveedor externo si el stack de auth lo habilita. Debe confirmar su email antes de operar plenamente.
+- **RF-01 — Registro de usuario:** el usuario puede registrarse con email y contraseña, o con proveedor externo si el stack de auth lo habilita. Debe confirmar su email antes de operar plenamente. Al registrarse recibe un mail de confirmación (Better Auth `emailVerification`, enlace válido 1 hora, `sendOnSignUp`); al confirmarlo vuelve logueado a `/perfil?email=confirmado`. Decisión del dueño (D3, opción A): sin confirmar puede ingresar y mirar todo; publicar, comprar y escribir exigirán el email confirmado.
 - **RF-02 — Inicio de sesión:** el usuario puede iniciar sesión con sus credenciales y cerrar sesión. La sesión persiste entre visitas de forma segura.
-- **RF-03 — Recuperación de contraseña:** el usuario puede solicitar restablecimiento de contraseña vía email.
+- **RF-03 — Recuperación de contraseña:** el usuario puede solicitar restablecimiento de contraseña vía email. Flujo: "¿Olvidaste tu contraseña?" en `/sign-in` → `/recuperar-contrasenia` (siempre el mismo mensaje, exista o no la cuenta) → mail con enlace de 1 hora → `/restablecer-contrasenia?token=` (o aviso de enlace vencido) → contraseña nueva; se cierran las otras sesiones (`revokeSessionsOnPasswordReset`).
 - **RF-04 — Tipo de cuenta:** al registrarse o editar su perfil, el usuario selecciona su rol: comprador, vendedor o ambos.
 - **RF-05 — Perfil de usuario:** el usuario puede editar su perfil: nombre, ubicación (provincia, departamento), teléfono de contacto, descripción breve y avatar.
 - **RF-06 — Perfil visible:** el perfil del vendedor es visible para compradores desde el detalle de publicación (nombre, ubicación, tiempo en la plataforma).

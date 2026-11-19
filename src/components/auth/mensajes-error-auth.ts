@@ -8,6 +8,7 @@ const MENSAJES_POR_CODIGO: Record<string, string> = {
   PASSWORD_TOO_SHORT: "La contraseña es demasiado corta.",
   PASSWORD_TOO_LONG: "La contraseña es demasiado larga.",
   INVALID_EMAIL: "Ingresá un email válido.",
+  INVALID_TOKEN: "El enlace venció o ya se usó. Pedí uno nuevo desde \"¿Olvidaste tu contraseña?\".",
   TOO_MANY_REQUESTS: "Hiciste demasiados intentos. Esperá unos minutos y volvé a probar.",
 };
 

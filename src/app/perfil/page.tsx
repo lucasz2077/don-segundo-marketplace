@@ -24,9 +24,9 @@ export const dynamic = "force-dynamic";
 export default async function PerfilPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ mp?: string }>;
+  searchParams?: Promise<{ mp?: string; email?: string }>;
 }) {
-  const { mp: resultadoVinculacion } = (await searchParams) ?? {};
+  const { mp: resultadoVinculacion, email: resultadoEmail } = (await searchParams) ?? {};
   const session = await getSession();
 
   if (!session) {
@@ -52,6 +52,11 @@ export default async function PerfilPage({
   return (
     <PaginaCuenta titulo="Mi cuenta" sinRegreso>
       <div className="flex flex-col gap-4">
+        {resultadoEmail === "confirmado" ? (
+          <Alerta tono="exito" titulo="¡Listo! Confirmaste tu email">
+            Ya podés publicar, comprar y escribirles a los vendedores.
+          </Alerta>
+        ) : null}
         {resultadoVinculacion === "vinculada" && estadoMp === "VINCULADA" ? (
           <Alerta tono="exito" titulo="¡Listo! Vinculaste tu cuenta de Mercado Pago">
             Ya podés publicar: lo que vendas se cobra directo en tu cuenta.

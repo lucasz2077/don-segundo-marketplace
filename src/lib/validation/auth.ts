@@ -22,5 +22,21 @@ export const signInSchema = z.object({
   password: z.string().min(1, "La contraseña es obligatoria"),
 });
 
+/** RF-03: pedido de recuperación de contraseña. */
+export const recuperarContraseniaSchema = z.object({
+  email: z.string().trim().email("Ingresá un email válido"),
+});
+
+/** RF-03: contraseña nueva (mismas reglas que el registro). */
+export const restablecerContraseniaSchema = z
+  .object({
+    password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type SignInInput = z.infer<typeof signInSchema>;

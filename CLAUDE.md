@@ -42,7 +42,7 @@ npm run typecheck            # next typegen + tsc --noEmit (los *.test.* quedan 
 
 **Tests:** config en `vitest.config.mts` (alias `@` → `src`, jsdom, `globals`) con setup en `src/test/setup.ts` (matchers de jest-dom y un `IntersectionObserver` inerte, que jsdom no trae). El CI (`.github/workflows/ci.yml`) corre `prisma validate`, lint, tests y build; el build ya incluye el chequeo de tipos de la app. Nunca saltear ni borrar tests para que pasen.
 
-Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
+Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMITENTE`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
 
 ## Estructura
 
@@ -55,6 +55,7 @@ src/app/                     # rutas en español: /listados, /publicar, /compras
 src/app/api/                 # API REST: listings, favoritos, conversaciones, notificaciones, reportes, ratings, verificaciones, compras, devoluciones, pagos (webhook, oauth), upload, perfil, direcciones
 src/lib/                     # servicios de dominio, un archivo por dominio (listings.ts, compras.ts, reportes.ts, ratings.ts, verificaciones.ts, conversaciones.ts, notificaciones.ts, perfiles.ts...)
 src/lib/pagos/               # ÚNICO lugar que importa el SDK `mercadopago` (mp, preferencias, pagos, oauth, reembolsos)
+src/lib/email/               # ÚNICO lugar que habla con Resend (enviar.ts) + plantillas en español
 src/lib/validation/          # schemas Zod por dominio
 src/lib/db/prisma.ts         # singleton PrismaClient (pool max 1, pensado para serverless)
 src/lib/auth.ts, auth-client.ts, auth/session.ts   # Better Auth server, cliente y helper getSession()
