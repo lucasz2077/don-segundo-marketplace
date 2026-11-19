@@ -291,6 +291,7 @@ OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar`
 - **Secrets:** todas las credenciales en variables de entorno (`DATABASE_URL`, auth secrets, Cloudinary, email). Nunca en el repositorio; rotación periódica.
 - **Autorización por rol:** roles `USER` y `ADMIN`; las rutas admin verifican rol en el servicio; los usuarios solo pueden mutar sus propios recursos (se valida el `ownerId` en cada operación).
 - **Sesiones:** cookies `httpOnly`, `secure` en producción, y protección CSRF. El proveedor de auth maneja el hash de contraseñas con bcrypt/argon2.
+- **Orígenes y redirecciones:** `trustedOrigins` sin comodines en producción (`src/lib/auth/origenes-confiables.ts`); `?redirect=` del login validado como ruta interna (`src/lib/auth/destino-seguro.ts`); `src/proxy.ts` protege las páginas privadas (`/perfil`, `/compras`, `/favoritos`, `/mensajes`, `/notificaciones`, `/publicar`, `/admin`, `/dashboard`).
 - **RLS en Supabase:** políticas de fila que limitan lectura/escritura incluso a nivel de base, como defensa en profundidad.
 - **Imágenes:** validación de tipo y tamaño en el preset de Cloudinary; URLs generadas por servidor.
 

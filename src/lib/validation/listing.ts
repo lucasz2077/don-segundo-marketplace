@@ -14,9 +14,13 @@ export const imagenPublicacionSchema = z.object({
 
 export type ImagenPublicacionInput = z.infer<typeof imagenPublicacionSchema>;
 
+/** Máximo de imágenes por publicación (RF-07). */
+export const MAXIMO_IMAGENES_PUBLICACION = 6;
+
 /**
- * Schema de creación de una publicación. Las imágenes son opcionales en el
- * schema base para permitir guardar borradores sin fotos.
+ * Schema de creación y edición de una publicación. Exige entre 1 y
+ * MAXIMO_IMAGENES_PUBLICACION imágenes (RF-07, CA-02): no hay borradores sin
+ * fotos.
  */
 export const crearPublicacionSchema = z.object({
   title: z
@@ -63,9 +67,12 @@ export const crearPublicacionSchema = z.object({
     .optional()
     .transform((valor) => (valor && valor.trim() ? valor : undefined)),
   imagenes: z
-    .array(imagenPublicacionSchema)
-    .max(8, "Máximo 8 imágenes por publicación")
-    .optional(),
+    .array(imagenPublicacionSchema, { message: "Subí al menos una imagen" })
+    .min(1, "Subí al menos una imagen")
+    .max(
+      MAXIMO_IMAGENES_PUBLICACION,
+      `Máximo ${MAXIMO_IMAGENES_PUBLICACION} imágenes por publicación`
+    ),
 });
 
 export type CrearPublicacionInput = z.infer<typeof crearPublicacionSchema>;

@@ -50,7 +50,7 @@ Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`,
 prisma/schema.prisma         # modelo de datos (modelos y enums mezclan inglés de Fase 1 y español posterior)
 prisma/migrations/           # incluye índice GIN fulltext manual (20260808212500_fulltext_search)
 prisma/seed.ts               # categorías raíz + subcategorías
-src/proxy.ts                 # redirige a /sign-in sin cookie de sesión (solo /dashboard)
+src/proxy.ts                 # redirige a /sign-in sin cookie de sesión en todas las páginas privadas
 src/app/                     # rutas en español: /listados, /publicar, /compras, /mensajes, /perfil/*, /admin/*, /vendedores/[id], /pagos/resultado
 src/app/api/                 # API REST: listings, favoritos, conversaciones, notificaciones, reportes, ratings, verificaciones, compras, devoluciones, pagos (webhook, oauth), upload, perfil, direcciones
 src/lib/                     # servicios de dominio, un archivo por dominio (listings.ts, compras.ts, reportes.ts, ratings.ts, verificaciones.ts, conversaciones.ts, notificaciones.ts, perfiles.ts...)

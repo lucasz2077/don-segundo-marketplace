@@ -1,21 +1,11 @@
 import Link from "next/link";
 import { FormularioIngreso } from "@/components/auth/formulario-ingreso";
 import { PanelAutenticacion } from "@/components/auth/panel-autenticacion";
+import { destinoSeguro } from "@/lib/auth/destino-seguro";
 
 type SignInPageProps = {
   searchParams: Promise<{ redirect?: string | string[] }>;
 };
-
-/**
- * Solo acepta destinos internos ("/compras", "/listados/..."): evita que un
- * enlace de ingreso con `?redirect=https://...` lleve a un sitio externo.
- */
-function destinoSeguro(valor: string | string[] | undefined): string {
-  if (typeof valor !== "string" || !valor.startsWith("/") || valor.startsWith("//")) {
-    return "/listados";
-  }
-  return valor;
-}
 
 /**
  * Ingreso. Server Component: el destino posterior al login (`?redirect=`) se

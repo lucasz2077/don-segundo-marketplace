@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { destinoSeguro } from "@/lib/auth/destino-seguro";
 import { signInSchema } from "@/lib/validation/auth";
 import { EntradaContrasena } from "@/components/auth/entrada-contrasena";
 import { mensajeErrorAuth } from "@/components/auth/mensajes-error-auth";
@@ -13,7 +14,8 @@ import { Campo, Entrada } from "@/components/ui/campo";
 /**
  * Formulario de ingreso con email y contraseña (Better Auth). Valida con Zod
  * antes de enviar, traduce los errores del servidor y, al ingresar, navega a
- * `redirectTo` (ya validado como ruta interna por la página).
+ * `redirectTo`. La página ya lo valida como ruta interna; se revalida acá
+ * como segunda barrera contra la redirección abierta.
  */
 export function FormularioIngreso({ redirectTo }: { redirectTo: string }) {
   const router = useRouter();
@@ -45,7 +47,7 @@ export function FormularioIngreso({ redirectTo }: { redirectTo: string }) {
         return;
       }
 
-      router.push(redirectTo);
+      router.push(destinoSeguro(redirectTo));
       router.refresh();
     } catch {
       setError("No se pudo conectar. Revisá tu conexión e intentá de nuevo.");

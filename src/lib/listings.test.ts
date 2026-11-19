@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 const mocks = vi.hoisted(() => ({
   findManyListings: vi.fn(),
   findUniqueCategory: vi.fn(),
+  findUniqueUser: vi.fn(),
   createListing: vi.fn(),
   findFirstListing: vi.fn(),
   updateListing: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: mocks.updateListing,
     },
     category: { findUnique: mocks.findUniqueCategory },
+    user: { findUnique: mocks.findUniqueUser },
   },
 }));
 
@@ -41,9 +43,11 @@ vi.mock("@/lib/notificaciones", () => ({
 import {
   actualizarPublicacion,
   crearPublicacion,
+  CuentaNoVendedoraError,
   ImagenInvalidaError,
   obtenerPublicacionesActivas,
   obtenerPublicacionesRecientes,
+  PublicacionNoEditableError,
   SinCuentaMpError,
 } from "@/lib/listings";
 
@@ -110,6 +114,7 @@ describe("RF-47 — OAuth de Mercado Pago obligatorio para publicar", () => {
     vi.clearAllMocks();
     mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
     mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
+    mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
   });
 
   it("crearPublicacion rechaza con SinCuentaMpError si el vendedor no tiene cuenta MP vigente", async () => {
@@ -149,6 +154,8 @@ describe("RF-47 — OAuth de Mercado Pago obligatorio para publicar", () => {
     mocks.findFirstListing.mockResolvedValue({
       id: "listing-1",
       ownerId: "vendedor-1",
+      status: "ACTIVE",
+      deletedAt: null,
       price: new Prisma.Decimal("1500000.00"),
       images: [],
     });
@@ -170,6 +177,82 @@ describe("RF-47 — OAuth de Mercado Pago obligatorio para publicar", () => {
   });
 });
 
+describe("RF-07 / RF-08 — quién publica y qué se puede editar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
+    mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
+    mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
+    mocks.createListing.mockResolvedValue({ id: "listing-1" });
+    mocks.updateListing.mockResolvedValue({
+      id: "listing-1",
+      price: new Prisma.Decimal("1500000.00"),
+    });
+  });
+
+  it("crearPublicacion rechaza una cuenta solo compradora sin crear nada (RF-07)", async () => {
+    mocks.findUniqueUser.mockResolvedValue({ accountType: "BUYER" });
+
+    await expect(crearPublicacion("vendedor-1", datosPublicacion)).rejects.toBeInstanceOf(
+      CuentaNoVendedoraError
+    );
+    expect(mocks.obtenerCuentaMpVigente).not.toHaveBeenCalled();
+    expect(mocks.createListing).not.toHaveBeenCalled();
+  });
+
+  it("crearPublicacion rechaza si el usuario no existe", async () => {
+    mocks.findUniqueUser.mockResolvedValue(null);
+
+    await expect(crearPublicacion("vendedor-1", datosPublicacion)).rejects.toBeInstanceOf(
+      CuentaNoVendedoraError
+    );
+    expect(mocks.createListing).not.toHaveBeenCalled();
+  });
+
+  it.each(["SELLER", "BOTH"])("crearPublicacion permite publicar a una cuenta %s", async (accountType) => {
+    mocks.findUniqueUser.mockResolvedValue({ accountType });
+
+    await crearPublicacion("vendedor-1", datosPublicacion);
+
+    expect(mocks.createListing).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["SOLD", "REJECTED", "DELETED"])(
+    "actualizarPublicacion rechaza editar una publicación %s (RF-08)",
+    async (status) => {
+      mocks.findFirstListing.mockResolvedValue({
+        id: "listing-1",
+        ownerId: "vendedor-1",
+        status,
+        deletedAt: status === "SOLD" ? null : new Date("2026-11-01T00:00:00Z"),
+        price: new Prisma.Decimal("1500000.00"),
+        images: [],
+      });
+
+      await expect(
+        actualizarPublicacion("listing-1", "vendedor-1", datosPublicacion)
+      ).rejects.toBeInstanceOf(PublicacionNoEditableError);
+      expect(mocks.updateListing).not.toHaveBeenCalled();
+      expect(mocks.eliminarImagen).not.toHaveBeenCalled();
+    }
+  );
+
+  it("actualizarPublicacion permite editar una publicación PAUSED (RF-08)", async () => {
+    mocks.findFirstListing.mockResolvedValue({
+      id: "listing-1",
+      ownerId: "vendedor-1",
+      status: "PAUSED",
+      deletedAt: null,
+      price: new Prisma.Decimal("1500000.00"),
+      images: [],
+    });
+
+    await actualizarPublicacion("listing-1", "vendedor-1", datosPublicacion);
+
+    expect(mocks.updateListing).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("Titularidad de las imágenes de una publicación", () => {
   const urlDe = (publicId: string) =>
     `https://res.cloudinary.com/cuenta/image/upload/v1/${publicId}.jpg`;
@@ -186,6 +269,7 @@ describe("Titularidad de las imágenes de una publicación", () => {
     vi.clearAllMocks();
     mocks.obtenerCuentaMpVigente.mockResolvedValue(cuentaMpVigente);
     mocks.findUniqueCategory.mockResolvedValue({ id: "cat-1" });
+    mocks.findUniqueUser.mockResolvedValue({ accountType: "BOTH" });
   });
 
   it("crearPublicacion acepta imágenes subidas por el vendedor", async () => {
@@ -208,6 +292,8 @@ describe("Titularidad de las imágenes de una publicación", () => {
     mocks.findFirstListing.mockResolvedValue({
       id: "listing-1",
       ownerId: "vendedor-1",
+      status: "ACTIVE",
+      deletedAt: null,
       price: new Prisma.Decimal("1500000.00"),
       images: [],
     });
@@ -231,6 +317,8 @@ describe("Titularidad de las imágenes de una publicación", () => {
     mocks.findFirstListing.mockResolvedValue({
       id: "listing-1",
       ownerId: "vendedor-1",
+      status: "ACTIVE",
+      deletedAt: null,
       price: new Prisma.Decimal("1500000.00"),
       images: [imagenAnterior],
     });

@@ -111,9 +111,9 @@ function FilaPublicacion({ publicacion }: { publicacion: ListadoPublicacion }) {
           ) : publicacion.status === "PAUSED" ? (
             <BotonCambioEstadoPublicacion listingId={publicacion.id} accion="reanudar" />
           ) : null}
-          {/* Una publicación rechazada no se puede editar (deletedAt la
-              vuelve invisible para el PATCH), así que no se ofrece la acción. */}
-          {publicacion.status !== "REJECTED" ? (
+          {/* RF-08: solo se editan publicaciones activas o pausadas; vendidas
+              y rechazadas no ofrecen la acción. */}
+          {publicacion.status === "ACTIVE" || publicacion.status === "PAUSED" ? (
             <BotonEnlace href={`/publicar?id=${publicacion.id}`} variante="secundario" tamanio="sm">
               <Pencil className="size-4" aria-hidden="true" />
               Editar
