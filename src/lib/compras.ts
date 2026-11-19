@@ -1085,6 +1085,26 @@ async function notificarVentaPagada({
     // La notificación es complementaria: se ignora el error silenciosamente.
   }
 
+  // RF-23: confirmación al comprador (bandeja + mail), best-effort.
+  try {
+    await crearNotificacion(
+      compra.compradorId,
+      compra.listingId,
+      "Compra confirmada",
+      `Tu pago de "${title}" por ${monto} ${compra.currency} fue aprobado. Coordiná la entrega con el vendedor desde Mis compras.`,
+      "GENERAL",
+      {
+        evento: "compra_confirmada",
+        compraId: compra.id,
+        listingId: compra.listingId,
+        titulo: title,
+        monto,
+      }
+    );
+  } catch {
+    // La notificación es complementaria: se ignora el error silenciosamente.
+  }
+
   if (pasoASold) {
     try {
       await notificarCambioEstadoPublicacion(

@@ -1,5 +1,9 @@
+import { waitUntil } from "@vercel/functions";
+
 import type { NotificationTipo, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { enviarEmail } from "@/lib/email/enviar";
+import { plantillaAviso } from "@/lib/email/plantillas";
 
 /** Cantidad de notificaciones por página en la bandeja del usuario. */
 export const TAMANIO_PAGINACION_NOTIFICACIONES = 20;
@@ -69,6 +73,16 @@ type PayloadPagoAprobado = {
   monto: string; // toFixed(2), RNF-19: escala de moneda normalizada
 };
 
+/** Payload de compra confirmada al comprador (tipo GENERAL, evento
+ * "compra_confirmada", RF-23/RF-45): mismo dato que la venta, del otro lado. */
+type PayloadCompraConfirmada = {
+  evento: "compra_confirmada";
+  compraId: string;
+  listingId: string;
+  titulo: string;
+  monto: string;
+};
+
 /** Payload de una resolución de devolución (tipo GENERAL, evento
  * "devolucion", RF-49): informa al comprador/vendedor el estado de la
  * solicitud. */
@@ -88,6 +102,7 @@ export type NotificacionPayload =
   | PayloadVerificacion
   | PayloadVinculacionMp
   | PayloadPagoAprobado
+  | PayloadCompraConfirmada
   | PayloadDevolucion;
 
 const titulosEstadoCambio: Record<EstadoCambioPublicacion, string> = {
@@ -143,10 +158,30 @@ export async function crearNotificacion(
     data.payload = payload as Prisma.InputJsonValue;
   }
 
-  return prisma.notification.create({
+  const notificacion = await prisma.notification.create({
     data,
     select: { id: true, readAt: true },
   });
+
+  // RF-20/RF-23: además de la bandeja, aviso por mail. Best-effort y en
+  // segundo plano: nunca demora ni revierte la operación que notifica.
+  try {
+    waitUntil(
+      enviarEmailNotificacion({
+        id: notificacion.id,
+        userId,
+        listingId,
+        titulo,
+        mensaje,
+        tipo,
+        payload: payload ?? null,
+      }).catch(() => false)
+    );
+  } catch {
+    // Sin contexto de Vercel (scripts, tests): el mail se omite.
+  }
+
+  return notificacion;
 }
 
 /**
@@ -384,6 +419,16 @@ function esPayloadPagoAprobado(objeto: Prisma.JsonObject): objeto is PayloadPago
   );
 }
 
+function esPayloadCompraConfirmada(objeto: Prisma.JsonObject): objeto is PayloadCompraConfirmada {
+  return (
+    objeto.evento === "compra_confirmada" &&
+    esCadena(objeto.compraId) &&
+    esCadena(objeto.listingId) &&
+    esCadena(objeto.titulo) &&
+    esCadena(objeto.monto)
+  );
+}
+
 function esPayloadDevolucion(objeto: Prisma.JsonObject): objeto is PayloadDevolucion {
   return (
     objeto.evento === "devolucion" &&
@@ -430,6 +475,9 @@ export function parsearPayload(
       if (esPayloadPagoAprobado(payload)) {
         return payload;
       }
+      if (esPayloadCompraConfirmada(payload)) {
+        return payload;
+      }
       return esPayloadDevolucion(payload) ? payload : null;
     default:
       return null;
@@ -437,18 +485,124 @@ export function parsearPayload(
 }
 
 /**
- * Stub de envío de email de notificación. Por decisión del dueño la entrega
- * es únicamente en plataforma; el email queda diferido (no hay SMTP ni
- * proveedor configurado). Se exporta como punto de integración documentado
- * para una fase futura; no se invoca desde los flujos de creación.
+ * Pantalla donde se actúa sobre una notificación, según su tipo y payload.
+ * La usan la bandeja (/notificaciones) y los mails. Devuelve null si no hay
+ * una pantalla específica.
+ */
+export function destinoNotificacion(notificacion: {
+  tipo: NotificationTipo;
+  payload: NotificacionPayload | null;
+  listingId: string | null;
+}): { href: string; etiqueta: string } | null {
+  const { tipo, payload, listingId } = notificacion;
+
+  if (tipo === "MENSAJE_NUEVO") {
+    return payload && "conversationId" in payload
+      ? { href: `/mensajes/${payload.conversationId}`, etiqueta: "Ver conversación" }
+      : null;
+  }
+
+  if (tipo === "FAVORITO_CAMBIO_PRECIO" || tipo === "FAVORITO_CAMBIO_ESTADO" || tipo === "ESTADO_PUBLICACION") {
+    // listingId del payload, con fallback a la relación (notificaciones legadas).
+    const id = (payload && "listingId" in payload ? payload.listingId : null) ?? listingId;
+    return id ? { href: `/listados/${id}`, etiqueta: "Ver publicación" } : null;
+  }
+
+  if (!payload || !("evento" in payload)) return null;
+  switch (payload.evento) {
+    case "devolucion":
+      return payload.estado === "PENDIENTE"
+        ? { href: "/perfil/devoluciones", etiqueta: "Revisar solicitud" }
+        : { href: "/compras", etiqueta: "Ver mis compras" };
+    case "verificacion":
+      return { href: "/perfil/verificacion", etiqueta: "Ver verificación" };
+    case "vinculacion_mp":
+      return { href: "/perfil", etiqueta: "Volver a vincular Mercado Pago" };
+    case "compra_confirmada":
+      return { href: "/compras", etiqueta: "Ver mis compras" };
+    default:
+      return null;
+  }
+}
+
+/** Ventana en la que no se repite el mail de mensajes de una misma conversación. */
+export const VENTANA_EMAIL_MENSAJES_MS = 60 * 60_000;
+
+function urlAbsoluta(ruta: string): string {
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return `${base}${ruta}`;
+}
+
+/**
+ * Envía por mail una notificación recién creada (RF-20/RF-23). No se mandan
+ * mails de cambios en favoritos (serían demasiados). Los mensajes de chat se
+ * agrupan: si el usuario ya tiene otra notificación sin leer de la misma
+ * conversación en la última hora, ya recibió el mail y no se repite.
+ * Devuelve true si el proveedor aceptó el mail. Nunca lanza.
  */
 export async function enviarEmailNotificacion(notificacion: {
+  id: string;
   userId: string;
-  title: string;
-  body: string;
+  listingId: string | null;
+  titulo: string;
+  mensaje: string;
   tipo: NotificationTipo;
-}): Promise<void> {
-  void notificacion;
-  // TODO(email): integrar proveedor (Resend/SMTP) — decisión: email diferido.
-  return;
+  payload: NotificacionPayload | null;
+}): Promise<boolean> {
+  const { id, userId, tipo, payload } = notificacion;
+  if (tipo === "FAVORITO_CAMBIO_PRECIO" || tipo === "FAVORITO_CAMBIO_ESTADO") {
+    return false;
+  }
+
+  try {
+    if (tipo === "MENSAJE_NUEVO" && payload && "conversationId" in payload) {
+      const previasSinLeer = await prisma.notification.count({
+        where: {
+          userId,
+          tipo: "MENSAJE_NUEVO",
+          readAt: null,
+          id: { not: id },
+          createdAt: { gte: new Date(Date.now() - VENTANA_EMAIL_MENSAJES_MS) },
+          payload: { path: ["conversationId"], equals: payload.conversationId },
+        },
+      });
+      if (previasSinLeer > 0) {
+        return false;
+      }
+    }
+
+    const usuario = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
+    if (!usuario?.email) {
+      return false;
+    }
+
+    // Mismo criterio que la bandeja: pantalla específica, si no el detalle
+    // de la publicación, y si no la bandeja.
+    const destino =
+      destinoNotificacion(notificacion) ??
+      (notificacion.listingId
+        ? { href: `/listados/${notificacion.listingId}`, etiqueta: "Ver publicación" }
+        : { href: "/notificaciones", etiqueta: "Ver mis notificaciones" });
+    const contenido = plantillaAviso({
+      nombre: usuario.name,
+      titulo: notificacion.titulo,
+      mensaje: notificacion.mensaje,
+      url: urlAbsoluta(destino.href),
+      textoBoton: destino.etiqueta,
+    });
+    return await enviarEmail({
+      para: usuario.email,
+      ...contenido,
+      claveIdempotencia: `notificacion-${id}`,
+    });
+  } catch (error) {
+    console.error("EMAIL_NOTIFICACION_FALLIDO", {
+      tipo,
+      error: error instanceof Error ? error.name : "desconocido",
+    });
+    return false;
+  }
 }
