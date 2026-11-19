@@ -58,63 +58,49 @@ Cliente (React)  →  API Route (ruta, validación)  →  Servicio (lógica de n
 | **Cloudinary** | CDN de imágenes con transformaciones bajo demanda (WebP/AVIF, tamaños, crops). Evita servir archivos pesados y simplifica la subida desde el cliente. |
 | **Vercel + Supabase + Cloudinary** | Los tres servicios se administran solos y tienen planes gratuitos suficientes para el MVP. La deuda es baja: cada uno puede reemplazarse (VPS, otro Postgres, otro storage) sin tocar la lógica. |
 
-## 3. Estructura de carpetas propuesta
+## 3. Estructura de carpetas
+
+Estructura real del repositorio (las rutas de la app están en español):
 
 ```
-marketplace-campo/
+don-segundo-marketplace/
 ├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── public/
+│   ├── schema.prisma                # modelos y enums
+│   ├── migrations/                  # incluye el índice GIN fulltext manual
+│   ├── seed.ts                      # categorías y subcategorías
+│   └── scripts/                     # scripts de datos puntuales
+├── public/marca/                    # logo e isotipo
 ├── src/
+│   ├── proxy.ts                     # redirige a /sign-in sin sesión (páginas privadas)
 │   ├── app/
-│   │   ├── (auth)/
-│   │   │   ├── login/
-│   │   │   └── register/
-│   │   ├── (main)/
-│   │   │   ├── page.tsx                # Home / categorías
-│   │   │   ├── search/                 # Búsqueda con filtros
-│   │   │   ├── listings/
-│   │   │   │   ├── [id]/               # Detalle de publicación
-│   │   │   │   └── new/                # Crear publicación
-│   │   │   ├── dashboard/
-│   │   │   │   ├── listings/           # Mis publicaciones
-│   │   │   │   └── favorites/          # Mis favoritos
-│   │   │   └── admin/                  # Moderación
-│   │   ├── api/
-│   │   │   ├── auth/[...]              # Rutas de Better Auth / Auth.js
-│   │   │   ├── listings/
-│   │   │   │   ├── route.ts            # GET listado, POST crear
-│   │   │   │   └── [id]/route.ts       # GET, PATCH, DELETE publicación
-│   │   │   ├── favorites/route.ts
-│   │   │   ├── contact/route.ts        # Contacto comprador-vendedor
-│   │   │   ├── admin/
-│   │   │   │   ├── listings/[id]/route.ts
-│   │   │   │   └── reports/route.ts
-│   │   │   └── uploads/route.ts        # Firmado de subida a Cloudinary
-│   │   ├── layout.tsx
-│   │   └── globals.css
+│   │   ├── page.tsx                 # inicio
+│   │   ├── listados/                # búsqueda y detalle /listados/[id]
+│   │   ├── categorias/[slug]/       # listado por categoría
+│   │   ├── vendedores/[id]/         # perfil público del vendedor
+│   │   ├── publicar/                # crear y editar publicación
+│   │   ├── compras/ favoritos/ mensajes/ notificaciones/
+│   │   ├── perfil/                  # Mi cuenta: información, direcciones, publicaciones, devoluciones, verificación
+│   │   ├── admin/                   # reportes y verificaciones (solo ADMIN)
+│   │   ├── pagos/resultado/         # vuelta del checkout de Mercado Pago
+│   │   ├── sign-in/ sign-up/ recuperar-contrasenia/ restablecer-contrasenia/
+│   │   └── api/                     # API REST: listings, conversaciones, compras, devoluciones,
+│   │                                # pagos (webhook, oauth), reportes, ratings, verificaciones,
+│   │                                # favoritos, notificaciones, perfil, direcciones, upload, cron, auth
 │   ├── components/
-│   │   ├── ui/                         # Primitivas (Button, Input, Modal…)
-│   │   ├── listing/                    # Tarjetas, formularios, galería
-│   │   └── layout/                     # Navbar, Footer, SearchBar
+│   │   ├── ui/                      # primitivas del sistema de diseño (Boton, Campo, Alerta...)
+│   │   └── <dominio>/               # listing, compras, mensajes, perfil, auth, layout...
 │   ├── lib/
-│   │   ├── auth/                       # Config de autenticación
-│   │   ├── db/                         # Cliente Prisma (singleton)
-│   │   ├── validation/                 # Schemas Zod
-│   │   ├── services/                   # Lógica de negocio
-│   │   │   ├── listing-service.ts
-│   │   │   ├── search-service.ts
-│   │   │   ├── contact-service.ts
-│   │   │   └── moderation-service.ts
-│   │   ├── cloudinary.ts               # Upload presets / firmado
-│   │   └── emails.ts                   # Emails transaccionales
-│   └── types/                          # Tipos compartidos
-├── .env / .env.local                   # Secrets (nunca en git)
-├── .github/workflows/ci.yml
-├── next.config.mjs
-├── tailwind.config.ts
-└── package.json
+│   │   ├── <dominio>.ts             # servicios: listings, compras, conversaciones, reportes, ratings...
+│   │   ├── pagos/                   # único lugar que importa el SDK de Mercado Pago
+│   │   ├── email/                   # único lugar que habla con Resend + plantillas
+│   │   ├── auth/                    # sesión, orígenes confiables, límites, mails de auth
+│   │   ├── validation/              # schemas Zod por dominio
+│   │   └── db/                      # PrismaClient singleton y URL de conexión
+│   ├── generated/prisma/            # cliente Prisma generado (no se versiona)
+│   └── test/setup.ts                # setup de Vitest
+├── .github/workflows/ci.yml         # prisma validate, lint, tests y build
+├── vercel.json                      # cron diario de pagos
+└── vitest.config.mts
 ```
 
 ## 4. Capas

@@ -13,9 +13,12 @@ Marketplace vertical para el campo argentino: compra y venta de maquinaria, herr
 ## Puesta en marcha
 
 ```bash
-npm install
+npm ci
+npx prisma generate
 npm run dev
 ```
+
+Tests: `npm test`. Lint: `npm run lint`. Requiere Node 22.22 o superior.
 
 Abrir [http://localhost:3000](http://localhost:3000).
 
@@ -31,6 +34,7 @@ aplican con Prisma (no conviene correrlas desde el build).
    - `NEXT_PUBLIC_APP_URL`: el dominio público del sitio, p. ej. `https://tudominio.com`.
    - `BETTER_AUTH_SECRET`: secreto aleatorio de 32+ caracteres, estable entre deploys.
    - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`: credenciales de producción.
+   - Mercado Pago (`MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`), `CRON_SECRET` y mails (`RESEND_API_KEY`, `EMAIL_REMITENTE`): ver `.env.example`.
 2. Aplicar las migraciones a la base de producción antes o como parte del deploy. Se corren desde una máquina local con `DIRECT_URL` (o `DATABASE_URL`) apuntando al **Session pooler** (puerto 5432), porque las migraciones no funcionan por el Transaction pooler:
    ```bash
    npx prisma migrate deploy
@@ -46,4 +50,6 @@ aplican con Prisma (no conviene correrlas desde el build).
 - [Requisitos](docs/requirements.md)
 - [Arquitectura](docs/architecture.md)
 - [Base de datos](docs/database.md)
-- [Roadmap](docs/roadmap.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Sistema de diseño](docs/design-system.md)
+- [Convenciones para agentes](docs/AGENTS.md)

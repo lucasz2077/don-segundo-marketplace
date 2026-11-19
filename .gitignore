@@ -48,3 +48,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Herramientas locales de agentes (regenerables, con rutas de cada PC)
+/.atl/
