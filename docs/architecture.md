@@ -280,6 +280,7 @@ OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar`
 - **Autorización por rol:** roles `USER` y `ADMIN`; las rutas admin verifican rol en el servicio; los usuarios solo pueden mutar sus propios recursos (se valida el `ownerId` en cada operación).
 - **Sesiones:** cookies `httpOnly`, `secure` en producción, y protección CSRF. El proveedor de auth maneja el hash de contraseñas con bcrypt/argon2.
 - **Orígenes y redirecciones:** `trustedOrigins` sin comodines en producción (`src/lib/auth/origenes-confiables.ts`); `?redirect=` del login validado como ruta interna (`src/lib/auth/destino-seguro.ts`); `src/proxy.ts` protege las páginas privadas (`/perfil`, `/compras`, `/favoritos`, `/mensajes`, `/notificaciones`, `/publicar`, `/admin`, `/dashboard`).
+- **TLS con la base:** la conexión a Supabase siempre va cifrada. Con `DATABASE_CA_CERT` (certificado raíz de Supabase en PEM) se verifica además el certificado y el nombre del servidor (`src/lib/db/tls.ts`), lo que impide que alguien se haga pasar por la base; sin la variable se cifra sin verificar la cadena (comportamiento anterior). Se activa por entorno en Vercel y se revierte borrando la variable.
 - **RLS en Supabase:** políticas de fila que limitan lectura/escritura incluso a nivel de base, como defensa en profundidad.
 - **Imágenes:** validación de tipo y tamaño en el preset de Cloudinary; URLs generadas por servidor.
 
