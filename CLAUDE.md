@@ -41,7 +41,7 @@ npx vitest run src/lib/compras.test.ts   # un archivo puntual
 
 **Advertencia de tests:** hoy no existe `vitest.config.ts` (tsconfig lo excluye pero nunca se commiteó) ni script `test` en `package.json`. Sin esa config falla el alias `@/` y no hay entorno jsdom, así que la mayoría de los tests no corre. El CI (`.github/workflows/ci.yml`) solo corre `prisma validate`, lint y build: no corre tests ni typecheck aparte.
 
-Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`).
+Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
 
 ## Estructura
 
