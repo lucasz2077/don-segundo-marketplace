@@ -12,7 +12,7 @@ type BotonSolicitarDevolucionProps = {
  * CTA "Solicitar devolución" de la tarjeta de compra (RF-49/5.4): despliega
  * el FormularioDevolucion inline bajo la tarjeta, sin modal (mismo patrón
  * que BotonCalificar). Solo se muestra en compras APROBADAS dentro de la
- * ventana de 7 días y sin solicitud PENDIENTE (lo decide la página server).
+ * ventana de 10 días y sin solicitud PENDIENTE (lo decide la página server).
  */
 export function BotonSolicitarDevolucion({
   compraId,

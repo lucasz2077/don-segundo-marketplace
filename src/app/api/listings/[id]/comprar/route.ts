@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import {
   iniciarCompra,
   CompraPublicacionPropiaError,
+  LimiteComprasPendientesError,
   PagoIndisponibleError,
   PublicacionNoActivaError,
   PublicacionNoEncontradaError,
@@ -59,6 +60,9 @@ export async function POST(
     }
     if (error instanceof SinStockError) {
       return respuestaError(409, "SIN_STOCK", error.message);
+    }
+    if (error instanceof LimiteComprasPendientesError) {
+      return respuestaError(429, "COMPRAS_PENDIENTES", error.message);
     }
     if (error instanceof PublicacionNoActivaError) {
       return respuestaError(400, "NO_ACTIVA", error.message);

@@ -19,7 +19,7 @@ export function mapearErrorDevolucion(
   mensajeServidor?: string | null
 ): string {
   if (status === 410) {
-    return "La ventana de devolución de 7 días ya venció.";
+    return "La ventana de devolución de 10 días ya venció.";
   }
   if (status === 409) {
     if (code === "DEVO_YA_PENDIENTE") {

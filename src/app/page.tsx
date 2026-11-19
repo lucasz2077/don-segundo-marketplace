@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const CONFIANZA = [
   { icono: ShieldCheck, texto: "Pagás con Mercado Pago" },
   { icono: BadgeCheck, texto: "Vendedores verificados" },
-  { icono: RotateCcw, texto: "7 días para devolver" },
+  { icono: RotateCcw, texto: "10 días para devolver" },
 ] as const;
 
 function EncabezadoSeccion({

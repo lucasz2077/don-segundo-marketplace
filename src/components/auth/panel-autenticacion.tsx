@@ -6,7 +6,7 @@ import { Tarjeta } from "@/components/ui/tarjeta";
 const BENEFICIOS = [
   { icono: ShieldCheck, texto: "Pagás y cobrás con Mercado Pago" },
   { icono: BadgeCheck, texto: "Vendedores verificados por Don Segundo" },
-  { icono: RotateCcw, texto: "7 días para solicitar una devolución" },
+  { icono: RotateCcw, texto: "10 días para solicitar una devolución" },
 ] as const;
 
 type PanelAutenticacionProps = {
