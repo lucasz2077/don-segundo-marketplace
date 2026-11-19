@@ -201,7 +201,22 @@ describe("Panel de reportes /admin/reportes", () => {
     await renderizarPagina();
 
     expect(
-      screen.getByText("No hay reportes para mostrar por ahora.")
+      screen.getByRole("heading", { name: "No hay reportes para mostrar" })
     ).toBeInTheDocument();
+    expect(screen.getByText(/Cuando un usuario reporte una publicación/)).toBeInTheDocument();
+  });
+
+  it("con filtros activos, el estado vacío sugiere cambiarlos", async () => {
+    mocks.obtenerReportes.mockResolvedValue({
+      reportes: [],
+      total: 0,
+      pagina: 1,
+      tamanioPagina: 20,
+      totalPaginas: 1,
+    });
+
+    await renderizarPagina({ estado: "OPEN" });
+
+    expect(screen.getByText(/Ningún reporte coincide con estos filtros/)).toBeInTheDocument();
   });
 });
