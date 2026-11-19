@@ -10,6 +10,7 @@ import {
   obtenerPublicacion,
   obtenerPublicacionPorId,
   SinCuentaMpError,
+  PublicacionNoEditableError,
 } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
@@ -89,6 +90,9 @@ export async function PATCH(
     }
     return NextResponse.json({ data: actualizada });
   } catch (error) {
+    if (error instanceof PublicacionNoEditableError) {
+      return respuestaError(409, "NO_EDITABLE", error.message);
+    }
     if (error instanceof SinCuentaMpError) {
       return respuestaError(403, "MP_NO_VINCULADA", error.message);
     }

@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { obtenerCategoriasRaiz } from "@/lib/categories";
-import { obtenerPublicacion } from "@/lib/listings";
+import { esEditable, obtenerPublicacion, puedePublicar } from "@/lib/listings";
 import { obtenerCuentaMpVigente } from "@/lib/pagos/oauth";
 import { ExternalLink } from "lucide-react";
 import { PublicarFormulario } from "@/components/listing/publicar-formulario";
 import { Alerta } from "@/components/ui/alerta";
 import { clasesBoton } from "@/components/ui/boton";
+import { BotonEnlace } from "@/components/ui/boton-enlace";
 import { Contenedor } from "@/components/ui/contenedor";
 import { Migas } from "@/components/ui/migas";
 
@@ -31,6 +32,8 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
   const listingId = leerTexto(id);
 
   let publicacionInicial: Parameters<typeof PublicarFormulario>[0]["publicacionInicial"];
+  // RF-08: vendida, rechazada o eliminada ya no se edita.
+  let edicionBloqueada = false;
   if (listingId) {
     const publicacion = await obtenerPublicacion(listingId);
     // noNota: inexistente → 404; ajena a este usuario → redirige al listado.
@@ -40,6 +43,7 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
     if (publicacion.ownerId !== session.user.id) {
       redirect("/listados");
     }
+    edicionBloqueada = !esEditable(publicacion);
     publicacionInicial = {
       titulo: publicacion.title,
       descripcion: publicacion.description,
@@ -62,6 +66,8 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
   // solo cambia la cabecera de la página.
   const esEdicion = Boolean(listingId);
 
+  // RF-07: una cuenta solo compradora no puede publicar.
+  const cuentaVendedora = await puedePublicar(session.user.id);
   const categorias = await obtenerCategoriasRaiz();
 
   // Aviso RF-47: sin cuenta de Mercado Pago vigente no se puede publicar.
@@ -91,7 +97,7 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
             : "Completá los datos en pocos minutos. Una buena foto y un buen título venden más."}
         </p>
 
-        {!cuentaMpVigente ? (
+        {!cuentaMpVigente && cuentaVendedora && !edicionBloqueada ? (
           <div className="mt-5">
             {/* `<a>` nativo: la ruta redirige a Mercado Pago y el prefetch de
                 `<Link>` choca con CORS (ver /perfil). */}
@@ -111,13 +117,45 @@ export default async function PublicarPage({ searchParams }: PublicarPageProps) 
           </div>
         ) : null}
 
-        <div className="mt-5">
-          <PublicarFormulario
-            categorias={categorias}
-            listingId={listingId}
-            publicacionInicial={publicacionInicial}
-          />
-        </div>
+        {edicionBloqueada ? (
+          <div className="mt-5">
+            <Alerta
+              tono="info"
+              titulo="Esta publicación ya no se puede editar"
+              accion={
+                <BotonEnlace href="/perfil/publicaciones" variante="secundario" tamanio="sm">
+                  Ver mis publicaciones
+                </BotonEnlace>
+              }
+            >
+              Está vendida, rechazada por moderación o eliminada. Si querés volver a vender,
+              creá una publicación nueva.
+            </Alerta>
+          </div>
+        ) : !cuentaVendedora ? (
+          <div className="mt-5">
+            <Alerta
+              tono="advertencia"
+              titulo="Tu cuenta es solo de comprador"
+              accion={
+                <BotonEnlace href="/perfil/informacion" tamanio="sm">
+                  Cambiar tipo de cuenta
+                </BotonEnlace>
+              }
+            >
+              Para publicar, cambiá el tipo de cuenta a &quot;Vendedor&quot; o &quot;Comprador y
+              vendedor&quot; en tu información personal.
+            </Alerta>
+          </div>
+        ) : (
+          <div className="mt-5">
+            <PublicarFormulario
+              categorias={categorias}
+              listingId={listingId}
+              publicacionInicial={publicacionInicial}
+            />
+          </div>
+        )}
       </div>
     </Contenedor>
   );

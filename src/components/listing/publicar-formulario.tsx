@@ -8,6 +8,7 @@ import {
   type ImagenPublicacionInput,
 } from "@/lib/validation/listing";
 import { PROVINCIAS_ARGENTINA } from "@/lib/provincias";
+import { MAXIMO_IMAGENES_PUBLICACION } from "@/lib/validation/listing";
 import { Check, ImagePlus, X } from "lucide-react";
 import { Boton } from "@/components/ui/boton";
 import { AreaTexto, Campo, Entrada, Selector } from "@/components/ui/campo";
@@ -47,7 +48,7 @@ type PublicarFormularioProps = {
 
 type ImagenLocal = ImagenPublicacionInput & { preview: string };
 
-const MAX_IMAGENES = 8;
+const MAX_IMAGENES = MAXIMO_IMAGENES_PUBLICACION;
 
 function Seccion({
   titulo,

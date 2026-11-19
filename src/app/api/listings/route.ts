@@ -11,6 +11,7 @@ import {
   crearPublicacion,
   obtenerPublicacionesActivas,
   SinCuentaMpError,
+  CuentaNoVendedoraError,
 } from "@/lib/listings";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
     const publicacion = await crearPublicacion(session.user.id, parseado.data);
     return NextResponse.json({ data: publicacion }, { status: 201 });
   } catch (error) {
+    if (error instanceof CuentaNoVendedoraError) {
+      return respuestaError(403, "CUENTA_NO_VENDEDORA", error.message);
+    }
     if (error instanceof SinCuentaMpError) {
       return respuestaError(403, "MP_NO_VINCULADA", error.message);
     }

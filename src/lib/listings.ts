@@ -47,6 +47,55 @@ export class SinCuentaMpError extends Error {
 }
 
 /**
+ * Error de dominio (RF-07): solo las cuentas de vendedor (SELLER) o de ambos
+ * roles (BOTH) pueden publicar. Las rutas lo traducen a 403
+ * CUENTA_NO_VENDEDORA; la UI ofrece cambiar el tipo de cuenta.
+ */
+export class CuentaNoVendedoraError extends Error {
+  constructor() {
+    super(
+      "Tu cuenta es solo de comprador. Cambiá el tipo de cuenta a vendedor o ambos para publicar."
+    );
+    this.name = "CuentaNoVendedoraError";
+  }
+}
+
+/**
+ * RF-07: indica si el usuario puede publicar (cuenta SELLER o BOTH). Se lee
+ * de la base, no de la sesión, para reflejar un cambio de tipo de cuenta
+ * recién hecho.
+ */
+export async function puedePublicar(userId: string): Promise<boolean> {
+  const usuario = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { accountType: true },
+  });
+  return Boolean(usuario) && usuario?.accountType !== "BUYER";
+}
+
+/** RF-08: indica si una publicación todavía se puede editar. */
+export function esEditable(publicacion: { status: string; deletedAt: Date | null }): boolean {
+  return (
+    !publicacion.deletedAt &&
+    (ESTADOS_EDITABLES as readonly string[]).includes(publicacion.status)
+  );
+}
+
+/** Estados en los que el dueño puede editar su publicación (RF-08). */
+export const ESTADOS_EDITABLES = ["ACTIVE", "PAUSED"] as const;
+
+/**
+ * Error de dominio (RF-08): la publicación está vendida, rechazada o
+ * eliminada y ya no se puede editar. Las rutas lo traducen a 409 NO_EDITABLE.
+ */
+export class PublicacionNoEditableError extends Error {
+  constructor() {
+    super("Esta publicación ya no se puede editar: está vendida, rechazada o eliminada.");
+    this.name = "PublicacionNoEditableError";
+  }
+}
+
+/**
  * Error de dominio: alguna imagen del payload no fue subida por el usuario (ni
  * pertenece ya a la publicación que edita). Evita asociar, y luego borrar de
  * Cloudinary, imágenes ajenas. Las rutas lo traducen a 400 IMAGEN_INVALIDA.
@@ -285,7 +334,8 @@ export async function obtenerPublicacionesDelUsuario(ownerId: string) {
 }
 
 /**
- * Crea una publicación con sus imágenes. Requiere una cuenta de Mercado Pago
+ * Crea una publicación con sus imágenes. Solo cuentas SELLER o BOTH
+ * (RF-07, `CuentaNoVendedoraError`). Requiere una cuenta de Mercado Pago
  * vinculada y vigente del dueño (RF-47); si no existe, lanza
  * `SinCuentaMpError` (403 MP_NO_VINCULADA) sin crear nada. Valida que las
  * imágenes sean del usuario (ImagenInvalidaError) y que la categoría exista
@@ -295,6 +345,10 @@ export async function crearPublicacion(
   ownerId: string,
   datos: CrearPublicacionInput
 ) {
+  if (!(await puedePublicar(ownerId))) {
+    throw new CuentaNoVendedoraError();
+  }
+
   const cuentaMp = await obtenerCuentaMpVigente(ownerId);
   if (!cuentaMp) {
     throw new SinCuentaMpError();
@@ -336,7 +390,8 @@ export async function crearPublicacion(
 }
 
 /**
- * Actualiza una publicación (solo su propietario). Requiere una cuenta de
+ * Actualiza una publicación (solo su propietario y solo si está ACTIVE o
+ * PAUSED, RF-08: `PublicacionNoEditableError`). Requiere una cuenta de
  * Mercado Pago vinculada y vigente del dueño (RF-47); si no existe, lanza
  * `SinCuentaMpError` (403 MP_NO_VINCULADA). Si el payload trae imágenes, las
  * reemplaza por completo y limpia de Cloudinary las que ya no se usan; las
@@ -359,6 +414,9 @@ export async function actualizarPublicacion(
   });
   if (!publicacion) {
     return null;
+  }
+  if (!esEditable(publicacion)) {
+    throw new PublicacionNoEditableError();
   }
 
   validarImagenesPropias(datos.imagenes, ownerId, publicacion.images);

@@ -42,8 +42,8 @@
 
 ### Publicaciones
 
-- **RF-07 — Crear publicación:** un usuario logueado con rol vendedor puede crear una publicación con título, descripción, categoría, subcategoría, condición (nuevo/usado), precio, moneda, ubicación y hasta 6 imágenes.
-- **RF-08 — Editar publicación:** el vendedor puede editar sus publicaciones activas.
+- **RF-07 — Crear publicación:** un usuario logueado con rol vendedor puede crear una publicación con título, descripción, categoría, subcategoría, condición (nuevo/usado), precio, moneda, ubicación y entre 1 y 6 imágenes (`MAXIMO_IMAGENES_PUBLICACION`; validado en servidor con Zod). Solo pueden publicar las cuentas `SELLER` o `BOTH`: una cuenta `BUYER` recibe 403 `CUENTA_NO_VENDEDORA` y `/publicar` le ofrece cambiar el tipo de cuenta. El tipo de cuenta se lee de la base, no de la sesión.
+- **RF-08 — Editar publicación:** el vendedor puede editar sus publicaciones activas o pausadas. Las vendidas, rechazadas o eliminadas no se editan: la API responde 409 `NO_EDITABLE` (o 404 si ya tienen `deletedAt`) y la interfaz no ofrece la acción.
 - **RF-09 — Eliminar publicación:** el vendedor puede eliminar (soft delete) sus publicaciones.
 - **RF-10 — Gestionar publicaciones propias:** el vendedor tiene un panel para ver sus publicaciones activas, pausadas y vendidas.
 - **RF-11 — Estado de publicación:** cada publicación tiene un estado (activa, pausada, vendida, rechazada, eliminada). El vendedor puede marcarla como vendida.
@@ -117,7 +117,7 @@
 
 ### Seguridad
 
-- **RNF-04 — Autenticación segura:** contraseñas con hash fuerte, sesiones httpOnly/secure, protección CSRF y manejo de secrets por variables de entorno.
+- **RNF-04 — Autenticación segura:** contraseñas con hash fuerte, sesiones httpOnly/secure, protección CSRF y manejo de secrets por variables de entorno. Los orígenes confiables de Better Auth en Vercel son solo la URL de la app y las del propio deploy (`VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`), nunca un comodín `*.vercel.app` (`src/lib/auth/origenes-confiables.ts`). El destino de `/sign-in?redirect=` solo acepta rutas internas (`src/lib/auth/destino-seguro.ts`). `src/proxy.ts` redirige a login sin cookie de sesión en todas las páginas privadas, como primera barrera; cada página y API revalida la sesión.
 - **RNF-05 — Validación y sanitización:** toda entrada de usuario se valida en servidor (schemas con Zod) y se sanitiza el HTML; nunca se confía en la validación de cliente.
 - **RNF-06 — Autorización por rol:** las rutas de administración y moderación exigen rol admin; los usuarios solo pueden modificar sus propios recursos.
 - **RNF-07 — Rate limiting:** las rutas de autenticación, contacto y creación de publicaciones tienen límites de peticiones por IP/usuario para mitigar abuso.
@@ -174,5 +174,5 @@
 - **CA-04 (Detalle):** el detalle muestra todas las imágenes, datos, ubicación y un medio de contacto funcional.
 - **CA-05 (Contacto):** al contactar, el vendedor recibe la notificación y el comprador recibe confirmación; los datos de contacto no se filtran a terceros.
 - **CA-06 (Favoritos):** un favorito guardado persiste y aparece en la lista de favoritos del usuario.
-- **CA-07 (Moderación):** una publicación reportada y rechazada por el administrador deja de ser visible para el resto de los usuarios.
+- **CA-07 (Moderación):** una publicación reportada y rechazada por el administrador deja de ser visible para el resto de los usuarios, incluso para quienes la tenían en favoritos: el detalle les responde 404 y en `/favoritos` solo queda el aviso "Ya no disponible" (sin título, fotos ni enlace). Una pausada o vendida sigue visible para quien la tiene en favoritos.
 - **CA-08 (Responsive):** todos los flujos de CA-01 a CA-07 funcionan en un navegador móvil de 360 px con conexión 4G.

@@ -291,6 +291,29 @@ describe("RF-42 — botón Comprar visible para toda publicación ACTIVE con sto
     ).not.toBeInTheDocument();
   });
 
+  it("responde 404 a quien la tiene en favoritos si fue rechazada por moderación (CA-07)", async () => {
+    mocks.obtenerPublicacionPorId.mockResolvedValue({
+      ...publicacionActiva,
+      status: "REJECTED",
+    });
+    mocks.esFavorito.mockResolvedValue(true);
+
+    await expect(renderizarPagina()).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("muestra una rechazada a su dueño sin ofrecer Editar (RF-08)", async () => {
+    mocks.obtenerPublicacionPorId.mockResolvedValue({
+      ...publicacionActiva,
+      status: "REJECTED",
+    });
+    mocks.getSession.mockResolvedValue({ user: { id: "owner-1" } });
+
+    await renderizarPagina();
+
+    expect(screen.getByText("Publicación rechazada por moderación")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Editar" })).not.toBeInTheDocument();
+  });
+
   it("oculta el botón Comprar cuando la publicación no está ACTIVE", async () => {
     mocks.obtenerPublicacionPorId.mockResolvedValue({
       ...publicacionActiva,

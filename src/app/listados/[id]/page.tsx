@@ -90,14 +90,17 @@ export default async function DetallePublicacionPage({
   const favoritoInicial = session
     ? await esFavorito(session.user.id, publicacion.id)
     : false;
-  // Una publicación pausada o rechazada solo es visible para su dueño, un
-  // administrador o un usuario que la tenga en favoritos; el resto recibe 404
-  // (RF-13 / CA-07).
+  // Una publicación no activa solo la ven su dueño y los administradores.
+  // Quien la tiene en favoritos también ve una pausada o vendida (recibió el
+  // aviso del cambio de estado), pero NUNCA una rechazada por moderación:
+  // deja de ser visible para el resto de los usuarios (CA-07). El resto
+  // recibe 404 (RF-13).
+  const visibleParaFavorito = favoritoInicial && publicacion.status !== "REJECTED";
   if (
     publicacion.status !== "ACTIVE" &&
     !esDueno &&
     !esAdmin &&
-    !favoritoInicial
+    !visibleParaFavorito
   ) {
     notFound();
   }
@@ -221,10 +224,13 @@ export default async function DetallePublicacionPage({
                     titulo="Esta es tu publicación"
                     accion={
                       <div className="flex flex-wrap gap-2">
-                        <BotonEnlace href={`/publicar?id=${publicacion.id}`} variante="secundario">
-                          <Pencil className="size-4" aria-hidden="true" />
-                          Editar
-                        </BotonEnlace>
+                        {/* RF-08: vendidas y rechazadas no se editan. */}
+                        {publicacion.status === "ACTIVE" || publicacion.status === "PAUSED" ? (
+                          <BotonEnlace href={`/publicar?id=${publicacion.id}`} variante="secundario">
+                            <Pencil className="size-4" aria-hidden="true" />
+                            Editar
+                          </BotonEnlace>
+                        ) : null}
                         <BotonEliminarPublicacion listingId={publicacion.id} />
                       </div>
                     }
