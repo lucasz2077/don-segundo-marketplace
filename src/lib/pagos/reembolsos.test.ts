@@ -26,6 +26,7 @@ vi.mock("mercadopago", () => ({
 }));
 
 vi.mock("@/lib/pagos/mp", () => ({
+  clienteMpApp: () => ({ accessToken: "APP_USR-APP" }),
   clienteMpVendedor: (cuenta: { accessToken: string }) => ({ accessToken: cuenta.accessToken }),
 }));
 
@@ -66,6 +67,40 @@ describe("reembolsarCompra", () => {
       requestOptions: { idempotencyKey: "devolucion-sol-1" },
     });
     expect(resultado).toEqual({ mpRefundId: 555 });
+  });
+
+  it("si MP no encuentra el pago con el token del vendedor, reintenta con el de la app", async () => {
+    mocks.refundTotal
+      .mockRejectedValueOnce(Object.assign(new Error("Payment not found"), { status: 404 }))
+      .mockResolvedValueOnce({ id: 556 });
+
+    const resultado = await reembolsarCompra({
+      compra: compraAprobada,
+      accessTokenVendedor: "APP_USR-VENDEDOR",
+      idempotencia: "devolucion-sol-1",
+    });
+
+    expect(resultado).toEqual({ mpRefundId: 556 });
+    expect(mocks.refundCliente).toHaveBeenNthCalledWith(1, { accessToken: "APP_USR-VENDEDOR" });
+    expect(mocks.refundCliente).toHaveBeenNthCalledWith(2, { accessToken: "APP_USR-APP" });
+    // Misma clave en los dos intentos: MP nunca duplica el reembolso.
+    expect(mocks.refundTotal).toHaveBeenNthCalledWith(2, {
+      payment_id: "98765432",
+      requestOptions: { idempotencyKey: "devolucion-sol-1" },
+    });
+  });
+
+  it("un error transitorio no se reintenta con otra credencial", async () => {
+    mocks.refundTotal.mockRejectedValue(Object.assign(new Error("Service Unavailable"), { status: 503 }));
+
+    await expect(
+      reembolsarCompra({
+        compra: compraAprobada,
+        accessTokenVendedor: "APP_USR-VENDEDOR",
+        idempotencia: "devolucion-sol-1",
+      })
+    ).rejects.toThrow(ReembolsoFallidoError);
+    expect(mocks.refundTotal).toHaveBeenCalledTimes(1);
   });
 
   it("lanza ReembolsoFallidoError cuando MP rechaza el refund", async () => {
