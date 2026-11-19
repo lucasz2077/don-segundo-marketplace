@@ -42,7 +42,7 @@ npm run typecheck            # next typegen + tsc --noEmit (los *.test.* quedan 
 
 **Tests:** config en `vitest.config.mts` (alias `@` → `src`, jsdom, `globals`) con setup en `src/test/setup.ts` (matchers de jest-dom y un `IntersectionObserver` inerte, que jsdom no trae). El CI (`.github/workflows/ci.yml`) corre `prisma validate`, lint, tests y build; el build ya incluye el chequeo de tipos de la app. Nunca saltear ni borrar tests para que pasen.
 
-Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMITENTE`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
+Variables de entorno: ver `.env.example` (`DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `BETTER_AUTH_SECRET`, `CLOUDINARY_*`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMITENTE`, `NEXT_SENTRY_DSN`; opcional `DIRECT_URL`; `MP_MODO_PRUEBA=true` mientras se opere con cuentas de prueba de MP).
 
 ## Estructura
 

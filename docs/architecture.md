@@ -291,7 +291,7 @@ OAuth de vendedores (RF-47..RF-48): `/perfil` → `GET /api/pagos/oauth/iniciar`
 - **Supabase:** base de datos con migraciones aplicadas por CI (prisma migrate) en staging y producción; RLS habilitado; backups automáticos.
 - **Cloudinary:** presets de subida firmados; ambiente de pruebas y producción con credenciales separadas.
 - **CI/CD:** pipeline que ejecuta lint, typecheck, tests y `prisma migrate deploy` en cada push a la rama principal.
-- **Observabilidad:** Sentry para errores en frontend y API; logs estructurados para el backend.
+- **Observabilidad:** Sentry para errores en frontend y API (`src/instrumentation.ts`, `src/instrumentation-client.ts`, configuración en `src/lib/observabilidad.ts`; DSN en `NEXT_SENTRY_DSN`, expuesto al cliente por `next.config.ts`); logs con códigos en mayúsculas (`EMAIL_FALLIDO`, `REEMBOLSO_FALLIDO`...) en Vercel.
 
 ### Migración futura a VPS
 

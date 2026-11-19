@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import "./globals.css";
 
@@ -16,6 +17,8 @@ type ErrorGlobalProps = {
 export default function ErrorGlobal({ error, retry }: ErrorGlobalProps) {
   useEffect(() => {
     console.error(error);
+    // RNF-14: el error queda registrado en Sentry con su digest.
+    Sentry.captureException(error);
   }, [error]);
 
   return (

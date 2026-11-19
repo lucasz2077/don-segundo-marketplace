@@ -46,7 +46,7 @@
 - **RF-08 — Editar publicación:** el vendedor puede editar sus publicaciones activas o pausadas. Las vendidas, rechazadas o eliminadas no se editan: la API responde 409 `NO_EDITABLE` (o 404 si ya tienen `deletedAt`) y la interfaz no ofrece la acción.
 - **RF-09 — Eliminar publicación:** el vendedor puede eliminar (soft delete) sus publicaciones.
 - **RF-10 — Gestionar publicaciones propias:** el vendedor tiene un panel para ver sus publicaciones activas, pausadas y vendidas.
-- **RF-11 — Estado de publicación:** cada publicación tiene un estado (activa, pausada, vendida, rechazada, eliminada). El vendedor puede marcarla como vendida.
+- **RF-11 — Estado de publicación (modificado, decisión del dueño D8):** cada publicación tiene un estado (activa, pausada, vendida, rechazada, eliminada). El vendedor NO la marca como vendida a mano: como toda venta pasa por la plataforma (RF-42), el estado vendida lo asigna el sistema cuando se paga la última unidad (RF-45). Para dejar de ofrecerla, el vendedor puede pausarla (la reanuda cuando quiera) o finalizarla con "Eliminar" (soft delete, RF-09).
 - **RF-12 — Categorías del dominio:** las publicaciones se clasifican en: Maquinaria agrícola, Herramientas y equipos, Insumos, Hacienda y ganado, Repuestos, Servicios rurales. Cada categoría con subcategorías.
 - **RF-13 — Moderación básica:** los usuarios pueden reportar una publicación. Un administrador puede pausar o eliminar publicaciones que violen las normas.
 
@@ -140,13 +140,13 @@
 
 ### Accesibilidad y SEO
 
-- **RNF-11 — Accesibilidad:** cumplimiento de WCAG 2.1 nivel AA en los flujos principales (contraste, foco visible, etiquetas de formularios, semántica).
+- **RNF-11 — Accesibilidad:** cumplimiento de WCAG 2.1 nivel AA en los flujos principales (contraste, foco visible, etiquetas de formularios, semántica). Verificación (19/11/2026): auditoría automática con axe-core (reglas WCAG 2.0 A/AA y 2.1 AA) a 360 px sobre 22 páginas (inicio, listado con y sin filtros, detalle, vendedor, categoría, ingreso, registro, recuperar contraseña, 404 y todas las de Mi cuenta, publicar, compras, favoritos, mensajes y notificaciones con sesión iniciada): 0 violaciones y sin scroll horizontal (RNF-09). Una revisión manual con lector de pantalla queda pendiente.
 - **RNF-12 — SEO:** las publicaciones y categorías tienen metadatos, Open Graph y URLs limpias e indexables por buscadores. Implementación: `metadataBase` y plantilla de títulos ("Tractor usado — Don Segundo") en el layout; imagen por defecto para compartir (`app/opengraph-image.tsx`); en el detalle, descripción con precio y ubicación, URL canónica y la primera foto recortada a 1200×630 (`src/lib/seo.ts`); categorías y vendedores con título, descripción y Open Graph propios; `sitemap.xml` (inicio, listado, categorías y publicaciones activas) y `robots.txt` que excluye las páginas privadas y la API. Las publicaciones no activas y las páginas de contraseña no se indexan.
 
 ### Operación
 
 - **RNF-13 — Disponibilidad:** objetivo de 99.5 % de disponibilidad en el stack Vercel + Supabase.
-- **RNF-14 — Logging y observabilidad:** logs estructurados y monitoreo de errores desde el día 1 (p. ej. Sentry).
+- **RNF-14 — Logging y observabilidad:** logs estructurados y monitoreo de errores desde el día 1 (p. ej. Sentry). Implementación: Sentry (plan gratuito) con `@sentry/nextjs`; DSN en `NEXT_SENTRY_DSN`. Captura errores del servidor (`onRequestError` en `src/instrumentation.ts`), del navegador (`src/instrumentation-client.ts`) y de las pantallas de error (`error.tsx`, `global-error.tsx`). Sin trazas de rendimiento y sin datos personales (`sendDefaultPii: false`). Un admin puede verificar la conexión con `GET /api/admin/probar-errores`.
 
 ## 4. User stories principales
 
@@ -161,7 +161,7 @@
 | US-07 | comprador | guardar publicaciones en favoritos | comparar opciones antes de decidir |
 | US-08 | usuario | reportar una publicación inapropiada | mantener la plataforma confiable |
 | US-09 | administrador | pausar o eliminar publicaciones que violan normas | moderar el contenido |
-| US-10 | vendedor | marcar mi publicación como vendida | no recibir más contactos por algo vendido |
+| US-10 | vendedor | pausar o finalizar mi publicación (la marca de vendida la pone la plataforma al cobrar) | no recibir más contactos por algo que ya no ofrezco |
 | US-11 | comprador | chatear con el vendedor dentro de la plataforma | cerrar el trato sin depender de canales externos |
 | US-12 | vendedor | ver mis conversaciones agrupadas por publicación y saber cuáles no leí | responder rápido y no perder oportunidades |
 | US-13 | comprador | ver el perfil público del vendedor antes de contactar | evaluar su confiabilidad |
