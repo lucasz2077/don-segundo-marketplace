@@ -14,8 +14,8 @@ import { getSession } from "@/lib/auth/session";
 import {
   marcarNotificacionesLeidas,
   obtenerNotificaciones,
+  destinoNotificacion,
   parsearPayload,
-  type NotificacionPayload,
 } from "@/lib/notificaciones";
 
 import { PaginaCuenta } from "@/components/cuenta/pagina-cuenta";
@@ -52,80 +52,18 @@ type Notificacion = Awaited<
 >["notificaciones"][number];
 
 /**
- * Destino de una notificación GENERAL según el evento de su payload: lleva a
- * la pantalla donde el usuario actúa, no a la publicación. Una devolución
- * PENDIENTE le llega al vendedor, que la resuelve en /perfil/devoluciones
- * (RF-49); las resueltas le llegan al comprador, que las ve en /compras.
- * Devuelve null para los eventos sin pantalla propia.
- */
-function destinoEventoGeneral(
-  payload: NotificacionPayload | null
-): { href: string; etiqueta: string } | null {
-  if (!payload || !("evento" in payload)) return null;
-  switch (payload.evento) {
-    case "devolucion":
-      return payload.estado === "PENDIENTE"
-        ? { href: "/perfil/devoluciones", etiqueta: "Revisar solicitud" }
-        : { href: "/compras", etiqueta: "Ver mis compras" };
-    case "verificacion":
-      return { href: "/perfil/verificacion", etiqueta: "Ver verificación" };
-    case "vinculacion_mp":
-      return { href: "/perfil", etiqueta: "Volver a vincular Mercado Pago" };
-    default:
-      return null;
-  }
-}
-
-/**
- * Define el enlace de acción de una notificación según su tipo. Las de
- * mensaje nuevo llevan al chat de la conversación; las de cambios en
- * publicaciones propias o favoritas llevan al detalle del listado; las
- * GENERAL con evento conocido, a la pantalla donde se actúa. Si el payload no
- * se puede parsear, se renderiza sin enlace (nunca lanza).
+ * Enlace de acción de una notificación: la pantalla donde se actúa
+ * (`destinoNotificacion`, compartida con los mails). Si no hay una pantalla
+ * específica y la notificación tiene publicación, lleva a su detalle. Si el
+ * payload no se puede parsear, se renderiza sin enlace (nunca lanza).
  */
 function EnlaceNotificacion({ notificacion }: { notificacion: Notificacion }) {
-  const payload = parsearPayload(notificacion.tipo, notificacion.payload);
+  const destino = destinoNotificacion({
+    tipo: notificacion.tipo,
+    payload: parsearPayload(notificacion.tipo, notificacion.payload),
+    listingId: notificacion.listingId,
+  });
 
-  const esTipoMensaje = notificacion.tipo === "MENSAJE_NUEVO";
-  const esTipoPublicacion =
-    notificacion.tipo === "FAVORITO_CAMBIO_PRECIO" ||
-    notificacion.tipo === "FAVORITO_CAMBIO_ESTADO" ||
-    notificacion.tipo === "ESTADO_PUBLICACION";
-
-  const payloadMensaje = esTipoMensaje
-    ? (payload as Extract<NotificacionPayload, { conversationId: string }> | null)
-    : null;
-  const payloadPublicacion = esTipoPublicacion
-    ? (payload as Extract<NotificacionPayload, { listingId: string }> | null)
-    : null;
-
-  if (payloadMensaje) {
-    return (
-      <Link
-        href={`/mensajes/${payloadMensaje.conversationId}`}
-        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
-      >
-        Ver conversación
-      </Link>
-    );
-  }
-
-  // Para los tipos de publicación se usa el listingId del payload, con
-  // fallback a la relación listing para notificaciones legadas.
-  const listingId = payloadPublicacion?.listingId ?? notificacion.listingId;
-  if (esTipoPublicacion && listingId) {
-    return (
-      <Link
-        href={`/listados/${listingId}`}
-        className="mt-1 inline-flex min-h-9 items-center text-sm font-semibold text-brand-700 hover:underline"
-      >
-        Ver publicación
-      </Link>
-    );
-  }
-
-  const destino =
-    notificacion.tipo === "GENERAL" ? destinoEventoGeneral(payload) : null;
   if (destino) {
     return (
       <Link

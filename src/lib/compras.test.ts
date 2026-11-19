@@ -288,6 +288,49 @@ describe("aprobarPagoCompra — carrera sin stock (D4)", () => {
   });
 });
 
+describe("aprobarPagoCompra — avisos de venta y compra (RF-23, RF-45)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updateManyCompra.mockResolvedValue({ count: 1 });
+    mocks.updateManyListing.mockResolvedValue({ count: 1 });
+    mocks.findUniqueCompra.mockResolvedValue(compraPendiente);
+    mocks.findUniqueListing.mockResolvedValue({ stock: 2 });
+    mocks.updateCompra.mockResolvedValue({});
+    mocks.crearNotificacion.mockResolvedValue({ id: "n" });
+  });
+
+  it("avisa la venta al vendedor y confirma la compra al comprador", async () => {
+    await aprobarPagoCompra({ externalReference: "compra-1", pago: pagoAprobado });
+
+    expect(mocks.crearNotificacion).toHaveBeenCalledWith(
+      "vendedor-1",
+      "l1",
+      "Pago recibido",
+      expect.stringContaining("1500.50 ARS"),
+      "GENERAL",
+      expect.objectContaining({ evento: "pago_aprobado", compraId: "compra-1" })
+    );
+    expect(mocks.crearNotificacion).toHaveBeenCalledWith(
+      "comprador-1",
+      "l1",
+      "Compra confirmada",
+      expect.stringContaining('"Tractor usado" por 1500.50 ARS'),
+      "GENERAL",
+      expect.objectContaining({ evento: "compra_confirmada", compraId: "compra-1", monto: "1500.50" })
+    );
+  });
+
+  it("un fallo en la confirmación al comprador no revierte la aprobación", async () => {
+    mocks.crearNotificacion
+      .mockResolvedValueOnce({ id: "n" })
+      .mockRejectedValueOnce(new Error("base caída"));
+
+    await expect(
+      aprobarPagoCompra({ externalReference: "compra-1", pago: pagoAprobado })
+    ).resolves.toEqual(expect.objectContaining({ procesada: true, sinStock: false }));
+  });
+});
+
 describe("procesarNotificacionPago (RF-43, RNF-16)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
